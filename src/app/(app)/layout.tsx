@@ -7,6 +7,7 @@ import { AppNav } from "@/components/app-nav";
 import { NotificationBell } from "@/components/notification-bell";
 import { SignOutButton } from "@/components/sign-out-button";
 import { Logo } from "@/components/logo";
+import { SidebarPanel } from "@/components/sidebar-panel";
 import { AnimatedThemeToggle } from "@/components/ui/animated-theme-toggle";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -17,12 +18,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-dvh bg-paper md:flex">
       {/* Desktop sidebar */}
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-gray-200 bg-surface md:flex 2xl:w-64">
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-gray-200 bg-surface md:sticky md:top-0 md:flex md:h-dvh 2xl:w-64">
         <div className="flex h-16 items-center px-5">
           <Logo />
         </div>
         <AppNav variant="sidebar" />
-        <div className="mt-auto border-t border-gray-100 p-4">
+        <div className="min-h-0 flex-1 overflow-y-auto pb-3">
+          <SidebarPanel account={account} />
+        </div>
+        <div className="border-t border-gray-100 p-4">
           <p className="truncate text-sm font-semibold">{account.restaurantName}</p>
           <SignOutButton className="mt-1 text-sm text-gray-500 hover:text-ink" />
         </div>
