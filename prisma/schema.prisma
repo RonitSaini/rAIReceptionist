@@ -1,0 +1,330 @@
+// CallCover — Prisma schema
+// All DateTime columns are stored in UTC. Display in Account.timeZone.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Auth ----------
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  passwordHash  String? // null for Google-only users
+  googleId      String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accountId     String?
+  account       Account?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([accountId])
+}
+
+// ---------- Restaurant account ----------
+
+enum SubscriptionStatus {
+  none
+  trialing
+  active
+  past_due
+  cancelled
+}
+
+model Account {
+  id             String  @id @default(cuid())
+  restaurantName String
+  ownerName      String?
+  cellPhone      String?
+  addressLine1   String?
+  addressLine2   String?
+  city           String?
+  state          String?
+  zip            String?
+  timeZone       String  @default("America/New_York")
+  cuisineType    String?
+  priceRange     String? // "$" | "$$" | "$$$" | "$$$$"
+
+  // Integrations (filled in later phases)
+  twilioNumber         String?            @unique
+  twilioNumberSid      String?
+  retellAgentId        String?
+  retellLlmId          String?
+  stripeCustomerId     String?            @unique
+  stripeSubscriptionId String?
+  subscriptionStatus   SubscriptionStatus @default(none)
+
+  // Voice + greeting
+  voiceId  String  @default("11labs-Adrian")
+  greeting String?
+  hostName String  @default("Alex")
+
+  // Policies
+  canQuotePrices       Boolean  @default(true)
+  largePartyThreshold  Int      @default(8)
+  largePartyDepositFee Decimal? @db.Decimal(10, 2)
+  escalatesToManager   Boolean  @default(false)
+  escalationTypes      String[] @default([])
+
+  // Reservation book
+  tableTurnMinutes           Int  @default(90)
+  reservationIntervalMinutes Int  @default(30)
+  maxCoversPerSlot           Int?
+  seatingCapacity            Int?
+
+  // Takeout + delivery
+  takesTakeoutOrders  Boolean  @default(true)
+  offersDelivery      Boolean  @default(false)
+  deliveryZip         String?
+  deliveryRadiusMiles Decimal? @db.Decimal(5, 1)
+
+  // Geocoded restaurant location (for delivery-radius checks)
+  latitude       Float?
+  longitude      Float?
+  agentSyncedAt  DateTime?
+  agentSyncError String?
+
+  // App state
+  lastSeenAt     DateTime?
+  onboardingStep Int       @default(2) // next step to complete; 9 = finished
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  users               User[]
+  notifications       Notification[]
+  businessHours       BusinessHours[]
+  managerAvailability ManagerAvailability[]
+  menuItems           MenuItem[]
+  reservations        Reservation[]
+  takeoutOrders       TakeoutOrder[]
+  calls               Call[]
+  googleCalendar      GoogleCalendarConnection?
+}
+
+// ---------- Notifications (in-app) ----------
+
+enum NotificationType {
+  reservation
+  takeout
+  waitlist
+  message
+  escalation
+  missed_call
+  system
+}
+
+enum NotificationPriority {
+  normal
+  urgent
+}
+
+model Notification {
+  id             String               @id @default(cuid())
+  accountId      String
+  account        Account              @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  type           NotificationType
+  priority       NotificationPriority @default(normal)
+  title          String
+  body           String
+  reservationId  String?
+  reservation    Reservation?         @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  takeoutOrderId String?
+  takeoutOrder   TakeoutOrder?        @relation(fields: [takeoutOrderId], references: [id], onDelete: SetNull)
+  callId         String?
+  call           Call?                @relation(fields: [callId], references: [id], onDelete: SetNull)
+  readAt         DateTime?
+  acknowledgedAt DateTime?
+  createdAt      DateTime             @default(now())
+
+  @@index([accountId, readAt])
+  @@index([accountId, createdAt])
+}
+
+// ---------- Hours ----------
+
+model BusinessHours {
+  id         String  @id @default(cuid())
+  accountId  String
+  account    Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  dayOfWeek  Int // 0 = Sunday ... 6 = Saturday
+  periodName String // "Lunch", "Dinner", "All day"
+  open       String // "HH:MM" 24h, restaurant local time
+  close      String // "HH:MM" 24h, restaurant local time
+  isClosed   Boolean @default(false)
+  sortOrder  Int     @default(0)
+
+  @@index([accountId, dayOfWeek])
+}
+
+model ManagerAvailability {
+  id        String  @id @default(cuid())
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  dayOfWeek Int
+  start     String // "HH:MM"
+  end       String // "HH:MM"
+
+  @@index([accountId, dayOfWeek])
+}
+
+// ---------- Menu ----------
+
+model MenuItem {
+  id          String   @id @default(cuid())
+  accountId   String
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  name        String
+  category    String?
+  price       Decimal? @db.Decimal(10, 2)
+  description String?
+  dietaryTags String[] @default([])
+  enabled     Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([accountId])
+}
+
+// ---------- Reservations ----------
+
+enum ReservationStatus {
+  booked
+  confirmed
+  seated
+  completed
+  cancelled
+  no_show
+}
+
+enum RecordSource {
+  ai
+  manual
+}
+
+model Reservation {
+  id                String            @id @default(cuid())
+  accountId         String
+  account           Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  guestName         String
+  guestPhone        String?
+  partySize         Int
+  seatingPreference String?
+  specialRequests   String?
+  startTime         DateTime // UTC
+  endTime           DateTime // UTC
+  status            ReservationStatus @default(booked)
+  isWaitlist        Boolean           @default(false)
+  source            RecordSource      @default(manual)
+  googleEventId     String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  notifications Notification[]
+  calls         Call[]
+
+  @@index([accountId, startTime])
+  @@index([accountId, status])
+}
+
+// ---------- Takeout ----------
+
+enum TakeoutStatus {
+  new
+  confirmed
+  ready
+  picked_up
+  cancelled
+}
+
+model TakeoutOrder {
+  id              String        @id @default(cuid())
+  accountId       String
+  account         Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  guestName       String
+  guestPhone      String?
+  items           String // free text, as dictated by the caller
+  notes           String?
+  pickupTime      DateTime // UTC
+  isDelivery      Boolean       @default(false)
+  deliveryAddress String?
+  status          TakeoutStatus @default(new)
+  source          RecordSource  @default(manual)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  notifications Notification[]
+  calls         Call[]
+
+  @@index([accountId, pickupTime])
+  @@index([accountId, status])
+}
+
+// ---------- Calls ----------
+
+enum CallClassification {
+  reservation
+  takeout
+  question
+  waitlist
+  message
+  escalation
+  missed
+  other
+}
+
+model Call {
+  id                  String             @id @default(cuid())
+  accountId           String
+  account             Account            @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  twilioCallSid       String?            @unique
+  retellCallId        String?            @unique
+  callerPhone         String?
+  callerName          String?
+  direction           String             @default("inbound")
+  callStatus          String             @default("ongoing") // registered | ongoing | ended | error
+  isTest              Boolean            @default(false)
+  startedAt           DateTime
+  endedAt             DateTime?
+  duration            Int? // seconds
+  classification      CallClassification @default(other)
+  recordingUrl        String?
+  publicLogUrl        String?
+  transcript          String?
+  summary             String?
+  sentiment           String? // Positive | Neutral | Negative | Unknown
+  disconnectionReason String?
+  messageText         String? // message left for the restaurant (take_message)
+  escalationReason    String? // set when the AI escalated to a manager
+  callbackRequested   Boolean            @default(false)
+  reservationId       String?
+  reservation         Reservation?       @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  takeoutOrderId      String?
+  takeoutOrder        TakeoutOrder?      @relation(fields: [takeoutOrderId], references: [id], onDelete: SetNull)
+  createdAt           DateTime           @default(now())
+
+  notifications Notification[]
+
+  @@index([accountId, startedAt])
+}
+
+// ---------- Google Calendar (Phase 5) ----------
+
+model GoogleCalendarConnection {
+  id           String   @id @default(cuid())
+  accountId    String   @unique
+  account      Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  calendarId   String   @default("primary")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
