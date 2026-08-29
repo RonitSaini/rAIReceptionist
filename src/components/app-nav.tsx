@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { NavButton } from "@/components/ui/nav-button";
 
 const ITEMS = [
   { href: "/dashboard", label: "Home", icon: "🏠" },
@@ -19,17 +20,15 @@ export function AppNav({ variant }: { variant: "sidebar" | "tabs" }) {
 
   if (variant === "sidebar") {
     return (
-      <nav className="flex flex-col gap-1 px-3 py-2">
+      <nav className="flex flex-col gap-2 px-3 py-2">
         {SIDEBAR_ITEMS.map((it) => (
-          <Link key={it.href} href={it.href} className={`flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold ${isActive(it.href) ? "bg-brand-50 text-brand-800" : "text-gray-700 hover:bg-gray-100"}`}>
-            <span aria-hidden="true">{it.icon}</span>
-            {it.label}
-          </Link>
+          <NavButton key={it.href} href={it.href} label={it.label} icon={it.icon} active={isActive(it.href)} />
         ))}
       </nav>
     );
   }
 
+  // Mobile bottom tabs: no hover on touch, so these stay simple.
   return (
     <div className="grid grid-cols-5">
       {ITEMS.map((it) => (
