@@ -12,7 +12,7 @@ type Size = "md" | "lg" | "sm";
 
 const variantClass: Record<Variant, string> = {
   primary: "bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800 disabled:bg-brand-300",
-  secondary: "bg-white text-ink border border-gray-300 hover:bg-gray-50 active:bg-gray-100 disabled:text-gray-400",
+  secondary: "bg-surface text-ink border border-gray-300 hover:bg-gray-50 active:bg-gray-100 disabled:text-gray-400",
   danger: "bg-red-600 text-white hover:bg-red-700 active:bg-red-800 disabled:bg-red-300",
   ghost: "bg-transparent text-brand-700 hover:bg-brand-50 active:bg-brand-100 disabled:text-gray-400",
 };
@@ -48,7 +48,7 @@ export function LinkButton({
 // ---------- Form controls ----------
 
 export const inputClass =
-  "w-full min-h-12 rounded-xl border border-gray-300 bg-white px-4 text-base text-ink placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:bg-gray-100";
+  "w-full min-h-12 rounded-xl border border-gray-300 bg-surface px-4 text-base text-ink placeholder:text-gray-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-200 disabled:bg-gray-100";
 
 export function Input({ className, ...props }: ComponentProps<"input">) {
   return <input className={cx(inputClass, className)} {...props} />;
@@ -76,7 +76,7 @@ export function Field({ label, hint, htmlFor, children, className }: { label: st
 
 export function Toggle({ label, description, name, defaultChecked, checked, onChange }: { label: string; description?: string; name?: string; defaultChecked?: boolean; checked?: boolean; onChange?: (v: boolean) => void }) {
   return (
-    <label className="flex min-h-14 cursor-pointer items-center justify-between gap-4 rounded-xl border border-gray-200 bg-white px-4 py-3">
+    <label className="flex min-h-14 cursor-pointer items-center justify-between gap-4 rounded-xl border border-gray-200 bg-surface px-4 py-3">
       <span>
         <span className="block font-semibold">{label}</span>
         {description ? <span className="block text-sm text-gray-500">{description}</span> : null}
@@ -89,14 +89,14 @@ export function Toggle({ label, description, name, defaultChecked, checked, onCh
         onChange={onChange ? (e) => onChange(e.target.checked) : undefined}
         className="peer sr-only"
       />
-      <span className="relative h-7 w-12 shrink-0 rounded-full bg-gray-300 transition-colors peer-checked:bg-brand-600 after:absolute after:left-0.5 after:top-0.5 after:h-6 after:w-6 after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-5" />
+      <span className="relative h-7 w-12 shrink-0 rounded-full bg-gray-300 transition-colors peer-checked:bg-brand-600 after:absolute after:left-0.5 after:top-0.5 after:h-6 after:w-6 after:rounded-full after:bg-surface after:transition-transform peer-checked:after:translate-x-5" />
     </label>
   );
 }
 
 export function Checkbox({ label, name, value, defaultChecked }: { label: string; name: string; value: string; defaultChecked?: boolean }) {
   return (
-    <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-white px-4 py-2">
+    <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-surface px-4 py-2">
       <input type="checkbox" name={name} value={value} defaultChecked={defaultChecked} className="h-5 w-5 rounded border-gray-300 accent-brand-600" />
       <span className="text-base">{label}</span>
     </label>
@@ -107,7 +107,7 @@ export function Checkbox({ label, name, value, defaultChecked }: { label: string
 
 export function Card({ children, className, title, action }: { children: ReactNode; className?: string; title?: string; action?: ReactNode }) {
   return (
-    <section className={cx("rounded-2xl border border-gray-200 bg-white p-4 shadow-sm", className)}>
+    <section className={cx("rounded-2xl border border-gray-200 bg-surface p-4 shadow-sm", className)}>
       {title || action ? (
         <div className="mb-3 flex items-center justify-between gap-2">
           {title ? <h2 className="text-base font-bold">{title}</h2> : <span />}
@@ -133,7 +133,7 @@ export function PageHeader({ title, subtitle, action }: { title: string; subtitl
 
 export function EmptyState({ title, body, action }: { title: string; body?: string; action?: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-dashed border-gray-300 bg-white/60 px-4 py-10 text-center">
+    <div className="rounded-2xl border border-dashed border-gray-300 bg-surface/60 px-4 py-10 text-center">
       <p className="font-semibold">{title}</p>
       {body ? <p className="mt-1 text-sm text-gray-500">{body}</p> : null}
       {action ? <div className="mt-4 flex justify-center">{action}</div> : null}

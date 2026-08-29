@@ -23,7 +23,7 @@ export function SignupForm({ googleEnabled }: { googleEnabled: boolean }) {
 
   return (
     <div className="space-y-4">
-      <form ref={formRef} action={action} className="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+      <form ref={formRef} action={action} className="space-y-4 rounded-2xl border border-gray-200 bg-surface p-5 shadow-sm">
         {state && !state.ok && state.error ? <Alert>{state.error}</Alert> : null}
         {state?.ok ? <Alert kind="success">Account created — signing you in…</Alert> : null}
         <Field label="Restaurant name" htmlFor="restaurantName">

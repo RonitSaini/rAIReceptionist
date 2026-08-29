@@ -101,7 +101,7 @@ export function VoiceForm({ account, mode }: { account: AccountView; mode: FormM
             const sample = samples[v.id];
             const playable = sample?.previewUrl ? true : canSpeak;
             return (
-              <div key={v.id} className={`flex items-center justify-between gap-3 rounded-2xl border-2 p-4 ${selected ? "border-brand-600 bg-brand-50" : "border-gray-200 bg-white"}`}>
+              <div key={v.id} className={`flex items-center justify-between gap-3 rounded-2xl border-2 p-4 ${selected ? "border-brand-600 bg-brand-50" : "border-gray-200 bg-surface"}`}>
                 <button type="button" onClick={() => setVoiceId(v.id)} className="flex-1 text-left">
                   <span className="block font-semibold">{v.name}</span>
                   <span className="block text-sm text-gray-500">{v.description}</span>
@@ -124,7 +124,7 @@ export function VoiceForm({ account, mode }: { account: AccountView; mode: FormM
         ) : null}
 
         {all.length > 0 ? (
-          <div className="rounded-2xl border border-gray-200 bg-white">
+          <div className="rounded-2xl border border-gray-200 bg-surface">
             <button type="button" onClick={() => setBrowse((b) => !b)} className="flex min-h-12 w-full items-center justify-between px-4 text-left font-semibold">
               <span>Browse all {all.length} voices</span>
               <span aria-hidden="true">{browse ? "▴" : "▾"}</span>

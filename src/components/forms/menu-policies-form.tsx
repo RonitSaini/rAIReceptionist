@@ -37,7 +37,7 @@ export function MenuPoliciesForm({ account, menu, mode }: { account: AccountView
         <h2 className="text-base font-bold">Menu</h2>
         <p className="text-sm text-gray-500">The AI only ever mentions items listed here. It never invents an item or a price.</p>
         {rows.map((r) => (
-          <div key={r.key} className="rounded-2xl border border-gray-200 bg-white p-3">
+          <div key={r.key} className="rounded-2xl border border-gray-200 bg-surface p-3">
             <div className="grid grid-cols-12 gap-2">
               <input aria-label="Item name" value={r.name} onChange={(e) => update(r.key, { name: e.target.value })} placeholder="Margherita pizza" className={`${inputClass} col-span-8 min-h-11`} />
               <div className="relative col-span-4">

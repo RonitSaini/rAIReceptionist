@@ -17,7 +17,7 @@ export function ReservationSettingsForm({ account, mode, googleConnected = false
           <p className="font-semibold text-brand-900">Built-in book (default)</p>
           <p className="text-sm text-brand-800">Reservations live in CallCover. You manage them on the Reservations page.</p>
         </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-4">
+        <div className="rounded-2xl border border-gray-200 bg-surface p-4">
           <p className="font-semibold">Also sync to Google Calendar</p>
           <p className="text-sm text-gray-500">Optional. Reservations also appear on your calendar, and busy times block availability. The built-in book stays the source of truth.</p>
           <Button type="button" variant="secondary" className="mt-3" disabled title="Available in a later release">

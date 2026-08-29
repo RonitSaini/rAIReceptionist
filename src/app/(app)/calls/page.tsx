@@ -27,11 +27,11 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
       <PageHeader title="Calls" subtitle={account.twilioNumber ? `${account.hostName} is answering ${formatUsPhone(account.twilioNumber)}` : "Your AI host's call history"} />
 
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-        <Link href="/calls" className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${!filter ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 bg-white text-gray-700"}`}>
+        <Link href="/calls" className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${!filter ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 bg-surface text-gray-700"}`}>
           All
         </Link>
         {CLASSIFICATIONS.map((c) => (
-          <Link key={c} href={`/calls?type=${c}`} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${filter === c ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 bg-white text-gray-700"}`}>
+          <Link key={c} href={`/calls?type=${c}`} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${filter === c ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 bg-surface text-gray-700"}`}>
             {humanize(c)}
           </Link>
         ))}
@@ -47,7 +47,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
           {calls.map((c) => {
             const live = c.callStatus === "ongoing" || c.callStatus === "registered";
             return (
-              <li key={c.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+              <li key={c.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-surface">
                 <Link href={`/calls/${c.id}`} className="block h-full p-4 hover:bg-gray-50">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge tone={classificationTone[c.classification]}>{humanize(c.classification)}</Badge>

@@ -1,6 +1,11 @@
 @import "tailwindcss";
 
+/* Class-based dark mode: <html class="dark"> (set by the theme toggle / inline script). */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
+  /* Surfaces (cards, inputs, headers). Separate from --color-white so text-white stays white in dark mode. */
+  --color-surface: #ffffff;
   --color-brand-50: #eef7f4;
   --color-brand-100: #d5ede4;
   --color-brand-200: #a9dbc8;
@@ -27,6 +32,54 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  color-scheme: light;
+}
+
+/*
+ * Dark theme: remap the design tokens the whole UI is built from. Tailwind v4 utilities reference
+ * these variables, so bg-gray-100 / text-gray-500 / border-gray-200 etc. flip automatically.
+ */
+.dark {
+  color-scheme: dark;
+  --color-paper: #0d1210;
+  --color-surface: #161c19;
+  --color-ink: #e8ece9;
+
+  --color-gray-50: #1c2320;
+  --color-gray-100: #222b27;
+  --color-gray-200: #2e3934;
+  --color-gray-300: #3b4842;
+  --color-gray-400: #7d8b84;
+  --color-gray-500: #9caaa3;
+  --color-gray-600: #b7c2bc;
+  --color-gray-700: #cdd5d0;
+  --color-gray-800: #e1e7e4;
+  --color-gray-900: #f1f4f2;
+
+  --color-brand-50: #10271e;
+  --color-brand-100: #153627;
+  --color-brand-200: #1b4a37;
+  --color-brand-700: #4fb08f;
+  --color-brand-800: #7fcbb0;
+  --color-brand-900: #a9dbc8;
+
+  --color-red-50: #2a1416;
+  --color-red-100: #3a1a1d;
+  --color-red-200: #5a2429;
+  --color-red-800: #fca5a5;
+  --color-green-50: #10261a;
+  --color-green-100: #143321;
+  --color-green-200: #1c4a2f;
+  --color-green-800: #86efac;
+  --color-blue-50: #101c2e;
+  --color-blue-100: #142640;
+  --color-blue-200: #1d3760;
+  --color-blue-800: #93c5fd;
+  --color-amber-100: #3a2a0c;
+  --color-amber-800: #fcd34d;
+  --color-amber-900: #fde68a;
+  --color-purple-100: #2a1a3d;
+  --color-purple-800: #d8b4fe;
 }
 
 body {
@@ -34,6 +87,36 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
   min-height: 100dvh;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Sun/moon theme toggle icon: strokes draw in/out while scaling (pathLength="1" on each path). */
+.theme-icon path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  transform-box: view-box;
+  transform-origin: 12.5px 12.5px;
+  transition: stroke-dashoffset 0.7s ease, transform 0.7s ease;
+}
+.theme-icon .sun {
+  stroke-dashoffset: 0;
+  transform: scale(1);
+}
+.theme-icon .moon {
+  stroke-dashoffset: 1;
+  transform: scale(0);
+}
+.theme-icon.is-dark .sun {
+  stroke-dashoffset: 1;
+  transform: scale(0);
+}
+.theme-icon.is-dark .moon {
+  stroke-dashoffset: 0;
+  transform: scale(1);
 }
 
 /* Make every tap target comfortable on a phone */

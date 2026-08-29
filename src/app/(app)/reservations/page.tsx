@@ -46,7 +46,7 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
         }
       />
 
-      <div className="flex items-center justify-between gap-2 rounded-2xl border border-gray-200 bg-white p-2">
+      <div className="flex items-center justify-between gap-2 rounded-2xl border border-gray-200 bg-surface p-2">
         <Link href={href(addDays(date, -step))} className="flex h-11 w-11 items-center justify-center rounded-xl hover:bg-gray-100" aria-label="Previous">
           <ArrowLeftIcon size={22} />
         </Link>
@@ -66,7 +66,7 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="inline-flex overflow-hidden rounded-xl border border-gray-300 bg-white">
+        <div className="inline-flex overflow-hidden rounded-xl border border-gray-300 bg-surface">
           <Link href={href(date, "day")} className={`px-4 py-2 text-sm font-semibold ${view === "day" ? "bg-brand-600 text-white" : "text-gray-700"}`}>
             Day
           </Link>
@@ -89,7 +89,7 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
               return (
                 <ul key={d} className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
                   {items.map((r) => (
-                    <li key={r.id} className="flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-4">
+                    <li key={r.id} className="flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-surface p-4">
                       <div className="min-w-0">
                         <Link href={`/reservations/${r.id}`} className="block font-semibold">
                           {formatTime(r.startTime, tz)} · {r.guestName}
@@ -113,7 +113,7 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
             }
             const covers = items.filter((r) => !r.isWaitlist).reduce((s, r) => s + r.partySize, 0);
             return (
-              <div key={d} className={`rounded-2xl border bg-white p-3 ${d === today ? "border-brand-400" : "border-gray-200"}`}>
+              <div key={d} className={`rounded-2xl border bg-surface p-3 ${d === today ? "border-brand-400" : "border-gray-200"}`}>
                 <Link href={href(d, "day")} className="flex items-baseline justify-between">
                   <span className="font-bold">{formatDateString(d, { weekday: "short", day: "numeric" })}</span>
                   <span className="text-xs text-gray-500">{covers} covers</span>

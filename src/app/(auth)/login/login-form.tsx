@@ -36,7 +36,7 @@ export function LoginForm({ callbackUrl, initialError, googleEnabled }: { callba
 
   return (
     <div className="space-y-4">
-      <form onSubmit={onSubmit} className="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+      <form onSubmit={onSubmit} className="space-y-4 rounded-2xl border border-gray-200 bg-surface p-5 shadow-sm">
         {error ? <Alert>{error}</Alert> : null}
         <Field label="Email" htmlFor="email">
           <Input id="email" name="email" type="email" autoComplete="email" inputMode="email" required placeholder="you@restaurant.com" />

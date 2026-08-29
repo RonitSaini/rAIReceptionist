@@ -50,14 +50,14 @@ export default async function NotificationsPage({ searchParams }: { searchParams
       />
 
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-        <Link href={filterHref(typeFilter, !unreadOnly)} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${unreadOnly ? "border-brand-600 bg-brand-600 text-white" : "border-gray-300 bg-white text-gray-700"}`}>
+        <Link href={filterHref(typeFilter, !unreadOnly)} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${unreadOnly ? "border-brand-600 bg-brand-600 text-white" : "border-gray-300 bg-surface text-gray-700"}`}>
           Unread only
         </Link>
-        <Link href={filterHref(null, unreadOnly)} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${!typeFilter ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 bg-white text-gray-700"}`}>
+        <Link href={filterHref(null, unreadOnly)} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${!typeFilter ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 bg-surface text-gray-700"}`}>
           All types
         </Link>
         {NOTIFICATION_TYPES.map((t) => (
-          <Link key={t} href={filterHref(t, unreadOnly)} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${typeFilter === t ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 bg-white text-gray-700"}`}>
+          <Link key={t} href={filterHref(t, unreadOnly)} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${typeFilter === t ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 bg-surface text-gray-700"}`}>
             {NOTIFICATION_TYPE_LABEL[t]}
           </Link>
         ))}

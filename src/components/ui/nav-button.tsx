@@ -14,7 +14,7 @@ export function NavButton({ href, label, icon, active = false, className = "" }:
     <Link
       href={href}
       aria-current={active ? "page" : undefined}
-      className={`group relative block overflow-hidden rounded-full border px-4 py-2.5 text-sm font-semibold transition-colors ${active ? "border-brand-600 bg-brand-600 text-white" : "border-gray-200 bg-white text-ink hover:border-brand-600"} ${className}`}
+      className={`group relative block overflow-hidden rounded-full border px-4 py-2.5 text-sm font-semibold transition-colors ${active ? "border-brand-600 bg-brand-600 text-white" : "border-gray-200 bg-surface text-ink hover:border-brand-600"} ${className}`}
     >
       {/* Resting label */}
       <span className={`relative z-20 flex items-center gap-3 transition-all duration-300 ${active ? "" : "group-hover:translate-x-12 group-hover:opacity-0"}`}>

@@ -15,7 +15,7 @@ export function CreateAccountForm() {
   }, [state, router]);
 
   return (
-    <form action={action} className="space-y-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+    <form action={action} className="space-y-4 rounded-2xl border border-gray-200 bg-surface p-5 shadow-sm">
       <p className="text-gray-600">Welcome! Tell us the name of your restaurant to get started.</p>
       {state && !state.ok && state.error ? <Alert>{state.error}</Alert> : null}
       <Field label="Restaurant name" htmlFor="restaurantName">

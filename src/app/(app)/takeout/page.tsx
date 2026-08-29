@@ -26,7 +26,7 @@ export default async function TakeoutPage({ searchParams }: { searchParams: Prom
   });
 
   const chip = (value: string, label: string) => (
-    <Link key={value} href={`/takeout?status=${value}`} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${filter === value ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 bg-white text-gray-700"}`}>
+    <Link key={value} href={`/takeout?status=${value}`} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${filter === value ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 bg-surface text-gray-700"}`}>
       {label}
     </Link>
   );
@@ -52,7 +52,7 @@ export default async function TakeoutPage({ searchParams }: { searchParams: Prom
       ) : (
         <ul className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
           {orders.map((o) => (
-            <li key={o.id} className="flex flex-col rounded-2xl border border-gray-200 bg-white p-4">
+            <li key={o.id} className="flex flex-col rounded-2xl border border-gray-200 bg-surface p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <Link href={`/takeout/${o.id}`} className="block font-semibold">

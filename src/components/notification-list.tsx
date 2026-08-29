@@ -9,13 +9,13 @@ import { Badge, notificationTone } from "@/components/ui";
 export function NotificationList({ items, compact = false, grid = false }: { items: Notification[]; compact?: boolean; grid?: boolean }) {
   const now = new Date();
   return (
-    <ul className={grid ? "grid gap-3 xl:grid-cols-2 3xl:grid-cols-3" : "divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white"}>
+    <ul className={grid ? "grid gap-3 xl:grid-cols-2 3xl:grid-cols-3" : "divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-surface"}>
       {items.map((n) => {
         const unread = !n.readAt;
         const needsAck = n.priority === "urgent" && !n.acknowledgedAt;
         const href = notificationHref(n);
         return (
-          <li key={n.id} className={`flex gap-3 p-4 ${grid ? "rounded-2xl border border-gray-200 bg-white" : ""} ${unread ? "bg-brand-50/40" : ""} ${needsAck ? "border-l-4 border-l-red-500" : ""}`}>
+          <li key={n.id} className={`flex gap-3 p-4 ${grid ? "rounded-2xl border border-gray-200 bg-surface" : ""} ${unread ? "bg-brand-50/40" : ""} ${needsAck ? "border-l-4 border-l-red-500" : ""}`}>
             <span className="text-xl" aria-hidden="true">
               {NOTIFICATION_TYPE_ICON[n.type]}
             </span>

@@ -21,8 +21,8 @@ export function StatusButtons({
 }) {
   const cls = {
     primary: "bg-brand-600 text-white hover:bg-brand-700",
-    secondary: "bg-white text-ink border border-gray-300 hover:bg-gray-50",
-    danger: "bg-white text-red-700 border border-red-200 hover:bg-red-50",
+    secondary: "bg-surface text-ink border border-gray-300 hover:bg-gray-50",
+    danger: "bg-surface text-red-700 border border-red-200 hover:bg-red-50",
   };
   const sz = size === "sm" ? "min-h-9 px-3 text-sm" : "min-h-12 px-4 text-base";
   const options = transitions.filter((t) => t.status !== current);

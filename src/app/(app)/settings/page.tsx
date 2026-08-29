@@ -39,7 +39,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
         {TABS.map((t) => (
-          <Link key={t.key} href={`/settings?tab=${t.key}`} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${tab === t.key ? "border-brand-600 bg-brand-600 text-white" : "border-gray-300 bg-white text-gray-700"}`}>
+          <Link key={t.key} href={`/settings?tab=${t.key}`} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${tab === t.key ? "border-brand-600 bg-brand-600 text-white" : "border-gray-300 bg-surface text-gray-700"}`}>
             {t.label}
           </Link>
         ))}
