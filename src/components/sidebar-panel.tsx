@@ -2,25 +2,54 @@ import Link from "next/link";
 import type { Account } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { liveCallCutoff } from "@/lib/calls";
-import { dayBoundsUtc, todayString } from "@/lib/time";
+import { todayServiceStatus } from "@/lib/availability";
+import { dayBoundsUtc, formatClock, formatTime, nowUtc, timeAgo, todayString } from "@/lib/time";
 import { formatUsPhone } from "@/lib/form";
-import { LinkButton, StatusDot } from "@/components/ui";
+import { humanize } from "@/lib/constants";
+import { Badge, LinkButton, StatusDot, classificationTone } from "@/components/ui";
 import { CountUp } from "@/components/count-up";
 import { Reveal } from "@/components/reveal";
 
-/** Desktop sidebar content below the nav: today's numbers, quick actions, and AI host status. */
-export async function SidebarPanel({ account }: { account: Account }) {
-  const { start, end } = dayBoundsUtc(todayString(account.timeZone), account.timeZone);
-  const twoHoursAgo = liveCallCutoff();
+function SectionTitle({ children, href }: { children: React.ReactNode; href?: string }) {
+  const cls = "text-[11px] font-semibold uppercase tracking-wide text-gray-500";
+  return (
+    <div className="flex items-center justify-between">
+      <p className={cls}>{children}</p>
+      {href ? (
+        <Link href={href} className="text-[11px] font-semibold text-brand-700">
+          All
+        </Link>
+      ) : null}
+    </div>
+  );
+}
 
-  const [todayRes, openOrders, unread, liveCalls, callsToday] = await Promise.all([
+/** Desktop sidebar content below the nav: today's numbers, what's next, quick actions, hours, host status, recent calls. */
+export async function SidebarPanel({ account }: { account: Account }) {
+  const tz = account.timeZone;
+  const today = todayString(tz);
+  const { start, end } = dayBoundsUtc(today, tz);
+  const now = nowUtc();
+  const twoHoursAgo = liveCallCutoff();
+  const nowCutoff = new Date(now.getTime() - 30 * 60_000); // 30-minute grace so a party being seated still shows
+
+  const [todayRes, openOrders, unread, liveCalls, callsToday, nextUp, hours, recentCalls] = await Promise.all([
     prisma.reservation.findMany({ where: { accountId: account.id, startTime: { gte: start, lt: end }, isWaitlist: false, status: { notIn: ["cancelled", "no_show"] } }, select: { partySize: true } }),
     prisma.takeoutOrder.count({ where: { accountId: account.id, status: { in: ["new", "confirmed", "ready"] } } }),
     prisma.notification.count({ where: { accountId: account.id, readAt: null } }),
     prisma.call.count({ where: { accountId: account.id, callStatus: { in: ["ongoing", "registered"] }, startedAt: { gte: twoHoursAgo } } }),
     prisma.call.count({ where: { accountId: account.id, startedAt: { gte: start, lt: end } } }),
+    prisma.reservation.findMany({
+      where: { accountId: account.id, startTime: { gte: nowCutoff, lt: end }, isWaitlist: false, status: { in: ["booked", "confirmed"] } },
+      orderBy: { startTime: "asc" },
+      take: 3,
+      select: { id: true, guestName: true, partySize: true, startTime: true, status: true },
+    }),
+    prisma.businessHours.findMany({ where: { accountId: account.id } }),
+    prisma.call.findMany({ where: { accountId: account.id }, orderBy: { startedAt: "desc" }, take: 3, select: { id: true, callerName: true, callerPhone: true, classification: true, startedAt: true } }),
   ]);
   const covers = todayRes.reduce((s, r) => s + r.partySize, 0);
+  const service = todayServiceStatus(hours, tz);
 
   const stats: { label: string; value: number; href: string; live?: boolean }[] = [
     { label: "Reservations", value: todayRes.length, href: "/reservations" },
@@ -34,7 +63,7 @@ export async function SidebarPanel({ account }: { account: Account }) {
   return (
     <div className="mt-2 space-y-3 px-3">
       <Reveal index={1} className="rounded-2xl border border-gray-200 bg-surface p-3">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Today</p>
+        <SectionTitle>Today</SectionTitle>
         <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2">
           {stats.map((s) => (
             <Link key={s.label} href={s.href} className="group rounded-lg px-1 py-0.5 transition-colors hover:bg-gray-50">
@@ -48,8 +77,28 @@ export async function SidebarPanel({ account }: { account: Account }) {
         </dl>
       </Reveal>
 
-      <Reveal index={2} className="space-y-2">
-        <p className="px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500">Quick actions</p>
+      <Reveal index={2} className="rounded-2xl border border-gray-200 bg-surface p-3">
+        <SectionTitle href={`/reservations?date=${today}`}>Next up</SectionTitle>
+        {nextUp.length === 0 ? (
+          <p className="mt-2 text-sm text-gray-500">No more reservations today.</p>
+        ) : (
+          <ul className="mt-2 space-y-1">
+            {nextUp.map((r) => (
+              <li key={r.id}>
+                <Link href={`/reservations/${r.id}`} className="flex items-center justify-between gap-2 rounded-lg px-1 py-1 text-sm transition-colors hover:bg-gray-50">
+                  <span className="min-w-0 truncate">
+                    <span className="font-semibold tabular-nums">{formatTime(r.startTime, tz)}</span> <span className="text-gray-700">{r.guestName}</span>
+                  </span>
+                  <span className="shrink-0 text-xs text-gray-500">×{r.partySize}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Reveal>
+
+      <Reveal index={3} className="space-y-2">
+        <SectionTitle>Quick actions</SectionTitle>
         <LinkButton href="/reservations/new" variant="secondary" size="sm" full className="justify-start">
           📅 New reservation
         </LinkButton>
@@ -58,8 +107,35 @@ export async function SidebarPanel({ account }: { account: Account }) {
         </LinkButton>
       </Reveal>
 
-      <Reveal index={3} className="rounded-2xl border border-gray-200 bg-surface p-3">
-        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">AI host</p>
+      <Reveal index={4} className="rounded-2xl border border-gray-200 bg-surface p-3">
+        <SectionTitle href="/settings?tab=hours">Hours today</SectionTitle>
+        <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold">
+          {service.openNow ? (
+            <>
+              <StatusDot className="text-green-500" /> Open now{service.current && service.periods.length > 1 ? ` · ${service.current}` : ""}
+            </>
+          ) : (
+            <>
+              <span className="inline-block h-2 w-2 rounded-full bg-gray-400" aria-hidden="true" /> {service.periods.length === 0 ? "Closed today" : "Closed right now"}
+            </>
+          )}
+        </p>
+        {service.periods.length > 0 ? (
+          <ul className="mt-1 space-y-0.5 text-xs text-gray-600">
+            {service.periods.map((p) => (
+              <li key={`${p.periodName}-${p.open}`} className="flex justify-between gap-2">
+                <span>{p.periodName}</span>
+                <span className="tabular-nums">
+                  {formatClock(p.open)}–{formatClock(p.close)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </Reveal>
+
+      <Reveal index={5} className="rounded-2xl border border-gray-200 bg-surface p-3">
+        <SectionTitle>AI host</SectionTitle>
         {account.twilioNumber ? (
           <>
             <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold">
@@ -78,6 +154,29 @@ export async function SidebarPanel({ account }: { account: Account }) {
         <Link href="/settings?tab=voice" className="mt-2 block text-xs font-semibold text-gray-500 hover:text-ink">
           🎧 Test call in browser
         </Link>
+      </Reveal>
+
+      <Reveal index={6} className="rounded-2xl border border-gray-200 bg-surface p-3">
+        <SectionTitle href="/calls">Recent calls</SectionTitle>
+        {recentCalls.length === 0 ? (
+          <p className="mt-2 text-sm text-gray-500">No calls yet.</p>
+        ) : (
+          <ul className="mt-2 space-y-1">
+            {recentCalls.map((c) => (
+              <li key={c.id}>
+                <Link href={`/calls/${c.id}`} className="flex items-center justify-between gap-2 rounded-lg px-1 py-1 transition-colors hover:bg-gray-50">
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm text-gray-700">{c.callerName ?? (c.callerPhone ? formatUsPhone(c.callerPhone) : "Unknown caller")}</span>
+                    <span className="block text-[11px] text-gray-500">{timeAgo(c.startedAt, now)}</span>
+                  </span>
+                  <Badge tone={classificationTone[c.classification]} className="shrink-0">
+                    {humanize(c.classification)}
+                  </Badge>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </Reveal>
     </div>
   );

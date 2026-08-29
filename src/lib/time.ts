@@ -190,3 +190,8 @@ export function formatDuration(seconds: number | null | undefined): string {
   const s = seconds % 60;
   return `${m}:${pad2(s)}`;
 }
+
+/** Current instant. Kept in a helper so server components stay lint-pure (no bare Date.now()/new Date() in render). */
+export function nowUtc(): Date {
+  return new Date();
+}

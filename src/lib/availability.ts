@@ -1,6 +1,6 @@
 import type { Account, BusinessHours } from "@prisma/client";
 import { prisma } from "./prisma";
-import { dayBoundsUtc, dayOfWeekOf, formatClock, minutesToTime, timeToMinutes, zonedToUtc } from "./time";
+import { dayBoundsUtc, dayOfWeekOf, formatClock, minutesToTime, timeToMinutes, toDateString, toTimeString, zonedToUtc } from "./time";
 
 /**
  * Built-in reservation book: availability engine.
@@ -48,6 +48,21 @@ export function periodsForDay(hours: BusinessHours[], dayOfWeek: number): { open
     .filter((h) => h.dayOfWeek === dayOfWeek && !h.isClosed)
     .sort((a, b) => timeToMinutes(a.open) - timeToMinutes(b.open))
     .map((h) => ({ open: h.open, close: h.close, periodName: h.periodName }));
+}
+
+/** Today's service periods plus whether the restaurant is open at this moment (restaurant local time). */
+export function todayServiceStatus(hours: BusinessHours[], timeZone: string): { periods: { open: string; close: string; periodName: string }[]; openNow: boolean; current?: string } {
+  const now = new Date();
+  const dateStr = toDateString(now, timeZone);
+  const periods = periodsForDay(hours, dayOfWeekOf(dateStr));
+  const nowMin = timeToMinutes(toTimeString(now, timeZone));
+  const current = periods.find((p) => {
+    const o = timeToMinutes(p.open);
+    let c = timeToMinutes(p.close);
+    if (c <= o) c += 24 * 60;
+    return nowMin >= o && nowMin < c;
+  });
+  return { periods, openNow: !!current, current: current?.periodName };
 }
 
 export async function getAvailableTimes(
