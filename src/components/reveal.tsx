@@ -1,6 +1,6 @@
 "use client";
 
-import { createElement, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, type CSSProperties, type HTMLAttributes, type ReactNode, type RefObject } from "react";
 
 /**
  * Fades, lifts and un-blurs its content into view the first time it scrolls onscreen,
@@ -17,24 +17,24 @@ export function Reveal({
 }: {
   children: ReactNode;
   index?: number;
-  as?: keyof React.JSX.IntrinsicElements;
+  as?: "div" | "li" | "section" | "article" | "span";
   className?: string;
   style?: CSSProperties;
-} & Record<string, unknown>) {
-  const ref = useRef<HTMLElement | null>(null);
-  const [visible, setVisible] = useState(false);
+} & HTMLAttributes<HTMLElement>) {
+  const ref = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    const show = () => el.classList.add("is-visible");
     if (typeof IntersectionObserver === "undefined") {
-      setVisible(true);
+      show();
       return;
     }
     const io = new IntersectionObserver(
       (entries) => {
         if (entries.some((e) => e.isIntersecting)) {
-          setVisible(true);
+          show();
           io.disconnect();
         }
       },
@@ -44,14 +44,10 @@ export function Reveal({
     return () => io.disconnect();
   }, []);
 
-  return createElement(
-    as,
-    {
-      ref,
-      className: `reveal ${visible ? "is-visible" : ""} ${className}`.trim(),
-      style: { ...style, "--reveal-delay": `${Math.min(index, 12) * 70}ms` } as CSSProperties,
-      ...rest,
-    },
-    children,
+  const Tag = as as "div";
+  return (
+    <Tag ref={ref as RefObject<HTMLDivElement>} className={`reveal ${className}`.trim()} style={{ ...style, "--reveal-delay": `${Math.min(index, 12) * 70}ms` } as CSSProperties} {...rest}>
+      {children}
+    </Tag>
   );
 }
