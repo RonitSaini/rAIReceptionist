@@ -6,6 +6,7 @@ import { ONBOARDING_DONE } from "@/lib/constants";
 import { AppNav } from "@/components/app-nav";
 import { NotificationBell } from "@/components/notification-bell";
 import { SignOutButton } from "@/components/sign-out-button";
+import { Logo } from "@/components/logo";
 import { AnimatedThemeToggle } from "@/components/ui/animated-theme-toggle";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -17,10 +18,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="min-h-dvh bg-paper md:flex">
       {/* Desktop sidebar */}
       <aside className="hidden w-60 shrink-0 flex-col border-r border-gray-200 bg-surface md:flex 2xl:w-64">
-        <div className="flex h-14 items-center px-5">
-          <Link href="/dashboard" className="text-lg font-black tracking-tight text-brand-700">
-            CallCover
-          </Link>
+        <div className="flex h-16 items-center px-5">
+          <Logo />
         </div>
         <AppNav variant="sidebar" />
         <div className="mt-auto border-t border-gray-100 p-4">

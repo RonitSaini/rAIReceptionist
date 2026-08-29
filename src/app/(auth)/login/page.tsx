@@ -2,6 +2,7 @@ import Link from "next/link";
 import { googleEnabled } from "@/lib/auth";
 import { LoginForm } from "./login-form";
 import { AnimatedThemeToggle } from "@/components/ui/animated-theme-toggle";
+import { Logo } from "@/components/logo";
 
 export const metadata = { title: "Log in" };
 
@@ -12,9 +13,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <div className="fixed right-4 top-4 z-10">
         <AnimatedThemeToggle />
       </div>
-      <div className="mb-8 text-center">
-        <p className="text-3xl font-black tracking-tight text-brand-700">CallCover</p>
-        <p className="mt-1 text-gray-500">Your AI phone receptionist</p>
+      <div className="mb-8 flex flex-col items-center text-center">
+        <Logo href="/" size="lg" />
+        <p className="mt-2 text-gray-500">Your AI phone receptionist</p>
       </div>
       <LoginForm callbackUrl={callbackUrl ?? "/dashboard"} initialError={error ?? null} googleEnabled={googleEnabled} />
       <p className="mt-6 text-center text-sm text-gray-600">
