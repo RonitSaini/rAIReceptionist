@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAccount } from "@/lib/current-account";
 import { str, type ActionState } from "@/lib/form";
 import { appUrl, appUrlIsPublic, retellConfigured, twilioConfigured } from "@/lib/env";
-import { createCall, purchaseNumber, searchAvailableNumbers, updateNumberWebhooks, TwilioError } from "@/lib/twilio";
+import { createCall, isTrialRestriction, listOwnedNumbers, purchaseNumber, searchAvailableNumbers, updateNumberWebhooks, TwilioError } from "@/lib/twilio";
 import { syncRetellAgent } from "@/lib/agent-sync";
 
 function webhookUrls() {
@@ -31,8 +31,23 @@ export async function provisionPhoneNumber(_prev: ActionState, fd: FormData): Pr
 
   const requested = str(fd, "areaCode").replace(/\D/g, "");
   const areaCode = (requested.length === 3 ? requested : undefined) ?? areaCodeOf(account.cellPhone) ?? process.env.TWILIO_DEFAULT_AREA_CODE ?? undefined;
+  const friendlyName = `CallCover · ${account.restaurantName}`;
 
   try {
+    // 1) A number already on the Twilio account that no restaurant is using yet (e.g. the free trial number).
+    const owned = await listOwnedNumbers();
+    if (owned.length > 0) {
+      const taken = new Set((await prisma.account.findMany({ where: { twilioNumber: { not: null } }, select: { twilioNumber: true } })).map((a) => a.twilioNumber));
+      const free = owned.find((n) => !taken.has(n.phoneNumber));
+      if (free) {
+        await updateNumberWebhooks(free.sid, { ...webhookUrls(), friendlyName });
+        await prisma.account.update({ where: { id: account.id }, data: { twilioNumber: free.phoneNumber, twilioNumberSid: free.sid } });
+        revalidatePath("/", "layout");
+        return { ok: true, message: `Connected your existing Twilio number ${free.phoneNumber}.` };
+      }
+    }
+
+    // 2) Otherwise buy a new local number.
     const candidates = await searchAvailableNumbers(areaCode, 5);
     if (candidates.length === 0) return { ok: false, error: "No numbers are available right now. Try a different area code." };
 
@@ -40,7 +55,7 @@ export async function provisionPhoneNumber(_prev: ActionState, fd: FormData): Pr
     let lastError = "";
     for (const c of candidates) {
       try {
-        purchased = await purchaseNumber(c.phoneNumber, { ...webhookUrls(), friendlyName: `CallCover · ${account.restaurantName}` });
+        purchased = await purchaseNumber(c.phoneNumber, { ...webhookUrls(), friendlyName });
         break;
       } catch (e) {
         lastError = e instanceof Error ? e.message : String(e); // number may have just been taken — try the next one
@@ -52,6 +67,13 @@ export async function provisionPhoneNumber(_prev: ActionState, fd: FormData): Pr
     revalidatePath("/", "layout");
     return { ok: true, message: `Your number is ready: ${purchased.phoneNumber}` };
   } catch (e) {
+    if (isTrialRestriction(e)) {
+      return {
+        ok: false,
+        error:
+          "Your Twilio account is still on the free trial, which can't buy numbers through the API. Either upgrade the account (Twilio Console → Billing → add a payment method), or claim the free trial number in the Console (Phone Numbers → Buy a number) and click Get my number again — we'll connect it automatically.",
+      };
+    }
     const msg = e instanceof TwilioError ? `Twilio: ${e.message}` : e instanceof Error ? e.message : String(e);
     return { ok: false, error: msg };
   }

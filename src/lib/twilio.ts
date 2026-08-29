@@ -64,6 +64,25 @@ export async function searchAvailableNumbers(areaCode?: string, limit = 5): Prom
 
 export type PurchasedNumber = { sid: string; phoneNumber: string };
 
+export type OwnedNumber = { sid: string; phoneNumber: string; friendlyName: string; voiceUrl: string | null };
+
+/** Numbers already on the Twilio account (e.g. the free trial number claimed in the console). */
+export async function listOwnedNumbers(): Promise<OwnedNumber[]> {
+  type Row = { sid: string; phone_number: string; friendly_name: string; voice_url: string | null };
+  const data = await request<{ incoming_phone_numbers: Row[] }>("GET", "/IncomingPhoneNumbers.json", { PageSize: "50" });
+  return data.incoming_phone_numbers.map((n) => ({ sid: n.sid, phoneNumber: n.phone_number, friendlyName: n.friendly_name, voiceUrl: n.voice_url }));
+}
+
+/** Twilio's trial-account restriction surfaces as a 401 with this message on number search/purchase. */
+export function isTrialRestriction(e: unknown): boolean {
+  return e instanceof TwilioError && /trial account/i.test(e.message);
+}
+
+export async function getAccountType(): Promise<"Trial" | "Full" | "Unknown"> {
+  const data = await request<{ type?: string }>("GET", ".json");
+  return data.type === "Trial" ? "Trial" : data.type === "Full" ? "Full" : "Unknown";
+}
+
 /** Buy a number and point its voice + SMS webhooks at the app. */
 export async function purchaseNumber(phoneNumber: string, opts: { voiceUrl: string; smsUrl: string; friendlyName: string; statusCallback?: string }): Promise<PurchasedNumber> {
   const data = await request<{ sid: string; phone_number: string }>("POST", "/IncomingPhoneNumbers.json", {

@@ -76,12 +76,12 @@ export const MENU_CATEGORIES = ["Appetizers", "Salads", "Soups", "Entrees", "Sid
 
 export const SEATING_PREFERENCES = ["No preference", "Indoor", "Outdoor / patio", "Bar", "Booth", "Window", "Quiet area", "High chair needed", "Wheelchair accessible"];
 
-/** Voice options offered on the Voice & greeting step. IDs map to Retell voice IDs in Phase 2. */
+/** Voice options offered on the Voice & greeting step. IDs are real Retell (ElevenLabs) voice IDs, verified against /list-voices. */
 export const VOICES: { id: string; name: string; description: string; sampleText: string; pitch: number; rate: number }[] = [
-  { id: "11labs-Adrian", name: "Adrian", description: "Warm, friendly, unhurried", sampleText: "Thanks for calling! I'd be happy to help you with a reservation.", pitch: 0.9, rate: 0.95 },
-  { id: "11labs-Sarah", name: "Sarah", description: "Bright, upbeat, clear", sampleText: "Thanks for calling! I'd be happy to help you with a reservation.", pitch: 1.15, rate: 1.0 },
-  { id: "11labs-Anthony", name: "Anthony", description: "Calm, professional", sampleText: "Thanks for calling! I'd be happy to help you with a reservation.", pitch: 0.8, rate: 0.9 },
-  { id: "11labs-Lily", name: "Lily", description: "Soft, polished, welcoming", sampleText: "Thanks for calling! I'd be happy to help you with a reservation.", pitch: 1.05, rate: 0.92 },
+  { id: "11labs-Adrian", name: "Adrian", description: "Male · warm, friendly, unhurried", sampleText: "Thanks for calling! I'd be happy to help you with a reservation.", pitch: 0.9, rate: 0.95 },
+  { id: "11labs-Kate", name: "Kate", description: "Female · bright, upbeat, clear", sampleText: "Thanks for calling! I'd be happy to help you with a reservation.", pitch: 1.15, rate: 1.0 },
+  { id: "11labs-Lucas", name: "Lucas", description: "Male · calm, professional", sampleText: "Thanks for calling! I'd be happy to help you with a reservation.", pitch: 0.8, rate: 0.9 },
+  { id: "11labs-Lily", name: "Lily", description: "Female · soft, polished, welcoming", sampleText: "Thanks for calling! I'd be happy to help you with a reservation.", pitch: 1.05, rate: 0.92 },
 ];
 
 export const RECORDING_DISCLOSURE = "this call may be recorded";

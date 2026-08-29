@@ -112,9 +112,12 @@ export function VoiceForm({ account, mode }: { account: AccountView; mode: FormM
             Regenerate greeting
           </Button>
           <Button type="button" variant="secondary" size="sm" disabled={!canSpeak} onClick={() => { const v = VOICES.find((x) => x.id === voiceId) ?? VOICES[0]; speak(greeting, v.pitch, v.rate); }}>
-            ▶ Hear greeting
+            ▶ Read greeting aloud (browser voice)
           </Button>
         </div>
+        <p className="text-xs text-gray-500">
+          The read-aloud button uses your browser&apos;s built-in voice to check wording only. To hear {VOICES.find((x) => x.id === voiceId)?.name ?? "your chosen voice"} say the greeting for real, use <strong>Call me to test</strong> on the Phone step.
+        </p>
       </section>
 
       <FormFooter state={state} pending={pending} mode={mode} backHref="/onboarding/5" />
