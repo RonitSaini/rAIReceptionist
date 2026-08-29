@@ -186,6 +186,30 @@ export async function saveReservationSettings(_prev: ActionState, fd: FormData):
 
 // ---------- Step 6: Voice + greeting ----------
 
+async function isKnownVoice(voiceId: string): Promise<boolean> {
+  if (VOICES.some((v) => v.id === voiceId)) return true;
+  if (!retellConfigured()) return false;
+  try {
+    return (await listVoices()).some((v) => v.voice_id === voiceId);
+  } catch {
+    return false;
+  }
+}
+
+/** Save just the voice the moment it's picked (no form submit needed) and rebuild the agent. */
+export async function setVoiceQuick(voiceId: string): Promise<ActionState> {
+  const { account } = await requireAccount();
+  const id = String(voiceId ?? "").trim();
+  if (!id) return { ok: false, error: "Choose a voice." };
+  if (!(await isKnownVoice(id))) return { ok: false, error: "That voice isn't available. Choose one from the list." };
+  if (account.voiceId !== id) {
+    await prisma.account.update({ where: { id: account.id }, data: { voiceId: id } });
+    after(() => syncRetellAgentQuietly(account.id));
+    revalidatePath("/", "layout");
+  }
+  return { ok: true, message: "Voice saved." };
+}
+
 export async function saveVoice(_prev: ActionState, fd: FormData): Promise<ActionState> {
   const { account } = await requireAccount();
   const voiceId = str(fd, "voiceId");
@@ -193,18 +217,7 @@ export async function saveVoice(_prev: ActionState, fd: FormData): Promise<Actio
   const greeting = str(fd, "greeting").slice(0, 600);
 
   if (!voiceId) return { ok: false, error: "Choose a voice." };
-  if (!VOICES.some((v) => v.id === voiceId)) {
-    // Any voice from the Retell catalog is allowed when the key is configured.
-    let known = false;
-    if (retellConfigured()) {
-      try {
-        known = (await listVoices()).some((v) => v.voice_id === voiceId);
-      } catch {
-        known = false;
-      }
-    }
-    if (!known) return { ok: false, error: "That voice isn't available. Choose one from the list." };
-  }
+  if (!(await isKnownVoice(voiceId))) return { ok: false, error: "That voice isn't available. Choose one from the list." };
   if (hostName.length < 1) return { ok: false, error: "Give your AI host a name." };
   if (greeting.length < 10) return { ok: false, error: "Enter a greeting." };
   if (!greetingHasDisclosure(greeting)) return { ok: false, error: 'The greeting must include the phrase "this call may be recorded".' };

@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { saveVoice } from "@/actions/onboarding";
+import { useActionState, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
+import { saveVoice, setVoiceQuick } from "@/actions/onboarding";
 import type { AccountView } from "@/lib/serialize";
 import { VOICES } from "@/lib/constants";
 import { generateGreeting, greetingHasDisclosure } from "@/lib/greeting";
@@ -29,7 +29,20 @@ function speak(text: string, pitch: number, rate: number) {
 
 export function VoiceForm({ account, mode }: { account: AccountView; mode: FormMode }) {
   const [state, action, pending] = useActionState(saveVoice, null);
-  const [voiceId, setVoiceId] = useState(account.voiceId);
+  const [voiceId, setVoiceIdState] = useState(account.voiceId);
+  const [voiceSave, setVoiceSave] = useState<{ ok: boolean; text: string } | null>(null);
+  const [savingVoice, startSavingVoice] = useTransition();
+
+  /** Picking a voice saves it immediately and rebuilds the agent — no need to submit the form. */
+  function setVoiceId(id: string) {
+    setVoiceIdState(id);
+    setVoiceSave(null);
+    startSavingVoice(async () => {
+      const r = await setVoiceQuick(id);
+      const name = VOICES.find((v) => v.id === id)?.name ?? all.find((v) => v.id === id)?.name ?? id;
+      setVoiceSave(r?.ok ? { ok: true, text: `${name} saved — your AI host now uses this voice.` } : { ok: false, text: r?.error ?? "Could not save the voice." });
+    });
+  }
   const [hostName, setHostName] = useState(account.hostName);
   const [greeting, setGreeting] = useState(account.greeting ?? generateGreeting(account.restaurantName, account.hostName));
   const [samples, setSamples] = useState<Record<string, VoiceSample>>({});
@@ -126,6 +139,10 @@ export function VoiceForm({ account, mode }: { account: AccountView; mode: FormM
           </div>
         ) : null}
 
+        <p className="text-xs text-gray-500" role="status" aria-live="polite">
+          {savingVoice ? "Saving voice…" : voiceSave ? <span className={voiceSave.ok ? "font-semibold text-brand-700" : "font-semibold text-red-600"}>{voiceSave.text}</span> : `Current voice: ${selectedName}. Picking a voice saves it right away.`}
+        </p>
+
         {all.length > 0 ? (
           <div className="rounded-2xl border border-gray-200 bg-surface">
             <button type="button" onClick={() => setBrowse((b) => !b)} className="flex min-h-12 w-full items-center justify-between px-4 text-left font-semibold">
@@ -203,8 +220,8 @@ export function VoiceForm({ account, mode }: { account: AccountView; mode: FormM
 
       <section className="space-y-3">
         <h2 className="text-base font-bold">Hear it for real</h2>
-        <p className="text-sm text-gray-500">Save first if you changed the voice or greeting — the test call uses what&apos;s saved.</p>
-        {retellReady ? <WebTestCall hostName={account.hostName} /> : <p className="text-sm text-gray-500">Browser test calls become available once RETELL_API_KEY is configured.</p>}
+        <p className="text-sm text-gray-500">The test call uses {selectedName}. If you edited the greeting or host name, save the form first.</p>
+        {retellReady ? <WebTestCall hostName={hostName} /> : <p className="text-sm text-gray-500">Browser test calls become available once RETELL_API_KEY is configured.</p>}
       </section>
     </form>
   );
