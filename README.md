@@ -40,6 +40,8 @@ Onboarding step 8 (payment) is a placeholder screen until Phase 4. Step 7 (phone
 Copy-Item .env.example .env
 ```
 
+**Shortcut with the Neon CLI** (installed globally with `npm i -g neon`): `neon auth` once, then `neon link` picks the org/project and writes the pooled `DATABASE_URL` and `DATABASE_URL_UNPOOLED` into `.env` (copy the unpooled value into `DIRECT_URL`). `neon env pull` refreshes them later, and `neon checkout <branch>` switches to a database branch for isolated testing. The link is stored in the git-ignored `.neon` file.
+
 Open `.env` and set:
 
 - `DATABASE_URL` and `DIRECT_URL` — from Neon
