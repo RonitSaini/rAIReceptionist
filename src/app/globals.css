@@ -119,6 +119,61 @@ body {
   transform: scale(1);
 }
 
+/* Notification bell: on click / new notification the outline redraws and the bell swings. */
+.bell-icon {
+  transform-box: view-box;
+  transform-origin: 12px 3px; /* pivot at the top of the bell */
+}
+.bell-icon path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+.bell-icon.is-ringing {
+  animation: bell-ring 0.7s ease-in-out;
+}
+.bell-icon.is-ringing path {
+  animation: bell-draw 0.7s ease both;
+}
+.bell-icon.is-ringing .clapper {
+  animation-delay: 0.35s;
+  animation-duration: 0.35s;
+}
+.badge-pop {
+  animation: badge-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes bell-ring {
+  0% { transform: rotate(0); }
+  15% { transform: rotate(16deg); }
+  30% { transform: rotate(-13deg); }
+  45% { transform: rotate(10deg); }
+  60% { transform: rotate(-6deg); }
+  75% { transform: rotate(3deg); }
+  100% { transform: rotate(0); }
+}
+@keyframes bell-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes badge-pop {
+  0% { transform: scale(0.4); }
+  60% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bell-icon.is-ringing,
+  .bell-icon.is-ringing path,
+  .badge-pop,
+  .theme-icon path {
+    animation: none;
+    transition: none;
+  }
+}
+
 /* Make every tap target comfortable on a phone */
 button,
 input,
