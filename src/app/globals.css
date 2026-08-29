@@ -14,6 +14,15 @@
   --color-ink: #16201c;
   --color-paper: #f7f8f7;
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Extra breakpoint for 1440p / 4K desktops (Tailwind stops at 2xl = 1536px). */
+  --breakpoint-3xl: 120rem;
+}
+
+/* Slightly larger type on very wide screens so the UI doesn't look miniature at 1440p+. */
+@media (min-width: 120rem) {
+  html {
+    font-size: 17px;
+  }
 }
 
 html {

@@ -14,7 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-dvh bg-paper md:flex">
       {/* Desktop sidebar */}
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-gray-200 bg-white md:flex">
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-gray-200 bg-white md:flex 2xl:w-64">
         <div className="flex h-14 items-center px-5">
           <Link href="/dashboard" className="text-lg font-black tracking-tight text-brand-700">
             CallCover
@@ -30,7 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="flex min-h-dvh flex-1 flex-col">
         {/* Top bar */}
         <header className="sticky top-0 z-20 border-b border-gray-200 bg-white/90 backdrop-blur">
-          <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-4">
+          <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-4 xl:max-w-6xl 2xl:max-w-7xl 2xl:px-8 3xl:max-w-[1680px]">
             <Link href="/dashboard" className="truncate text-base font-bold md:hidden">
               {account.restaurantName}
             </Link>
@@ -45,7 +45,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </Link>
         ) : null}
 
-        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-5 pb-24 md:pb-8">{children}</main>
+        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-5 pb-24 md:pb-8 xl:max-w-6xl 2xl:max-w-7xl 2xl:px-8 2xl:py-8 3xl:max-w-[1680px]">{children}</main>
 
         {/* Mobile bottom tabs */}
         <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white safe-bottom md:hidden">

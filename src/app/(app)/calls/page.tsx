@@ -43,12 +43,12 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
           body={account.twilioNumber ? "Every call your AI host answers will appear here with a recording and transcript." : "Connect your phone number in Settings → Phone to start taking calls."}
         />
       ) : (
-        <ul className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white">
+        <ul className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
           {calls.map((c) => {
             const live = c.callStatus === "ongoing" || c.callStatus === "registered";
             return (
-              <li key={c.id}>
-                <Link href={`/calls/${c.id}`} className="block p-4 hover:bg-gray-50">
+              <li key={c.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+                <Link href={`/calls/${c.id}`} className="block h-full p-4 hover:bg-gray-50">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge tone={classificationTone[c.classification]}>{humanize(c.classification)}</Badge>
                     {live ? <Badge tone="green">Live</Badge> : null}

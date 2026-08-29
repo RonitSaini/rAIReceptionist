@@ -86,9 +86,9 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
             const items = byDay.get(d) ?? [];
             if (view === "day") {
               return (
-                <ul key={d} className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white">
+                <ul key={d} className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
                   {items.map((r) => (
-                    <li key={r.id} className="flex items-center justify-between gap-3 p-4">
+                    <li key={r.id} className="flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-4">
                       <div className="min-w-0">
                         <Link href={`/reservations/${r.id}`} className="block font-semibold">
                           {formatTime(r.startTime, tz)} · {r.guestName}

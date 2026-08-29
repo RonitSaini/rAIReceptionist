@@ -50,9 +50,9 @@ export default async function TakeoutPage({ searchParams }: { searchParams: Prom
       {orders.length === 0 ? (
         <EmptyState title="No orders" body={filter === "open" ? "New takeout and delivery orders will show up here." : undefined} />
       ) : (
-        <ul className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-white">
+        <ul className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
           {orders.map((o) => (
-            <li key={o.id} className="p-4">
+            <li key={o.id} className="flex flex-col rounded-2xl border border-gray-200 bg-white p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <Link href={`/takeout/${o.id}`} className="block font-semibold">
@@ -67,7 +67,7 @@ export default async function TakeoutPage({ searchParams }: { searchParams: Prom
                 </div>
                 <Badge tone={takeoutTone[o.status]}>{humanize(o.status)}</Badge>
               </div>
-              <div className="mt-3">
+              <div className="mt-auto pt-3">
                 <StatusButtons id={o.id} current={o.status} transitions={TAKEOUT_TRANSITIONS[o.status]} action={setTakeoutStatus} returnTo={`/takeout?status=${filter}`} size="sm" />
               </div>
             </li>

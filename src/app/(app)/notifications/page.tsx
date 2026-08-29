@@ -63,7 +63,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
         ))}
       </div>
 
-      {items.length === 0 ? <EmptyState title="No notifications" body="New reservations, orders, messages and escalations will show up here." /> : <NotificationList items={items} />}
+      {items.length === 0 ? <EmptyState title="No notifications" body="New reservations, orders, messages and escalations will show up here." /> : <NotificationList items={items} grid />}
     </div>
   );
 }

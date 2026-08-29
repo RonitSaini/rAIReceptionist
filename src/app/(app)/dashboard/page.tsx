@@ -43,6 +43,9 @@ export default async function DashboardPage() {
     <div className="space-y-5">
       <PageHeader title="Home" subtitle={formatDateLong(new Date(), tz)} />
 
+      {/* Two columns on wide desktops: activity on the left, today's service on the right. */}
+      <div className="grid gap-5 2xl:grid-cols-2 2xl:items-start">
+      <div className="space-y-5">
       {unacknowledged.length > 0 ? (
         <Card title="Needs your attention" className="border-red-200">
           <NotificationList items={unacknowledged} compact />
@@ -78,7 +81,9 @@ export default async function DashboardPage() {
           </>
         )}
       </Card>
+      </div>
 
+      <div className="space-y-5">
       <Card
         title={`Today's reservations · ${coversToday} covers`}
         action={
@@ -148,6 +153,8 @@ export default async function DashboardPage() {
           </ul>
         )}
       </Card>
+      </div>
+      </div>
     </div>
   );
 }
