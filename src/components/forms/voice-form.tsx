@@ -5,10 +5,13 @@ import { saveVoice } from "@/actions/onboarding";
 import type { AccountView } from "@/lib/serialize";
 import { VOICES } from "@/lib/constants";
 import { generateGreeting, greetingHasDisclosure } from "@/lib/greeting";
-import { Button, Field, Input, Textarea } from "@/components/ui";
+import { Button, Field, Input, Textarea, inputClass } from "@/components/ui";
 import { FormFooter, type FormMode } from "@/components/form-footer";
 
 type VoiceSample = { id: string; name: string; available: boolean; previewUrl: string | null };
+type VoiceOption = { id: string; name: string; provider: string; gender: string | null; accent: string | null; age: string | null; recommended: boolean; previewUrl: string | null };
+
+const PROVIDER_LABEL: Record<string, string> = { elevenlabs: "ElevenLabs", cartesia: "Cartesia", platform: "Retell", inworld: "Inworld", openai: "OpenAI", minimax: "MiniMax", fish_audio: "Fish Audio" };
 
 /** Browser speech synthesis is the fallback when Retell voice previews aren't available. */
 function speak(text: string, pitch: number, rate: number) {
@@ -29,6 +32,9 @@ export function VoiceForm({ account, mode }: { account: AccountView; mode: FormM
   const [hostName, setHostName] = useState(account.hostName);
   const [greeting, setGreeting] = useState(account.greeting ?? generateGreeting(account.restaurantName, account.hostName));
   const [samples, setSamples] = useState<Record<string, VoiceSample>>({});
+  const [all, setAll] = useState<VoiceOption[]>([]);
+  const [browse, setBrowse] = useState(false);
+  const [filter, setFilter] = useState<{ gender: "" | "female" | "male"; q: string }>({ gender: "", q: "" });
   const [playing, setPlaying] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const canSpeak = useSyncExternalStore(
@@ -37,38 +43,50 @@ export function VoiceForm({ account, mode }: { account: AccountView; mode: FormM
     () => false,
   );
 
-  // Real Retell voice samples when the API key is configured.
   useEffect(() => {
     let cancelled = false;
     fetch("/api/retell/voices")
       .then((r) => (r.ok ? r.json() : null))
-      .then((data: { voices?: VoiceSample[] } | null) => {
-        if (cancelled || !data?.voices) return;
-        setSamples(Object.fromEntries(data.voices.map((v) => [v.id, v])));
+      .then((data: { voices?: VoiceSample[]; all?: VoiceOption[] } | null) => {
+        if (cancelled || !data) return;
+        if (data.voices) setSamples(Object.fromEntries(data.voices.map((v) => [v.id, v])));
+        if (data.all) setAll(data.all);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
+      audioRef.current?.pause();
     };
   }, []);
 
-  function play(v: (typeof VOICES)[number]) {
-    const sample = samples[v.id];
-    if (sample?.previewUrl) {
-      audioRef.current?.pause();
-      const audio = new Audio(sample.previewUrl);
-      audioRef.current = audio;
-      setPlaying(v.id);
-      audio.onended = () => setPlaying(null);
-      audio.onerror = () => setPlaying(null);
-      audio.play().catch(() => setPlaying(null));
+  function playUrl(id: string, url: string) {
+    audioRef.current?.pause();
+    if (playing === id) {
+      setPlaying(null);
       return;
     }
+    const audio = new Audio(url);
+    audioRef.current = audio;
+    setPlaying(id);
+    audio.onended = () => setPlaying(null);
+    audio.onerror = () => setPlaying(null);
+    audio.play().catch(() => setPlaying(null));
+  }
+
+  function playCurated(v: (typeof VOICES)[number]) {
+    const sample = samples[v.id];
+    if (sample?.previewUrl) return playUrl(v.id, sample.previewUrl);
     speak(`Hi, I'm ${v.name}. ${v.sampleText}`, v.pitch, v.rate);
   }
 
   const hasRealSamples = Object.values(samples).some((s) => s.previewUrl);
   const hasDisclosure = greetingHasDisclosure(greeting);
+  const curated = VOICES.find((x) => x.id === voiceId);
+  const custom = !curated ? all.find((x) => x.id === voiceId) : undefined;
+  const selectedName = curated?.name ?? custom?.name ?? voiceId;
+
+  const q = filter.q.trim().toLowerCase();
+  const filtered = all.filter((v) => (!filter.gender || v.gender === filter.gender) && (!q || v.name.toLowerCase().includes(q) || v.provider.includes(q) || (v.accent ?? "").toLowerCase().includes(q)));
 
   return (
     <form action={action} className="space-y-6">
@@ -89,13 +107,71 @@ export function VoiceForm({ account, mode }: { account: AccountView; mode: FormM
                   <span className="block text-sm text-gray-500">{v.description}</span>
                   {sample && !sample.available ? <span className="block text-xs text-amber-700">Not available on your Retell account — a similar voice will be used.</span> : null}
                 </button>
-                <Button type="button" variant="secondary" size="sm" onClick={() => play(v)} disabled={!playable} aria-label={`Play ${v.name} sample`}>
-                  {playing === v.id ? "▶ Playing" : "▶ Play"}
+                <Button type="button" variant="secondary" size="sm" onClick={() => playCurated(v)} disabled={!playable} aria-label={`Play ${v.name} sample`}>
+                  {playing === v.id ? "■ Stop" : "▶ Play"}
                 </Button>
               </div>
             );
           })}
         </div>
+
+        {custom ? (
+          <div className="rounded-2xl border-2 border-brand-600 bg-brand-50 p-4">
+            <p className="font-semibold">
+              Selected: {custom.name} <span className="text-sm font-normal text-gray-500">· {PROVIDER_LABEL[custom.provider] ?? custom.provider}{custom.accent ? ` · ${custom.accent}` : ""}</span>
+            </p>
+          </div>
+        ) : null}
+
+        {all.length > 0 ? (
+          <div className="rounded-2xl border border-gray-200 bg-white">
+            <button type="button" onClick={() => setBrowse((b) => !b)} className="flex min-h-12 w-full items-center justify-between px-4 text-left font-semibold">
+              <span>Browse all {all.length} voices</span>
+              <span aria-hidden="true">{browse ? "▴" : "▾"}</span>
+            </button>
+            {browse ? (
+              <div className="border-t border-gray-100 p-3">
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {(["", "female", "male"] as const).map((g) => (
+                    <button key={g || "all"} type="button" onClick={() => setFilter((f) => ({ ...f, gender: g }))} className={`rounded-full border px-3 py-1.5 text-sm font-semibold ${filter.gender === g ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 text-gray-700"}`}>
+                      {g === "" ? "All" : g === "female" ? "Female" : "Male"}
+                    </button>
+                  ))}
+                  <input value={filter.q} onChange={(e) => setFilter((f) => ({ ...f, q: e.target.value }))} placeholder="Search name, accent, provider" className={`${inputClass} min-h-10 flex-1 basis-40`} aria-label="Search voices" />
+                </div>
+                <p className="mb-2 text-xs text-gray-500">★ = recommended by Retell. ElevenLabs and Cartesia voices generally sound the most natural on phone calls.</p>
+                <ul className="max-h-96 divide-y divide-gray-100 overflow-y-auto">
+                  {filtered.map((v) => {
+                    const selected = v.id === voiceId;
+                    return (
+                      <li key={v.id} className={`flex items-center justify-between gap-2 py-2 ${selected ? "bg-brand-50" : ""}`}>
+                        <button type="button" onClick={() => setVoiceId(v.id)} className="min-w-0 flex-1 px-2 text-left">
+                          <span className="block text-sm font-semibold">
+                            {v.recommended ? "★ " : ""}
+                            {v.name}
+                          </span>
+                          <span className="block truncate text-xs text-gray-500">
+                            {PROVIDER_LABEL[v.provider] ?? v.provider}
+                            {v.gender ? ` · ${v.gender}` : ""}
+                            {v.accent ? ` · ${v.accent}` : ""}
+                            {v.age ? ` · ${v.age.toLowerCase()}` : ""}
+                          </span>
+                        </button>
+                        <Button type="button" variant="secondary" size="sm" disabled={!v.previewUrl} onClick={() => v.previewUrl && playUrl(v.id, v.previewUrl)} aria-label={`Play ${v.name}`}>
+                          {playing === v.id ? "■" : "▶"}
+                        </Button>
+                        <Button type="button" variant={selected ? "primary" : "ghost"} size="sm" onClick={() => setVoiceId(v.id)}>
+                          {selected ? "Selected" : "Use"}
+                        </Button>
+                      </li>
+                    );
+                  })}
+                  {filtered.length === 0 ? <li className="py-4 text-center text-sm text-gray-500">No voices match.</li> : null}
+                </ul>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </section>
 
       <section className="space-y-3">
@@ -111,12 +187,12 @@ export function VoiceForm({ account, mode }: { account: AccountView; mode: FormM
           <Button type="button" variant="secondary" size="sm" onClick={() => setGreeting(generateGreeting(account.restaurantName, hostName))}>
             Regenerate greeting
           </Button>
-          <Button type="button" variant="secondary" size="sm" disabled={!canSpeak} onClick={() => { const v = VOICES.find((x) => x.id === voiceId) ?? VOICES[0]; speak(greeting, v.pitch, v.rate); }}>
+          <Button type="button" variant="secondary" size="sm" disabled={!canSpeak} onClick={() => { const v = curated ?? VOICES[0]; speak(greeting, v.pitch, v.rate); }}>
             ▶ Read greeting aloud (browser voice)
           </Button>
         </div>
         <p className="text-xs text-gray-500">
-          The read-aloud button uses your browser&apos;s built-in voice to check wording only. To hear {VOICES.find((x) => x.id === voiceId)?.name ?? "your chosen voice"} say the greeting for real, use <strong>Call me to test</strong> on the Phone step.
+          The read-aloud button uses your browser&apos;s built-in voice to check wording only. To hear {selectedName} say the greeting for real, use <strong>Call me to test</strong> on the Phone step.
         </p>
       </section>
 

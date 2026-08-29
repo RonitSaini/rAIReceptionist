@@ -79,8 +79,8 @@ export const SEATING_PREFERENCES = ["No preference", "Indoor", "Outdoor / patio"
 /** Voice options offered on the Voice & greeting step. IDs are real Retell (ElevenLabs) voice IDs, verified against /list-voices. */
 export const VOICES: { id: string; name: string; description: string; sampleText: string; pitch: number; rate: number }[] = [
   { id: "11labs-Adrian", name: "Adrian", description: "Male · warm, friendly, unhurried", sampleText: "Thanks for calling! I'd be happy to help you with a reservation.", pitch: 0.9, rate: 0.95 },
-  { id: "11labs-Kate", name: "Kate", description: "Female · bright, upbeat, clear", sampleText: "Thanks for calling! I'd be happy to help you with a reservation.", pitch: 1.15, rate: 1.0 },
-  { id: "11labs-Lucas", name: "Lucas", description: "Male · calm, professional", sampleText: "Thanks for calling! I'd be happy to help you with a reservation.", pitch: 0.8, rate: 0.9 },
+  { id: "11labs-Grace", name: "Grace", description: "Female · natural, warm, easygoing (Retell recommended)", sampleText: "Thanks for calling! I'd be happy to help you with a reservation.", pitch: 1.1, rate: 0.97 },
+  { id: "11labs-Nico", name: "Nico", description: "Male · relaxed, conversational (Retell recommended)", pitch: 0.85, rate: 0.95, sampleText: "Thanks for calling! I'd be happy to help you with a reservation." },
   { id: "11labs-Lily", name: "Lily", description: "Female · soft, polished, welcoming", sampleText: "Thanks for calling! I'd be happy to help you with a reservation.", pitch: 1.05, rate: 0.92 },
 ];
 

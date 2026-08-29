@@ -5,6 +5,8 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { syncRetellAgentQuietly } from "@/lib/agent-sync";
+import { listVoices } from "@/lib/retell";
+import { retellConfigured } from "@/lib/env";
 import { requireAccount } from "@/lib/current-account";
 import { bool, int, isZip, json, list, normalizeUsPhone, optDecimal, optInt, optStr, str, type ActionState } from "@/lib/form";
 import { greetingHasDisclosure } from "@/lib/greeting";
@@ -190,7 +192,19 @@ export async function saveVoice(_prev: ActionState, fd: FormData): Promise<Actio
   const hostName = str(fd, "hostName").slice(0, 40);
   const greeting = str(fd, "greeting").slice(0, 600);
 
-  if (!VOICES.some((v) => v.id === voiceId)) return { ok: false, error: "Choose a voice." };
+  if (!voiceId) return { ok: false, error: "Choose a voice." };
+  if (!VOICES.some((v) => v.id === voiceId)) {
+    // Any voice from the Retell catalog is allowed when the key is configured.
+    let known = false;
+    if (retellConfigured()) {
+      try {
+        known = (await listVoices()).some((v) => v.voice_id === voiceId);
+      } catch {
+        known = false;
+      }
+    }
+    if (!known) return { ok: false, error: "That voice isn't available. Choose one from the list." };
+  }
   if (hostName.length < 1) return { ok: false, error: "Give your AI host a name." };
   if (greeting.length < 10) return { ok: false, error: "Enter a greeting." };
   if (!greetingHasDisclosure(greeting)) return { ok: false, error: 'The greeting must include the phrase "this call may be recorded".' };
