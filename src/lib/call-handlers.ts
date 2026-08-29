@@ -1,8 +1,8 @@
 import type { Account, Call, CallClassification } from "@prisma/client";
 import { prisma } from "./prisma";
-import { getAvailableTimes, nearestAlternatives } from "./availability";
+import { getAvailableTimes, nearestAlternatives, periodsForDay } from "./availability";
 import { distanceMiles, extractZip, formatRestaurantAddress, geocodeAddress } from "./geo";
-import { formatDateString, formatClock, isValidDateString, todayString, zonedToUtc, formatDateTime } from "./time";
+import { dayOfWeekOf, formatDateString, formatClock, isValidDateString, timeToMinutes, todayString, zonedToUtc, formatDateTime } from "./time";
 import { formatUsPhone, normalizeUsPhone } from "./form";
 import { MESSAGE_REASONS, type FunctionName } from "./agent-config";
 
@@ -219,6 +219,23 @@ export async function takeTakeoutOrderHandler(ctx: HandlerContext, args: Args): 
 
   const pickupTime = zonedToUtc(date, time, a.timeZone);
   if (pickupTime.getTime() < Date.now() - 5 * 60_000) return { success: false, message: "That time has already passed. Ask for a later pickup time." };
+
+  // Pickup must fall inside a service period that day.
+  const hours = await prisma.businessHours.findMany({ where: { accountId: a.id } });
+  const periods = periodsForDay(hours, dayOfWeekOf(date));
+  const dayLabel = formatDateString(date, { weekday: "long", month: "long", day: "numeric" });
+  if (periods.length === 0) return { success: false, closed: true, message: `The restaurant is closed on ${dayLabel}. Offer another day.` };
+  const mins = timeToMinutes(time);
+  const open = periods.some((p) => {
+    const o = timeToMinutes(p.open);
+    let c = timeToMinutes(p.close);
+    if (c <= o) c += 24 * 60;
+    return mins >= o && mins <= c;
+  });
+  if (!open) {
+    const windows = periods.map((p) => `${formatClock(p.open)}–${formatClock(p.close)}`).join(", ");
+    return { success: false, message: `${formatClock(time)} is outside ${dayLabel}'s hours (${windows}). Offer a pickup time during those hours.` };
+  }
 
   if (isDelivery) {
     if (!a.offersDelivery) return { success: false, message: "The restaurant doesn't deliver. Offer pickup instead." };
