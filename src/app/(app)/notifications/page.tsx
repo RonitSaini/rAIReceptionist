@@ -58,8 +58,10 @@ export default async function NotificationsPage({ searchParams }: { searchParams
     };
   } else if (unreadOnly) {
     empty = { title: "You're all caught up", body: "No unread notifications.", action: <LinkButton href="/notifications" size="sm">Show all notifications</LinkButton> };
+  } else if (typeLabel) {
+    empty = { title: `No ${typeLabel.toLowerCase()} notifications yet`, action: <LinkButton href="/notifications" size="sm" variant="secondary">Show all types</LinkButton> };
   } else {
-    empty = { title: `No ${typeLabel!.toLowerCase()} notifications yet`, action: <LinkButton href="/notifications" size="sm" variant="secondary">Show all types</LinkButton> };
+    empty = { title: "No notifications" };
   }
 
   return (
