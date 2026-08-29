@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowLeftIcon, ArrowRightIcon } from "@/components/icons";
 import { requireAccount } from "@/lib/current-account";
 import { prisma } from "@/lib/prisma";
 import { addDays, dayBoundsUtc, formatDateString, formatTime, isValidDateString, startOfWeek, toDateString, todayString } from "@/lib/time";
@@ -46,8 +47,8 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
       />
 
       <div className="flex items-center justify-between gap-2 rounded-2xl border border-gray-200 bg-white p-2">
-        <Link href={href(addDays(date, -step))} className="flex h-11 w-11 items-center justify-center rounded-xl text-xl hover:bg-gray-100" aria-label="Previous">
-          ‹
+        <Link href={href(addDays(date, -step))} className="flex h-11 w-11 items-center justify-center rounded-xl hover:bg-gray-100" aria-label="Previous">
+          <ArrowLeftIcon size={22} />
         </Link>
         <div className="text-center">
           <p className="font-bold">{view === "week" ? `${formatDateString(rangeStart, { month: "short", day: "numeric" })} – ${formatDateString(addDays(rangeStart, 6), { month: "short", day: "numeric" })}` : formatDateString(date, { weekday: "long", month: "long", day: "numeric" })}</p>
@@ -59,8 +60,8 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
             <span className="text-xs text-gray-500">Today</span>
           )}
         </div>
-        <Link href={href(addDays(date, step))} className="flex h-11 w-11 items-center justify-center rounded-xl text-xl hover:bg-gray-100" aria-label="Next">
-          ›
+        <Link href={href(addDays(date, step))} className="flex h-11 w-11 items-center justify-center rounded-xl hover:bg-gray-100" aria-label="Next">
+          <ArrowRightIcon size={22} />
         </Link>
       </div>
 

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowRightIcon } from "@/components/icons";
 import { requireAccount } from "@/lib/current-account";
 import { countUnread } from "@/lib/notifications";
 import { ONBOARDING_DONE } from "@/lib/constants";
@@ -40,8 +41,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </header>
 
         {setupIncomplete ? (
-          <Link href={`/onboarding/${account.onboardingStep}`} className="block bg-amber-100 px-4 py-2 text-center text-sm font-semibold text-amber-900">
-            Setup is {account.onboardingStep - 1} of 8 steps done — tap to continue →
+          <Link href={`/onboarding/${account.onboardingStep}`} className="flex items-center justify-center gap-1 bg-amber-100 px-4 py-2 text-center text-sm font-semibold text-amber-900">
+            Setup is {account.onboardingStep - 1} of 8 steps done — tap to continue <ArrowRightIcon size={16} />
           </Link>
         ) : null}
 

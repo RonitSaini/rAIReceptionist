@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowRightIcon } from "@/components/icons";
 import { requireAccount } from "@/lib/current-account";
 import { prisma } from "@/lib/prisma";
 import { dayBoundsUtc, formatDateLong, formatDateTime, formatTime, todayString } from "@/lib/time";
@@ -55,8 +56,8 @@ export default async function DashboardPage() {
       <Card
         title={previousSeenAt ? `Since you last signed in (${formatDateTime(previousSeenAt, tz)})` : "Since you last signed in"}
         action={
-          <Link href="/notifications" className="text-sm font-semibold text-brand-700">
-            Inbox →
+          <Link href="/notifications" className="inline-flex items-center gap-1 text-sm font-semibold text-brand-700">
+            Inbox <ArrowRightIcon size={16} />
           </Link>
         }
       >
@@ -74,8 +75,8 @@ export default async function DashboardPage() {
             </div>
             <NotificationList items={sinceItems.slice(0, 8)} compact />
             {sinceItems.length > 8 ? (
-              <Link href="/notifications" className="mt-3 block text-center text-sm font-semibold text-brand-700">
-                See all {sinceItems.length} →
+              <Link href="/notifications" className="mt-3 flex items-center justify-center gap-1 text-sm font-semibold text-brand-700">
+                See all {sinceItems.length} <ArrowRightIcon size={16} />
               </Link>
             ) : null}
           </>
@@ -116,8 +117,8 @@ export default async function DashboardPage() {
             ))}
           </ul>
         )}
-        <Link href={`/reservations?date=${today}`} className="mt-2 block text-sm font-semibold text-brand-700">
-          Open today&apos;s book →
+        <Link href={`/reservations?date=${today}`} className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-brand-700">
+          Open today&apos;s book <ArrowRightIcon size={16} />
         </Link>
       </Card>
 

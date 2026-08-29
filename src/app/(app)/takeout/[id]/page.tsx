@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowLeftIcon } from "@/components/icons";
 import { notFound } from "next/navigation";
 import { requireAccount } from "@/lib/current-account";
 import { prisma } from "@/lib/prisma";
@@ -21,8 +22,8 @@ export default async function TakeoutDetailPage({ params }: { params: Promise<{ 
 
   return (
     <div className="mx-auto max-w-lg space-y-4">
-      <Link href="/takeout" className="text-sm font-semibold text-gray-500">
-        ← Takeout orders
+      <Link href="/takeout" className="inline-flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-ink">
+        <ArrowLeftIcon size={18} /> Takeout orders
       </Link>
       <PageHeader title={o.guestName} subtitle={`${o.isDelivery ? "Delivery" : "Pickup"} ${formatDateTime(o.pickupTime, tz)}${o.guestPhone ? ` · ${formatUsPhone(o.guestPhone)}` : ""}`} action={<Badge tone={takeoutTone[o.status]}>{humanize(o.status)}</Badge>} />
 

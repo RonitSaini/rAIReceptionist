@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowLeftIcon } from "@/components/icons";
 import { notFound } from "next/navigation";
 import { requireAccount } from "@/lib/current-account";
 import { prisma } from "@/lib/prisma";
@@ -39,8 +40,8 @@ export default async function CallDetailPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="space-y-4">
-      <Link href="/calls" className="text-sm font-semibold text-gray-500">
-        ← Calls
+      <Link href="/calls" className="inline-flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-ink">
+        <ArrowLeftIcon size={18} /> Calls
       </Link>
       <PageHeader
         title={call.callerName ?? (call.callerPhone ? formatUsPhone(call.callerPhone) : "Unknown caller")}

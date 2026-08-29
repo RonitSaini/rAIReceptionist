@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowLeftIcon } from "@/components/icons";
 import { requireAccount } from "@/lib/current-account";
 import { createTakeoutOrder } from "@/actions/takeout";
 import { minutesToTime, timeToMinutes, toTimeString, todayString } from "@/lib/time";
@@ -14,8 +15,8 @@ export default async function NewTakeoutPage() {
   const defaultTime = minutesToTime(Math.ceil(nowMin / 5) * 5);
   return (
     <div className="mx-auto max-w-lg space-y-4">
-      <Link href="/takeout" className="text-sm font-semibold text-gray-500">
-        ← Takeout orders
+      <Link href="/takeout" className="inline-flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-ink">
+        <ArrowLeftIcon size={18} /> Takeout orders
       </Link>
       <PageHeader title="New takeout order" />
       <TakeoutForm

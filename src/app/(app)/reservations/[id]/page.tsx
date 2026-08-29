@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowLeftIcon } from "@/components/icons";
 import { notFound } from "next/navigation";
 import { requireAccount } from "@/lib/current-account";
 import { prisma } from "@/lib/prisma";
@@ -21,8 +22,8 @@ export default async function ReservationDetailPage({ params }: { params: Promis
 
   return (
     <div className="mx-auto max-w-lg space-y-4">
-      <Link href={`/reservations?date=${toDateString(r.startTime, tz)}`} className="text-sm font-semibold text-gray-500">
-        ← Reservations
+      <Link href={`/reservations?date=${toDateString(r.startTime, tz)}`} className="inline-flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-ink">
+        <ArrowLeftIcon size={18} /> Reservations
       </Link>
       <PageHeader title={r.guestName} subtitle={`${formatDateTime(r.startTime, tz)} · party of ${r.partySize}${r.guestPhone ? ` · ${formatUsPhone(r.guestPhone)}` : ""}`} action={<Badge tone={reservationTone[r.status]}>{humanize(r.status)}</Badge>} />
 

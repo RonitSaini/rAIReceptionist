@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowRightIcon } from "@/components/icons";
 import type { Notification } from "@prisma/client";
 import { acknowledgeNotification, markNotificationRead } from "@/actions/notifications";
 import { NOTIFICATION_TYPE_ICON, NOTIFICATION_TYPE_LABEL, notificationHref } from "@/lib/notifications";
@@ -31,8 +32,8 @@ export function NotificationList({ items, compact = false, grid = false }: { ite
               </Link>
               <div className="mt-2 flex flex-wrap gap-2">
                 {href !== "/notifications" ? (
-                  <Link href={`/notifications/open/${n.id}`} className="text-sm font-semibold text-brand-700">
-                    Open →
+                  <Link href={`/notifications/open/${n.id}`} className="inline-flex items-center gap-1 text-sm font-semibold text-brand-700">
+                    Open <ArrowRightIcon size={16} />
                   </Link>
                 ) : null}
                 {needsAck ? (

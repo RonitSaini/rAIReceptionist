@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowLeftIcon } from "@/components/icons";
 import { requireAccount } from "@/lib/current-account";
 import { createReservation } from "@/actions/reservations";
 import { isValidDateString, todayString } from "@/lib/time";
@@ -12,8 +13,8 @@ export default async function NewReservationPage({ searchParams }: { searchParam
   const { date } = await searchParams;
   return (
     <div className="mx-auto max-w-lg space-y-4">
-      <Link href="/reservations" className="text-sm font-semibold text-gray-500">
-        ← Reservations
+      <Link href="/reservations" className="inline-flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-ink">
+        <ArrowLeftIcon size={18} /> Reservations
       </Link>
       <PageHeader title="New reservation" />
       <ReservationForm
