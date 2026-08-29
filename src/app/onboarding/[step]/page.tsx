@@ -28,10 +28,10 @@ export default async function OnboardingStepPage({ params }: { params: Promise<{
     const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { accountId: true } });
     if (user?.accountId) redirect("/onboarding/2");
     return (
-      <>
+      <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
         <OnboardingProgress step={1} />
         <CreateAccountForm />
-      </>
+      </div>
     );
   }
 
@@ -41,10 +41,10 @@ export default async function OnboardingStepPage({ params }: { params: Promise<{
   switch (step) {
     case 2:
       return (
-        <>
+        <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
           <OnboardingProgress step={2} />
           <BusinessBasicsForm account={view} mode="onboarding" />
-        </>
+        </div>
       );
     case 3: {
       const [hours, manager] = await Promise.all([
@@ -52,48 +52,48 @@ export default async function OnboardingStepPage({ params }: { params: Promise<{
         prisma.managerAvailability.findMany({ where: { accountId: account.id }, orderBy: { dayOfWeek: "asc" } }),
       ]);
       return (
-        <>
+        <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
           <OnboardingProgress step={3} />
           <HoursForm account={view} hours={hours} managerHours={manager} mode="onboarding" />
-        </>
+        </div>
       );
     }
     case 4: {
       const items = await prisma.menuItem.findMany({ where: { accountId: account.id }, orderBy: { sortOrder: "asc" } });
       return (
-        <>
+        <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
           <OnboardingProgress step={4} />
           <MenuPoliciesForm account={view} menu={items.map(serializeMenuItem)} mode="onboarding" />
-        </>
+        </div>
       );
     }
     case 5:
       return (
-        <>
+        <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
           <OnboardingProgress step={5} />
           <ReservationSettingsForm account={view} mode="onboarding" />
-        </>
+        </div>
       );
     case 6:
       return (
-        <>
+        <div className="mx-auto max-w-6xl">
           <OnboardingProgress step={6} />
           <VoiceForm account={view} mode="onboarding" />
-        </>
+        </div>
       );
     case 7:
       return (
-        <>
+        <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
           <OnboardingProgress step={7} />
           <PhoneStep account={view} mode="onboarding" />
-        </>
+        </div>
       );
     case 8:
       return (
-        <>
+        <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
           <OnboardingProgress step={8} />
           <PaymentStep account={view} mode="onboarding" />
-        </>
+        </div>
       );
     default:
       notFound();

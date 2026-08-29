@@ -45,7 +45,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         ))}
       </div>
 
-      <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
+      <div className={tab === "voice" ? "mx-auto max-w-6xl" : "mx-auto max-w-2xl 2xl:max-w-3xl"}>
         {tab === "business" ? (
           <Card title="Business basics">
             <BusinessBasicsForm account={view} mode="settings" />

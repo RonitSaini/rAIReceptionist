@@ -109,6 +109,8 @@ export function VoiceForm({ account, mode }: { account: AccountView; mode: FormM
     <form action={action} className="space-y-6">
       <input type="hidden" name="voiceId" value={voiceId} />
 
+      {/* Two columns on desktop: voices left, greeting + test call right (sticky). Stacked on phones. */}
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start lg:gap-8">
       <section className="space-y-3">
         <h2 className="text-base font-bold">Choose a voice</h2>
         <p className="text-sm text-gray-500">{hasRealSamples ? "Tap play to hear each voice." : "Tap play to hear a preview. (Previews use your browser's voice until the phone system is connected.)"}</p>
@@ -195,6 +197,7 @@ export function VoiceForm({ account, mode }: { account: AccountView; mode: FormM
         ) : null}
       </section>
 
+      <div className="space-y-6 lg:sticky lg:top-20">
       <section className="space-y-3">
         <h2 className="text-base font-bold">Greeting</h2>
         <Field label="Name the AI uses for itself" htmlFor="hostName">
@@ -224,6 +227,8 @@ export function VoiceForm({ account, mode }: { account: AccountView; mode: FormM
         <p className="text-sm text-gray-500">The test call uses {selectedName}. If you edited the greeting or host name, save the form first.</p>
         {retellReady ? <WebTestCall hostName={hostName} /> : <p className="text-sm text-gray-500">Browser test calls become available once RETELL_API_KEY is configured.</p>}
       </section>
+      </div>
+      </div>
     </form>
   );
 }
