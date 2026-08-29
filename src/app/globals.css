@@ -3,6 +3,11 @@
 /* Class-based dark mode: <html class="dark"> (set by the theme toggle / inline script). */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Viewport-height variants so the sidebar always fits without scrolling. */
+@custom-variant short (@media (max-height: 1360px));
+@custom-variant tiny (@media (max-height: 1060px));
+@custom-variant micro (@media (max-height: 820px));
+
 @theme {
   /* Surfaces (cards, inputs, headers). Separate from --color-white so text-white stays white in dark mode. */
   --color-surface: #ffffff;

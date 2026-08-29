@@ -19,14 +19,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="min-h-dvh bg-paper md:flex">
       {/* Desktop sidebar */}
       <aside className="hidden w-60 shrink-0 flex-col border-r border-gray-200 bg-surface md:sticky md:top-0 md:flex md:h-dvh 2xl:w-64">
-        <div className="flex h-16 items-center px-5">
+        <div className="flex h-16 shrink-0 items-center px-5 short:h-14 tiny:h-12">
           <Logo />
         </div>
         <AppNav variant="sidebar" />
-        <div className="min-h-0 flex-1 overflow-y-auto pb-3">
+        <div className="min-h-0 flex-1 overflow-hidden pb-2">
           <SidebarPanel account={account} />
         </div>
-        <div className="border-t border-gray-100 p-4">
+        <div className="shrink-0 border-t border-gray-100 p-4 short:px-4 short:py-2.5">
           <p className="truncate text-sm font-semibold">{account.restaurantName}</p>
           <SignOutButton className="mt-1 text-sm text-gray-500 hover:text-ink" />
         </div>

@@ -61,13 +61,13 @@ export async function SidebarPanel({ account }: { account: Account }) {
   ];
 
   return (
-    <div className="mt-2 space-y-3 px-3">
-      <Reveal index={1} className="rounded-2xl border border-gray-200 bg-surface p-3">
+    <div className="mt-2 space-y-3 px-3 short:mt-1 short:space-y-2">
+      <Reveal index={1} className="rounded-2xl border border-gray-200 bg-surface p-3 short:p-2.5">
         <SectionTitle>Today</SectionTitle>
-        <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2">
+        <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 short:mt-1 short:grid-cols-3 short:gap-y-1">
           {stats.map((s) => (
             <Link key={s.label} href={s.href} className="group rounded-lg px-1 py-0.5 transition-colors hover:bg-gray-50">
-              <dd className="flex items-center gap-1.5 text-lg font-bold leading-tight text-ink">
+              <dd className="flex items-center gap-1.5 text-lg font-bold leading-tight text-ink short:text-base">
                 <CountUp to={s.value} />
                 {s.live ? <StatusDot className="text-green-500" label="Live" /> : null}
               </dd>
@@ -77,14 +77,14 @@ export async function SidebarPanel({ account }: { account: Account }) {
         </dl>
       </Reveal>
 
-      <Reveal index={2} className="rounded-2xl border border-gray-200 bg-surface p-3">
+      <Reveal index={2} className="rounded-2xl border border-gray-200 bg-surface p-3 short:p-2.5 micro:hidden">
         <SectionTitle href={`/reservations?date=${today}`}>Next up</SectionTitle>
         {nextUp.length === 0 ? (
           <p className="mt-2 text-sm text-gray-500">No more reservations today.</p>
         ) : (
           <ul className="mt-2 space-y-1">
-            {nextUp.map((r) => (
-              <li key={r.id}>
+            {nextUp.map((r, i) => (
+              <li key={r.id} className={i >= 2 ? "tiny:hidden" : ""}>
                 <Link href={`/reservations/${r.id}`} className="flex items-center justify-between gap-2 rounded-lg px-1 py-1 text-sm transition-colors hover:bg-gray-50">
                   <span className="min-w-0 truncate">
                     <span className="font-semibold tabular-nums">{formatTime(r.startTime, tz)}</span> <span className="text-gray-700">{r.guestName}</span>
@@ -97,17 +97,19 @@ export async function SidebarPanel({ account }: { account: Account }) {
         )}
       </Reveal>
 
-      <Reveal index={3} className="space-y-2">
-        <SectionTitle>Quick actions</SectionTitle>
-        <LinkButton href="/reservations/new" variant="secondary" size="sm" full className="justify-start">
-          📅 New reservation
+      <Reveal index={3} className="space-y-2 short:flex short:gap-2 short:space-y-0">
+        <div className="short:hidden">
+          <SectionTitle>Quick actions</SectionTitle>
+        </div>
+        <LinkButton href="/reservations/new" variant="secondary" size="sm" full className="justify-start short:flex-1 short:justify-center" title="New reservation">
+          📅 <span className="short:sr-only">New </span>reservation
         </LinkButton>
-        <LinkButton href="/takeout/new" variant="secondary" size="sm" full className="justify-start">
-          🥡 New takeout order
+        <LinkButton href="/takeout/new" variant="secondary" size="sm" full className="justify-start short:flex-1 short:justify-center" title="New takeout order">
+          🥡 <span className="short:sr-only">New </span>takeout
         </LinkButton>
       </Reveal>
 
-      <Reveal index={4} className="rounded-2xl border border-gray-200 bg-surface p-3">
+      <Reveal index={4} className="rounded-2xl border border-gray-200 bg-surface p-3 short:p-2.5 micro:hidden">
         <SectionTitle href="/settings?tab=hours">Hours today</SectionTitle>
         <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold">
           {service.openNow ? (
@@ -121,7 +123,7 @@ export async function SidebarPanel({ account }: { account: Account }) {
           )}
         </p>
         {service.periods.length > 0 ? (
-          <ul className="mt-1 space-y-0.5 text-xs text-gray-600">
+          <ul className="mt-1 space-y-0.5 text-xs text-gray-600 tiny:hidden">
             {service.periods.map((p) => (
               <li key={`${p.periodName}-${p.open}`} className="flex justify-between gap-2">
                 <span>{p.periodName}</span>
@@ -134,7 +136,7 @@ export async function SidebarPanel({ account }: { account: Account }) {
         ) : null}
       </Reveal>
 
-      <Reveal index={5} className="rounded-2xl border border-gray-200 bg-surface p-3">
+      <Reveal index={5} className="rounded-2xl border border-gray-200 bg-surface p-3 short:p-2.5">
         <SectionTitle>AI host</SectionTitle>
         {account.twilioNumber ? (
           <>
@@ -151,19 +153,19 @@ export async function SidebarPanel({ account }: { account: Account }) {
             </Link>
           </>
         )}
-        <Link href="/settings?tab=voice" className="mt-2 block text-xs font-semibold text-gray-500 hover:text-ink">
+        <Link href="/settings?tab=voice" className="mt-2 block text-xs font-semibold text-gray-500 hover:text-ink tiny:hidden">
           🎧 Test call in browser
         </Link>
       </Reveal>
 
-      <Reveal index={6} className="rounded-2xl border border-gray-200 bg-surface p-3">
+      <Reveal index={6} className="rounded-2xl border border-gray-200 bg-surface p-3 short:p-2.5 tiny:hidden">
         <SectionTitle href="/calls">Recent calls</SectionTitle>
         {recentCalls.length === 0 ? (
           <p className="mt-2 text-sm text-gray-500">No calls yet.</p>
         ) : (
           <ul className="mt-2 space-y-1">
-            {recentCalls.map((c) => (
-              <li key={c.id}>
+            {recentCalls.map((c, i) => (
+              <li key={c.id} className={i >= 2 ? "short:hidden" : ""}>
                 <Link href={`/calls/${c.id}`} className="flex items-center justify-between gap-2 rounded-lg px-1 py-1 transition-colors hover:bg-gray-50">
                   <span className="min-w-0">
                     <span className="block truncate text-sm text-gray-700">{c.callerName ?? (c.callerPhone ? formatUsPhone(c.callerPhone) : "Unknown caller")}</span>

@@ -50,7 +50,7 @@ export function SidebarNav({ items }: { items: SidebarNavItem[] }) {
   }, [pathname, moveTo]);
 
   return (
-    <nav ref={navRef} className="relative flex flex-col gap-1 px-3 py-2" onMouseLeave={() => moveTo(activeEl())} aria-label="Main">
+    <nav ref={navRef} className="relative flex shrink-0 flex-col gap-1 px-3 py-2 short:gap-0.5 short:py-1" onMouseLeave={() => moveTo(activeEl())} aria-label="Main">
       {/* Gliding hover highlight */}
       <span ref={highlightRef} aria-hidden="true" className="nav-highlight pointer-events-none absolute left-3 right-3 top-0 rounded-xl bg-brand-50 opacity-0" />
       {/* Active accent bar on the left edge */}
@@ -66,7 +66,7 @@ export function SidebarNav({ items }: { items: SidebarNavItem[] }) {
             aria-current={active ? "page" : undefined}
             onMouseEnter={(e) => moveTo(e.currentTarget)}
             onFocus={(e) => moveTo(e.currentTarget)}
-            className={`group relative z-10 flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors duration-200 ${active ? "text-brand-800" : "text-gray-600 hover:text-ink"}`}
+            className={`group relative z-10 flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors duration-200 short:min-h-9 ${active ? "text-brand-800" : "text-gray-600 hover:text-ink"}`}
           >
             {it.icon ? (
               <span aria-hidden="true" className="text-base leading-none transition-transform duration-300 group-hover:translate-x-0.5 group-hover:scale-110">
