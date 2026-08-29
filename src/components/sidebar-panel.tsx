@@ -85,8 +85,8 @@ export async function SidebarPanel({ account }: { account: Account }) {
           <ul className="mt-2 space-y-1">
             {nextUp.map((r, i) => (
               <li key={r.id} className={i >= 2 ? "tiny:hidden" : ""}>
-                <Link href={`/reservations/${r.id}`} className="flex items-center justify-between gap-2 rounded-lg px-1 py-1 text-sm transition-colors hover:bg-gray-50">
-                  <span className="min-w-0 truncate">
+                <Link href={`/reservations/${r.id}`} className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg px-1 py-1 text-sm transition-colors hover:bg-gray-50">
+                  <span className="min-w-0 flex-1 truncate">
                     <span className="font-semibold tabular-nums">{formatTime(r.startTime, tz)}</span> <span className="text-gray-700">{r.guestName}</span>
                   </span>
                   <span className="shrink-0 text-xs text-gray-500">×{r.partySize}</span>
@@ -165,13 +165,13 @@ export async function SidebarPanel({ account }: { account: Account }) {
         ) : (
           <ul className="fade-bottom relative mt-2 grid min-h-0 flex-1 auto-rows-[44px] content-start overflow-hidden pb-7">
             {recentCalls.map((c) => (
-              <li key={c.id} className="min-h-0">
-                <Link href={`/calls/${c.id}`} className="flex items-center justify-between gap-2 rounded-lg px-1 py-1 transition-colors hover:bg-gray-50">
-                  <span className="min-w-0">
+              <li key={c.id} className="min-h-0 min-w-0">
+                <Link href={`/calls/${c.id}`} className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg px-1 py-1 transition-colors hover:bg-gray-50">
+                  <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm text-gray-700">{c.callerName ?? (c.callerPhone ? formatUsPhone(c.callerPhone) : "Unknown caller")}</span>
                     <span className="block text-[11px] text-gray-500">{timeAgo(c.startedAt, now)}</span>
                   </span>
-                  <Badge tone={classificationTone[c.classification]} className="shrink-0">
+                  <Badge tone={classificationTone[c.classification]} className="shrink-0 px-2 text-[10px]">
                     {humanize(c.classification)}
                   </Badge>
                 </Link>
