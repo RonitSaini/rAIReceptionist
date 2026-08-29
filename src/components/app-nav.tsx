@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NavButton } from "@/components/ui/nav-button";
+import { SidebarNav } from "@/components/ui/sidebar-nav";
 
 const ITEMS = [
   { href: "/dashboard", label: "Home", icon: "🏠" },
@@ -18,15 +18,7 @@ export function AppNav({ variant }: { variant: "sidebar" | "tabs" }) {
   const pathname = usePathname();
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
 
-  if (variant === "sidebar") {
-    return (
-      <nav className="flex flex-col gap-2 px-3 py-2">
-        {SIDEBAR_ITEMS.map((it) => (
-          <NavButton key={it.href} href={it.href} label={it.label} icon={it.icon} active={isActive(it.href)} />
-        ))}
-      </nav>
-    );
-  }
+  if (variant === "sidebar") return <SidebarNav items={SIDEBAR_ITEMS} />;
 
   // Mobile bottom tabs: no hover on touch, so these stay simple.
   return (
