@@ -46,7 +46,7 @@ export async function SidebarPanel({ account }: { account: Account }) {
       select: { id: true, guestName: true, partySize: true, startTime: true, status: true },
     }),
     prisma.businessHours.findMany({ where: { accountId: account.id } }),
-    prisma.call.findMany({ where: { accountId: account.id }, orderBy: { startedAt: "desc" }, take: 3, select: { id: true, callerName: true, callerPhone: true, classification: true, startedAt: true } }),
+    prisma.call.findMany({ where: { accountId: account.id }, orderBy: { startedAt: "desc" }, take: 8, select: { id: true, callerName: true, callerPhone: true, classification: true, startedAt: true } }),
   ]);
   const covers = todayRes.reduce((s, r) => s + r.partySize, 0);
   const service = todayServiceStatus(hours, tz);
@@ -61,7 +61,7 @@ export async function SidebarPanel({ account }: { account: Account }) {
   ];
 
   return (
-    <div className="mt-2 space-y-3 px-3 short:mt-1 short:space-y-2">
+    <div className="flex h-full flex-col gap-3 px-3 pt-2 short:gap-2 short:pt-1">
       <Reveal index={1} className="rounded-2xl border border-gray-200 bg-surface p-3 short:p-2.5">
         <SectionTitle>Today</SectionTitle>
         <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-2 short:mt-1 short:grid-cols-3 short:gap-y-1">
@@ -158,14 +158,14 @@ export async function SidebarPanel({ account }: { account: Account }) {
         </Link>
       </Reveal>
 
-      <Reveal index={6} className="rounded-2xl border border-gray-200 bg-surface p-3 short:p-2.5 tiny:hidden">
+      <Reveal index={6} className="flex min-h-0 flex-1 flex-col rounded-2xl border border-gray-200 bg-surface p-3 short:p-2.5 tiny:hidden">
         <SectionTitle href="/calls">Recent calls</SectionTitle>
         {recentCalls.length === 0 ? (
           <p className="mt-2 text-sm text-gray-500">No calls yet.</p>
         ) : (
-          <ul className="mt-2 space-y-1">
-            {recentCalls.map((c, i) => (
-              <li key={c.id} className={i >= 2 ? "short:hidden" : ""}>
+          <ul className="fade-bottom relative mt-2 grid min-h-0 flex-1 auto-rows-[44px] content-start overflow-hidden pb-7">
+            {recentCalls.map((c) => (
+              <li key={c.id} className="min-h-0">
                 <Link href={`/calls/${c.id}`} className="flex items-center justify-between gap-2 rounded-lg px-1 py-1 transition-colors hover:bg-gray-50">
                   <span className="min-w-0">
                     <span className="block truncate text-sm text-gray-700">{c.callerName ?? (c.callerPhone ? formatUsPhone(c.callerPhone) : "Unknown caller")}</span>
