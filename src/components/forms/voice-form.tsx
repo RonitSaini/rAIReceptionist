@@ -99,7 +99,8 @@ export function VoiceForm({ account, mode }: { account: AccountView; mode: FormM
   const hasDisclosure = greetingHasDisclosure(greeting);
   const curated = VOICES.find((x) => x.id === voiceId);
   const custom = !curated ? all.find((x) => x.id === voiceId) : undefined;
-  const selectedName = curated?.name ?? custom?.name ?? voiceId;
+  // Friendly name even before the catalog has loaded ("11labs-Myra" -> "Myra").
+  const selectedName = curated?.name ?? custom?.name ?? voiceId.replace(/^(11labs|cartesia|openai|minimax|inworld|fish_audio|retell)-/, "");
 
   const q = filter.q.trim().toLowerCase();
   const filtered = all.filter((v) => (!filter.gender || v.gender === filter.gender) && (!q || v.name.toLowerCase().includes(q) || v.provider.includes(q) || (v.accent ?? "").toLowerCase().includes(q)));
