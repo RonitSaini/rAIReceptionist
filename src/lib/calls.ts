@@ -50,3 +50,8 @@ export function transcriptText(rc: RetellCall): string | null {
 export function isCallLive(call: Pick<Call, "callStatus" | "startedAt">, maxAgeMs = 2 * 60 * 60_000): boolean {
   return (call.callStatus === "ongoing" || call.callStatus === "registered") && Date.now() - call.startedAt.getTime() < maxAgeMs;
 }
+
+/** Earliest start time for a call to still count as live (see isCallLive). */
+export function liveCallCutoff(maxAgeMs = 2 * 60 * 60_000): Date {
+  return new Date(Date.now() - maxAgeMs);
+}

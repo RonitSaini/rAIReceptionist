@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Account } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { liveCallCutoff } from "@/lib/calls";
 import { dayBoundsUtc, todayString } from "@/lib/time";
 import { formatUsPhone } from "@/lib/form";
 import { LinkButton, StatusDot } from "@/components/ui";
@@ -10,7 +11,7 @@ import { Reveal } from "@/components/reveal";
 /** Desktop sidebar content below the nav: today's numbers, quick actions, and AI host status. */
 export async function SidebarPanel({ account }: { account: Account }) {
   const { start, end } = dayBoundsUtc(todayString(account.timeZone), account.timeZone);
-  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60_000);
+  const twoHoursAgo = liveCallCutoff();
 
   const [todayRes, openOrders, unread, liveCalls, callsToday] = await Promise.all([
     prisma.reservation.findMany({ where: { accountId: account.id, startTime: { gte: start, lt: end }, isWaitlist: false, status: { notIn: ["cancelled", "no_show"] } }, select: { partySize: true } }),
