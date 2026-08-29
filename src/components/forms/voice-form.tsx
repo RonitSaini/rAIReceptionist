@@ -7,6 +7,7 @@ import { VOICES } from "@/lib/constants";
 import { generateGreeting, greetingHasDisclosure } from "@/lib/greeting";
 import { Button, Field, Input, Textarea, inputClass } from "@/components/ui";
 import { FormFooter, type FormMode } from "@/components/form-footer";
+import { WebTestCall } from "@/components/web-test-call";
 
 type VoiceSample = { id: string; name: string; available: boolean; previewUrl: string | null };
 type VoiceOption = { id: string; name: string; provider: string; gender: string | null; accent: string | null; age: string | null; recommended: boolean; previewUrl: string | null };
@@ -33,6 +34,7 @@ export function VoiceForm({ account, mode }: { account: AccountView; mode: FormM
   const [greeting, setGreeting] = useState(account.greeting ?? generateGreeting(account.restaurantName, account.hostName));
   const [samples, setSamples] = useState<Record<string, VoiceSample>>({});
   const [all, setAll] = useState<VoiceOption[]>([]);
+  const [retellReady, setRetellReady] = useState(false);
   const [browse, setBrowse] = useState(false);
   const [filter, setFilter] = useState<{ gender: "" | "female" | "male"; q: string }>({ gender: "", q: "" });
   const [playing, setPlaying] = useState<string | null>(null);
@@ -47,8 +49,9 @@ export function VoiceForm({ account, mode }: { account: AccountView; mode: FormM
     let cancelled = false;
     fetch("/api/retell/voices")
       .then((r) => (r.ok ? r.json() : null))
-      .then((data: { voices?: VoiceSample[]; all?: VoiceOption[] } | null) => {
+      .then((data: { configured?: boolean; voices?: VoiceSample[]; all?: VoiceOption[] } | null) => {
         if (cancelled || !data) return;
+        if (data.configured) setRetellReady(true);
         if (data.voices) setSamples(Object.fromEntries(data.voices.map((v) => [v.id, v])));
         if (data.all) setAll(data.all);
       })
@@ -197,6 +200,12 @@ export function VoiceForm({ account, mode }: { account: AccountView; mode: FormM
       </section>
 
       <FormFooter state={state} pending={pending} mode={mode} backHref="/onboarding/5" />
+
+      <section className="space-y-3">
+        <h2 className="text-base font-bold">Hear it for real</h2>
+        <p className="text-sm text-gray-500">Save first if you changed the voice or greeting — the test call uses what&apos;s saved.</p>
+        {retellReady ? <WebTestCall hostName={account.hostName} /> : <p className="text-sm text-gray-500">Browser test calls become available once RETELL_API_KEY is configured.</p>}
+      </section>
     </form>
   );
 }

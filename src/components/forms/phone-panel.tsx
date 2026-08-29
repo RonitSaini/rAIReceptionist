@@ -9,6 +9,7 @@ import type { ActionState } from "@/lib/form";
 import { formatUsPhone } from "@/lib/form";
 import { Alert, Badge, Button, Card, Field, Input } from "@/components/ui";
 import type { FormMode } from "@/components/form-footer";
+import { WebTestCall } from "@/components/web-test-call";
 
 type Status = { twilio: boolean; retell: boolean; publicUrl: boolean; appUrl: string };
 
@@ -92,6 +93,11 @@ export function PhonePanel({ account, mode, status }: { account: AccountView; mo
       </Card>
 
       <Card title="Test it">
+        {status.retell ? (
+          <div className="mb-4">
+            <WebTestCall hostName={account.hostName} compact />
+          </div>
+        ) : null}
         <p className="text-sm text-gray-500">
           We&apos;ll call {account.cellPhone ? formatUsPhone(account.cellPhone) : "your cell (add it in Business basics)"} from your CallCover number so you can hear the greeting and try booking a table.
         </p>

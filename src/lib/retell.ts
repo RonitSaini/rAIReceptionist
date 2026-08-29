@@ -158,6 +158,10 @@ export function registerPhoneCall(body: { agent_id: string; from_number?: string
 export function getCall(callId: string) {
   return request<RetellCall>("GET", `/v2/get-call/${callId}`);
 }
+/** Browser (WebRTC) call: returns an access token the client SDK uses to connect. */
+export function createWebCall(body: { agent_id: string; metadata?: Record<string, unknown>; retell_llm_dynamic_variables?: Record<string, string> }) {
+  return request<RetellCall & { access_token: string }>("POST", "/v2/create-web-call", body);
+}
 export function sipUriForCall(callId: string): string {
   return `sip:${callId}@${retellSipDomain()}`;
 }
