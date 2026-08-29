@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { NOTIFICATION_TYPES } from "@/lib/constants";
 import { NOTIFICATION_TYPE_LABEL } from "@/lib/notifications";
 import { markAllNotificationsRead } from "@/actions/notifications";
-import { Button, EmptyState, PageHeader } from "@/components/ui";
+import { Button, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { NotificationList } from "@/components/notification-list";
 
 export const metadata = { title: "Notifications" };
@@ -16,13 +16,14 @@ export default async function NotificationsPage({ searchParams }: { searchParams
   const typeFilter = NOTIFICATION_TYPES.includes(type as NotificationType) ? (type as NotificationType) : null;
   const unreadOnly = unread === "1";
 
-  const [items, unreadCount] = await Promise.all([
+  const [items, unreadCount, totalCount] = await Promise.all([
     prisma.notification.findMany({
       where: { accountId: account.id, ...(typeFilter ? { type: typeFilter } : {}), ...(unreadOnly ? { readAt: null } : {}) },
       orderBy: { createdAt: "desc" },
       take: 100,
     }),
     prisma.notification.count({ where: { accountId: account.id, readAt: null } }),
+    prisma.notification.count({ where: { accountId: account.id } }),
   ]);
 
   const filterHref = (t: string | null, u: boolean) => {
@@ -32,6 +33,34 @@ export default async function NotificationsPage({ searchParams }: { searchParams
     const q = p.toString();
     return q ? `/notifications?${q}` : "/notifications";
   };
+
+  const chip = (active: boolean) => `shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${active ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 bg-surface text-gray-700"}`;
+  const typeLabel = typeFilter ? NOTIFICATION_TYPE_LABEL[typeFilter] : null;
+
+  // Explain an empty result in terms of the active filters, with one-click ways out.
+  let empty: { title: string; body?: string; action?: React.ReactNode };
+  if (totalCount === 0) {
+    empty = { title: "No notifications yet", body: "New reservations, orders, messages and escalations will show up here." };
+  } else if (unreadOnly && typeFilter) {
+    empty = {
+      title: `No unread ${typeLabel!.toLowerCase()} notifications`,
+      body: "You've read them all. The “Unread only” filter is still on.",
+      action: (
+        <div className="flex flex-wrap justify-center gap-2">
+          <LinkButton href={filterHref(typeFilter, false)} size="sm">
+            Show all {typeLabel!.toLowerCase()}
+          </LinkButton>
+          <LinkButton href={filterHref(null, true)} size="sm" variant="secondary">
+            All unread
+          </LinkButton>
+        </div>
+      ),
+    };
+  } else if (unreadOnly) {
+    empty = { title: "You're all caught up", body: "No unread notifications.", action: <LinkButton href="/notifications" size="sm">Show all notifications</LinkButton> };
+  } else {
+    empty = { title: `No ${typeLabel!.toLowerCase()} notifications yet`, action: <LinkButton href="/notifications" size="sm" variant="secondary">Show all types</LinkButton> };
+  }
 
   return (
     <div className="space-y-4">
@@ -49,21 +78,37 @@ export default async function NotificationsPage({ searchParams }: { searchParams
         }
       />
 
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-        <Link href={filterHref(typeFilter, !unreadOnly)} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${unreadOnly ? "border-brand-600 bg-brand-600 text-white" : "border-gray-300 bg-surface text-gray-700"}`}>
-          Unread only
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label="Filters">
+        <Link href={filterHref(typeFilter, !unreadOnly)} aria-pressed={unreadOnly} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${unreadOnly ? "border-brand-600 bg-brand-600 text-white" : "border-gray-300 bg-surface text-gray-700"}`}>
+          Unread only · {unreadCount}
+          {unreadOnly ? <span aria-hidden="true"> ✕</span> : null}
         </Link>
-        <Link href={filterHref(null, unreadOnly)} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${!typeFilter ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 bg-surface text-gray-700"}`}>
+        <Link href={filterHref(null, unreadOnly)} aria-pressed={!typeFilter} className={chip(!typeFilter)}>
           All types
         </Link>
         {NOTIFICATION_TYPES.map((t) => (
-          <Link key={t} href={filterHref(t, unreadOnly)} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${typeFilter === t ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 bg-surface text-gray-700"}`}>
+          <Link key={t} href={filterHref(t, unreadOnly)} aria-pressed={typeFilter === t} className={chip(typeFilter === t)}>
             {NOTIFICATION_TYPE_LABEL[t]}
           </Link>
         ))}
       </div>
 
-      {items.length === 0 ? <EmptyState title="No notifications" body="New reservations, orders, messages and escalations will show up here." /> : <NotificationList items={items} grid />}
+      {unreadOnly || typeFilter ? (
+        <p className="text-xs text-gray-500">
+          Showing {unreadOnly ? "unread " : ""}
+          {typeLabel ? typeLabel.toLowerCase() : "all"} notifications · {items.length} {items.length === 1 ? "item" : "items"}
+          {unreadOnly || typeFilter ? (
+            <>
+              {" · "}
+              <Link href="/notifications" className="font-semibold text-brand-700">
+                Clear filters
+              </Link>
+            </>
+          ) : null}
+        </p>
+      ) : null}
+
+      {items.length === 0 ? <EmptyState title={empty.title} body={empty.body} action={empty.action} /> : <NotificationList items={items} grid />}
     </div>
   );
 }
