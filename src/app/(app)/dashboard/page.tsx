@@ -10,6 +10,8 @@ import { setReservationStatus } from "@/actions/reservations";
 import { setTakeoutStatus } from "@/actions/takeout";
 import { Badge, Card, EmptyState, LinkButton, PageHeader, reservationTone, takeoutTone } from "@/components/ui";
 import { NotificationList } from "@/components/notification-list";
+import { Reveal } from "@/components/reveal";
+import { CountUp } from "@/components/count-up";
 import { RESERVATION_TRANSITIONS, StatusButtons, TAKEOUT_TRANSITIONS } from "@/components/status-buttons";
 
 export const metadata = { title: "Home" };
@@ -46,7 +48,7 @@ export default async function DashboardPage() {
 
       {/* Two columns on wide desktops: activity on the left, today's service on the right. */}
       <div className="grid gap-5 2xl:grid-cols-2 2xl:items-start">
-      <div className="space-y-5">
+      <Reveal className="space-y-5" index={0}>
       {unacknowledged.length > 0 ? (
         <Card title="Needs your attention" className="border-red-200">
           <NotificationList items={unacknowledged} compact />
@@ -82,11 +84,15 @@ export default async function DashboardPage() {
           </>
         )}
       </Card>
-      </div>
+      </Reveal>
 
-      <div className="space-y-5">
+      <Reveal className="space-y-5" index={1}>
       <Card
-        title={`Today's reservations · ${coversToday} covers`}
+        title={
+          <>
+            Today&apos;s reservations · <CountUp to={coversToday} /> covers
+          </>
+        }
         action={
           <LinkButton href="/reservations/new" size="sm">
             + Add
@@ -123,7 +129,11 @@ export default async function DashboardPage() {
       </Card>
 
       <Card
-        title={`Open takeout orders · ${openOrders.length}`}
+        title={
+          <>
+            Open takeout orders · <CountUp to={openOrders.length} />
+          </>
+        }
         action={
           <LinkButton href="/takeout/new" size="sm">
             + Add
@@ -154,7 +164,7 @@ export default async function DashboardPage() {
           </ul>
         )}
       </Card>
-      </div>
+      </Reveal>
       </div>
     </div>
   );

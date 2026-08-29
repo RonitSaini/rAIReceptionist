@@ -164,13 +164,160 @@ body {
   60% { transform: scale(1.25); }
   100% { transform: scale(1); }
 }
+/* ---------- Motion system (subtle, everywhere) ---------- */
+
+/* Reveal: fade + lift + un-blur into view, staggered via --reveal-delay (set by <Reveal index>). */
+.js .reveal {
+  opacity: 0;
+  transform: translateY(12px);
+  filter: blur(6px);
+}
+.js .reveal.is-visible {
+  animation: reveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: var(--reveal-delay, 0ms);
+}
+@keyframes reveal {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+/* Page transition: new page content fades up on every navigation. */
+.page-enter {
+  animation: page-enter 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Skeleton shimmer while data loads. */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background-color: var(--color-gray-200);
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--color-surface) 70%, transparent), transparent);
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+@keyframes shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* Status dot with a rippling pulse (live calls, unread, agent ready). */
+.status-dot {
+  position: relative;
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: currentColor;
+}
+.status-dot::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: currentColor;
+  opacity: 0.6;
+  animation: ripple 1.8s cubic-bezier(0.2, 0.7, 0.3, 1) infinite;
+}
+@keyframes ripple {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(2.6);
+    opacity: 0;
+  }
+}
+
+/* Interactive cards lift gently on hover. */
+.lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+@media (hover: hover) {
+  .lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px -12px rgb(0 0 0 / 0.25);
+    border-color: var(--color-gray-300);
+  }
+}
+
+/* Alerts and inline messages slide in. */
+.slide-in {
+  animation: slide-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Onboarding progress bar grows in from the left. */
+.progress-fill {
+  transform-origin: left center;
+  animation: progress-grow 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes progress-grow {
+  from {
+    transform: scaleX(0.05);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Buttons: soft press. */
+.press {
+  transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.press:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bell-icon.is-ringing,
   .bell-icon.is-ringing path,
   .badge-pop,
-  .theme-icon path {
+  .theme-icon path,
+  .js .reveal,
+  .page-enter,
+  .skeleton::after,
+  .status-dot::before,
+  .slide-in {
     animation: none;
     transition: none;
+  }
+  .js .reveal {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+  .lift:hover,
+  .press:active {
+    transform: none;
   }
 }
 

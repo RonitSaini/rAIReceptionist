@@ -5,7 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { formatDateTime, formatDuration } from "@/lib/time";
 import { formatUsPhone } from "@/lib/form";
 import { humanize } from "@/lib/constants";
-import { Badge, EmptyState, PageHeader, classificationTone } from "@/components/ui";
+import { Badge, EmptyState, PageHeader, StatusDot, classificationTone } from "@/components/ui";
+import { Reveal } from "@/components/reveal";
 
 export const metadata = { title: "Calls" };
 
@@ -44,14 +45,18 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
         />
       ) : (
         <ul className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
-          {calls.map((c) => {
+          {calls.map((c, i) => {
             const live = c.callStatus === "ongoing" || c.callStatus === "registered";
             return (
-              <li key={c.id} className="overflow-hidden rounded-2xl border border-gray-200 bg-surface">
-                <Link href={`/calls/${c.id}`} className="block h-full p-4 hover:bg-gray-50">
+              <Reveal as="li" index={i} key={c.id} className="lift overflow-hidden rounded-2xl border border-gray-200 bg-surface">
+                <Link href={`/calls/${c.id}`} className="block h-full p-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge tone={classificationTone[c.classification]}>{humanize(c.classification)}</Badge>
-                    {live ? <Badge tone="green">Live</Badge> : null}
+                    {live ? (
+                      <Badge tone="green" className="gap-1.5">
+                        <StatusDot /> Live
+                      </Badge>
+                    ) : null}
                     {c.isTest ? <Badge tone="gray">Test</Badge> : null}
                     {c.callbackRequested ? <Badge tone="amber">Callback</Badge> : null}
                     <span className="ml-auto text-xs text-gray-500">{live ? "in progress" : formatDuration(c.duration)}</span>
@@ -63,7 +68,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
                   <p className="text-sm text-gray-500">{formatDateTime(c.startedAt, account.timeZone)}</p>
                   {c.summary ? <p className="mt-1 line-clamp-2 text-sm text-gray-700">{c.summary}</p> : c.messageText ? <p className="mt-1 line-clamp-2 text-sm text-gray-700">{c.messageText}</p> : null}
                 </Link>
-              </li>
+              </Reveal>
             );
           })}
         </ul>

@@ -23,7 +23,7 @@ const sizeClass: Record<Size, string> = {
   sm: "min-h-9 px-3 text-sm font-medium",
 };
 
-const baseButton = "inline-flex items-center justify-center gap-2 rounded-xl transition-colors disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2";
+const baseButton = "press inline-flex items-center justify-center gap-2 rounded-xl disabled:cursor-not-allowed focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-2";
 
 export function Button({
   variant = "primary",
@@ -89,7 +89,7 @@ export function Toggle({ label, description, name, defaultChecked, checked, onCh
         onChange={onChange ? (e) => onChange(e.target.checked) : undefined}
         className="peer sr-only"
       />
-      <span className="relative h-7 w-12 shrink-0 rounded-full bg-gray-300 transition-colors peer-checked:bg-brand-600 after:absolute after:left-0.5 after:top-0.5 after:h-6 after:w-6 after:rounded-full after:bg-surface after:transition-transform peer-checked:after:translate-x-5" />
+      <span className="relative h-7 w-12 shrink-0 rounded-full bg-gray-300 transition-colors duration-300 peer-checked:bg-brand-600 after:absolute after:left-0.5 after:top-0.5 after:h-6 after:w-6 after:rounded-full after:bg-white after:shadow-sm after:transition-transform after:duration-300 after:[transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)] peer-checked:after:translate-x-5" />
     </label>
   );
 }
@@ -105,7 +105,7 @@ export function Checkbox({ label, name, value, defaultChecked }: { label: string
 
 // ---------- Layout ----------
 
-export function Card({ children, className, title, action }: { children: ReactNode; className?: string; title?: string; action?: ReactNode }) {
+export function Card({ children, className, title, action }: { children: ReactNode; className?: string; title?: ReactNode; action?: ReactNode }) {
   return (
     <section className={cx("rounded-2xl border border-gray-200 bg-surface p-4 shadow-sm", className)}>
       {title || action ? (
@@ -147,7 +147,12 @@ export function Alert({ kind = "error", children }: { kind?: "error" | "success"
     success: "border-green-200 bg-green-50 text-green-800",
     info: "border-blue-200 bg-blue-50 text-blue-800",
   }[kind];
-  return <div className={cx("rounded-xl border px-4 py-3 text-sm", cls)} role={kind === "error" ? "alert" : "status"}>{children}</div>;
+  return <div className={cx("slide-in rounded-xl border px-4 py-3 text-sm", cls)} role={kind === "error" ? "alert" : "status"}>{children}</div>;
+}
+
+/** Small rippling dot for live / unread / ready states. Inherits its color from `text-*`. */
+export function StatusDot({ className, label }: { className?: string; label?: string }) {
+  return <span className={cx("status-dot", className)} role={label ? "img" : undefined} aria-label={label} aria-hidden={label ? undefined : true} />;
 }
 
 // ---------- Badges ----------

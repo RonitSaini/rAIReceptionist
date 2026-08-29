@@ -8,6 +8,7 @@ import { TAKEOUT_STATUSES, humanize } from "@/lib/constants";
 import { setTakeoutStatus } from "@/actions/takeout";
 import { Badge, EmptyState, LinkButton, PageHeader, takeoutTone } from "@/components/ui";
 import { StatusButtons, TAKEOUT_TRANSITIONS } from "@/components/status-buttons";
+import { Reveal } from "@/components/reveal";
 
 export const metadata = { title: "Takeout orders" };
 
@@ -51,8 +52,8 @@ export default async function TakeoutPage({ searchParams }: { searchParams: Prom
         <EmptyState title="No orders" body={filter === "open" ? "New takeout and delivery orders will show up here." : undefined} />
       ) : (
         <ul className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
-          {orders.map((o) => (
-            <li key={o.id} className="flex flex-col rounded-2xl border border-gray-200 bg-surface p-4">
+          {orders.map((o, i) => (
+            <Reveal as="li" index={i} key={o.id} className="lift flex flex-col rounded-2xl border border-gray-200 bg-surface p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <Link href={`/takeout/${o.id}`} className="block font-semibold">
@@ -70,7 +71,7 @@ export default async function TakeoutPage({ searchParams }: { searchParams: Prom
               <div className="mt-auto pt-3">
                 <StatusButtons id={o.id} current={o.status} transitions={TAKEOUT_TRANSITIONS[o.status]} action={setTakeoutStatus} returnTo={`/takeout?status=${filter}`} size="sm" />
               </div>
-            </li>
+            </Reveal>
           ))}
         </ul>
       )}

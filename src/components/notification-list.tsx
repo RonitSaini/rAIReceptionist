@@ -4,18 +4,19 @@ import type { Notification } from "@prisma/client";
 import { acknowledgeNotification, markNotificationRead } from "@/actions/notifications";
 import { NOTIFICATION_TYPE_ICON, NOTIFICATION_TYPE_LABEL, notificationHref } from "@/lib/notifications";
 import { timeAgo } from "@/lib/time";
-import { Badge, notificationTone } from "@/components/ui";
+import { Badge, StatusDot, notificationTone } from "@/components/ui";
+import { Reveal } from "@/components/reveal";
 
 export function NotificationList({ items, compact = false, grid = false }: { items: Notification[]; compact?: boolean; grid?: boolean }) {
   const now = new Date();
   return (
     <ul className={grid ? "grid gap-3 xl:grid-cols-2 3xl:grid-cols-3" : "divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-surface"}>
-      {items.map((n) => {
+      {items.map((n, i) => {
         const unread = !n.readAt;
         const needsAck = n.priority === "urgent" && !n.acknowledgedAt;
         const href = notificationHref(n);
         return (
-          <li key={n.id} className={`flex gap-3 p-4 ${grid ? "rounded-2xl border border-gray-200 bg-surface" : ""} ${unread ? "bg-brand-50/40" : ""} ${needsAck ? "border-l-4 border-l-red-500" : ""}`}>
+          <Reveal as="li" index={i} key={n.id} className={`flex gap-3 p-4 ${grid ? "lift rounded-2xl border border-gray-200 bg-surface" : ""} ${unread ? "bg-brand-50/40" : ""} ${needsAck ? "border-l-4 border-l-red-500" : ""}`}>
             <span className="text-xl" aria-hidden="true">
               {NOTIFICATION_TYPE_ICON[n.type]}
             </span>
@@ -23,7 +24,7 @@ export function NotificationList({ items, compact = false, grid = false }: { ite
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone={notificationTone[n.type]}>{NOTIFICATION_TYPE_LABEL[n.type]}</Badge>
                 {n.priority === "urgent" ? <Badge tone="red">Urgent</Badge> : null}
-                {unread ? <span className="h-2 w-2 rounded-full bg-brand-600" aria-label="Unread" /> : null}
+                {unread ? <StatusDot className="text-brand-600" label="Unread" /> : null}
                 <span className="ml-auto text-xs text-gray-500">{timeAgo(n.createdAt, now)}</span>
               </div>
               <Link href={`/notifications/open/${n.id}`} className="mt-1 block">
@@ -56,7 +57,7 @@ export function NotificationList({ items, compact = false, grid = false }: { ite
                 ) : null}
               </div>
             </div>
-          </li>
+          </Reveal>
         );
       })}
     </ul>

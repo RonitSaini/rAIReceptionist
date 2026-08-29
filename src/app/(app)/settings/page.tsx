@@ -12,6 +12,7 @@ import { VoiceForm } from "@/components/forms/voice-form";
 import { PhoneStep } from "@/components/forms/phone-step";
 import { PaymentStep } from "@/components/forms/payment-step";
 import { SignOutButton } from "@/components/sign-out-button";
+import { Reveal } from "@/components/reveal";
 
 export const metadata = { title: "Settings" };
 
@@ -45,7 +46,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         ))}
       </div>
 
-      <div className={tab === "voice" ? "mx-auto max-w-6xl" : "mx-auto max-w-2xl 2xl:max-w-3xl"}>
+      <Reveal key={tab} className={tab === "voice" ? "mx-auto max-w-6xl" : "mx-auto max-w-2xl 2xl:max-w-3xl"}>
         {tab === "business" ? (
           <Card title="Business basics">
             <BusinessBasicsForm account={view} mode="settings" />
@@ -87,7 +88,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
             </Card>
           </div>
         ) : null}
-      </div>
+      </Reveal>
     </div>
   );
 }

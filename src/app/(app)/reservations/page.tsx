@@ -7,6 +7,7 @@ import { humanize } from "@/lib/constants";
 import { setReservationStatus } from "@/actions/reservations";
 import { Badge, EmptyState, LinkButton, PageHeader, reservationTone } from "@/components/ui";
 import { RESERVATION_TRANSITIONS, StatusButtons } from "@/components/status-buttons";
+import { Reveal } from "@/components/reveal";
 
 export const metadata = { title: "Reservations" };
 
@@ -88,8 +89,8 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
             if (view === "day") {
               return (
                 <ul key={d} className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
-                  {items.map((r) => (
-                    <li key={r.id} className="flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-surface p-4">
+                  {items.map((r, i) => (
+                    <Reveal as="li" index={i} key={r.id} className="lift flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-surface p-4">
                       <div className="min-w-0">
                         <Link href={`/reservations/${r.id}`} className="block font-semibold">
                           {formatTime(r.startTime, tz)} · {r.guestName}
@@ -106,14 +107,14 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
                         <Badge tone={reservationTone[r.status]}>{humanize(r.status)}</Badge>
                         <StatusButtons id={r.id} current={r.status} transitions={RESERVATION_TRANSITIONS[r.status].slice(0, 2)} action={setReservationStatus} returnTo={href(date)} size="sm" />
                       </div>
-                    </li>
+                    </Reveal>
                   ))}
                 </ul>
               );
             }
             const covers = items.filter((r) => !r.isWaitlist).reduce((s, r) => s + r.partySize, 0);
             return (
-              <div key={d} className={`rounded-2xl border bg-surface p-3 ${d === today ? "border-brand-400" : "border-gray-200"}`}>
+              <Reveal key={d} index={days.indexOf(d)} className={`lift rounded-2xl border bg-surface p-3 ${d === today ? "border-brand-400" : "border-gray-200"}`}>
                 <Link href={href(d, "day")} className="flex items-baseline justify-between">
                   <span className="font-bold">{formatDateString(d, { weekday: "short", day: "numeric" })}</span>
                   <span className="text-xs text-gray-500">{covers} covers</span>
@@ -131,7 +132,7 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
                     ))}
                   </ul>
                 )}
-              </div>
+              </Reveal>
             );
           })}
         </div>
