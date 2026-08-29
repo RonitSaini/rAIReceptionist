@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { CallClassification } from "@prisma/client";
 import { requireAccount } from "@/lib/current-account";
 import { prisma } from "@/lib/prisma";
+import { isCallLive } from "@/lib/calls";
 import { formatDateTime, formatDuration } from "@/lib/time";
 import { formatUsPhone } from "@/lib/form";
 import { humanize } from "@/lib/constants";
@@ -46,7 +47,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
       ) : (
         <ul className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
           {calls.map((c, i) => {
-            const live = c.callStatus === "ongoing" || c.callStatus === "registered";
+            const live = isCallLive(c);
             return (
               <Reveal as="li" index={i} key={c.id} className="lift overflow-hidden rounded-2xl border border-gray-200 bg-surface">
                 <Link href={`/calls/${c.id}`} className="block h-full p-4">

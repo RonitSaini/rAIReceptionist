@@ -45,3 +45,8 @@ export function transcriptText(rc: RetellCall): string | null {
   if (rc.transcript_object?.length) return rc.transcript_object.map((t) => `${t.role === "agent" ? "Agent" : "Caller"}: ${t.content}`).join("\n");
   return null;
 }
+
+/** A call is "live" only while ongoing/registered AND recent — Retell sends no webhook when an unanswered registration expires. */
+export function isCallLive(call: Pick<Call, "callStatus" | "startedAt">, maxAgeMs = 2 * 60 * 60_000): boolean {
+  return (call.callStatus === "ongoing" || call.callStatus === "registered") && Date.now() - call.startedAt.getTime() < maxAgeMs;
+}

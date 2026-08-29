@@ -3,6 +3,7 @@ import { ArrowLeftIcon } from "@/components/icons";
 import { notFound } from "next/navigation";
 import { requireAccount } from "@/lib/current-account";
 import { prisma } from "@/lib/prisma";
+import { isCallLive } from "@/lib/calls";
 import { formatDateTime, formatDuration } from "@/lib/time";
 import { formatUsPhone } from "@/lib/form";
 import { humanize } from "@/lib/constants";
@@ -36,7 +37,7 @@ export default async function CallDetailPage({ params }: { params: Promise<{ id:
   const { account } = await requireAccount();
   const call = await prisma.call.findFirst({ where: { id, accountId: account.id }, include: { reservation: true, takeoutOrder: true } });
   if (!call) notFound();
-  const live = call.callStatus === "ongoing" || call.callStatus === "registered";
+  const live = isCallLive(call);
 
   return (
     <div className="space-y-4">
