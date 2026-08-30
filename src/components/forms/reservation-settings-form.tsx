@@ -8,6 +8,7 @@ import type { GoogleCalendarView } from "@/lib/google-calendar-view";
 import type { ActionState } from "@/lib/form";
 import { Alert, Badge, Button, Field, Input, LinkButton, Select, StatusDot } from "@/components/ui";
 import { FormFooter, type FormMode } from "@/components/form-footer";
+import { ActionForm } from "@/components/action-form";
 
 const GOOGLE_MESSAGES: Record<string, { kind: "success" | "error" | "info"; text: string }> = {
   connected: { kind: "success", text: "Google Calendar connected. Upcoming reservations were added to your calendar." },
@@ -85,7 +86,7 @@ export function ReservationSettingsForm({ account, mode, google, googleStatus, g
               {google.lastError ? <Alert>Last sync problem: {google.lastError}</Alert> : null}
 
               {google.calendars.length > 1 ? (
-                <form action={calAction} className="flex flex-wrap items-end gap-2">
+                <ActionForm action={calAction} className="flex flex-wrap items-end gap-2">
                   <Field label="Calendar" htmlFor="calendarId" className="min-w-56 flex-1">
                     <Select id="calendarId" name="calendarId" defaultValue={google.calendarId ?? "primary"}>
                       {google.calendars.map((c) => (
@@ -101,7 +102,7 @@ export function ReservationSettingsForm({ account, mode, google, googleStatus, g
                   </Button>
                   {calState && !calState.ok && calState.error ? <Alert>{calState.error}</Alert> : null}
                   {calState?.ok && calState.message ? <Alert kind="success">{calState.message}</Alert> : null}
-                </form>
+                </ActionForm>
               ) : null}
 
               <div className="flex flex-wrap gap-2">
@@ -119,7 +120,7 @@ export function ReservationSettingsForm({ account, mode, google, googleStatus, g
         </div>
       </section>
 
-      <form action={action} className="space-y-6">
+      <ActionForm action={action} className="space-y-6">
         <section className="space-y-3">
           <h2 className="text-base font-bold">Booking rules</h2>
           <div className="grid grid-cols-2 gap-3">
@@ -144,7 +145,7 @@ export function ReservationSettingsForm({ account, mode, google, googleStatus, g
         </section>
 
         <FormFooter state={state} pending={pending} mode={mode} backHref="/onboarding/4" />
-      </form>
+      </ActionForm>
     </div>
   );
 }

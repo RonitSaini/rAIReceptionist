@@ -11,6 +11,7 @@ import { formatUsPhone } from "@/lib/form";
 import { Alert, Badge, Button, Card, Field, Input } from "@/components/ui";
 import type { FormMode } from "@/components/form-footer";
 import { WebTestCall } from "@/components/web-test-call";
+import { ActionForm } from "@/components/action-form";
 
 type Status = { twilio: boolean; retell: boolean; publicUrl: boolean; appUrl: string; lastSynced: string | null };
 
@@ -49,7 +50,7 @@ export function PhonePanel({ account, mode, status }: { account: AccountView; mo
             <p className="mt-1 text-sm text-gray-500">Calls to this number are answered by {account.hostName}.</p>
           </>
         ) : (
-          <form action={provisionAction} className="space-y-3">
+          <ActionForm action={provisionAction} className="space-y-3">
             <p className="text-3xl font-black tracking-tight text-gray-300">(___) ___-____</p>
             <Field label="Preferred area code" htmlFor="areaCode" hint="We'll pick a local number here if one's available.">
               <Input id="areaCode" name="areaCode" inputMode="numeric" maxLength={3} defaultValue={areaCodeDefault} placeholder="212" className="max-w-32" />
@@ -59,7 +60,7 @@ export function PhonePanel({ account, mode, status }: { account: AccountView; mo
             <Button type="submit" size="lg" full disabled={!ready || provisioning}>
               {provisioning ? "Setting up your number and AI host…" : "Get my number"}
             </Button>
-          </form>
+          </ActionForm>
         )}
       </Card>
 

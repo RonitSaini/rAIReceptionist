@@ -7,6 +7,7 @@ import type { AccountView } from "@/lib/serialize";
 import { DAYS_OF_WEEK, ESCALATION_TYPES } from "@/lib/constants";
 import { Button, Checkbox, Field, Toggle, inputClass } from "@/components/ui";
 import { FormFooter, type FormMode } from "@/components/form-footer";
+import { ActionForm } from "@/components/action-form";
 
 type Period = { periodName: string; open: string; close: string };
 type DayState = { isClosed: boolean; periods: Period[] };
@@ -63,7 +64,7 @@ export function HoursForm({ account, hours, managerHours, mode }: { account: Acc
   );
 
   return (
-    <form action={action} className="space-y-6">
+    <ActionForm action={action} className="space-y-6">
       <input type="hidden" name="hours" value={hoursJson} />
       <input type="hidden" name="managerHours" value={JSON.stringify(escalates ? manager : [])} />
 
@@ -134,7 +135,7 @@ export function HoursForm({ account, hours, managerHours, mode }: { account: Acc
 
       <FormFooter state={state} pending={pending} mode={mode} backHref="/onboarding/2" />
       {mode === "onboarding" ? <Skip href="/onboarding/4" /> : null}
-    </form>
+    </ActionForm>
   );
 }
 

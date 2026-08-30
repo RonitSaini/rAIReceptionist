@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import type { ActionState } from "@/lib/form";
 import { Field, Input, Textarea, Toggle } from "@/components/ui";
 import { FormFooter } from "@/components/form-footer";
+import { ActionForm } from "@/components/action-form";
 
 export type TakeoutFormValues = {
   id?: string;
@@ -22,7 +23,7 @@ export function TakeoutForm({ action, initial, offersDelivery }: { action: (prev
   const [isDelivery, setIsDelivery] = useState(initial.isDelivery);
 
   return (
-    <form action={formAction} className="space-y-4">
+    <ActionForm action={formAction} className="space-y-4">
       {initial.id ? <input type="hidden" name="id" value={initial.id} /> : null}
       <Field label="Guest name" htmlFor="guestName">
         <Input id="guestName" name="guestName" defaultValue={initial.guestName} required autoComplete="off" />
@@ -51,6 +52,6 @@ export function TakeoutForm({ action, initial, offersDelivery }: { action: (prev
         </Field>
       ) : null}
       <FormFooter state={state} pending={pending} mode="settings" submitLabel={initial.id ? "Save changes" : "Add order"} />
-    </form>
+    </ActionForm>
   );
 }

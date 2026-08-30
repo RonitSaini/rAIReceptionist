@@ -9,6 +9,7 @@ import { accountCountry, COUNTRIES, type Country } from "@/lib/locale";
 import { Field, Input, Select } from "@/components/ui";
 import { FormFooter, type FormMode } from "@/components/form-footer";
 import { AddressFields } from "@/components/forms/address-fields";
+import { ActionForm } from "@/components/action-form";
 
 /**
  * Country comes first: until it is chosen (new accounts in onboarding) the address and time-zone fields stay
@@ -33,7 +34,7 @@ export function BusinessBasicsForm({ account, mode }: { account: AccountView; mo
   const zones = country ? timeZonesFor(country) : [];
 
   return (
-    <form action={action} className="space-y-4">
+    <ActionForm action={action} className="space-y-4">
       <Field label="Restaurant name" htmlFor="restaurantName">
         <Input id="restaurantName" name="restaurantName" defaultValue={account.restaurantName} required />
       </Field>
@@ -107,6 +108,6 @@ export function BusinessBasicsForm({ account, mode }: { account: AccountView; mo
       </div>
 
       <FormFooter state={state} pending={pending} mode={mode} />
-    </form>
+    </ActionForm>
   );
 }

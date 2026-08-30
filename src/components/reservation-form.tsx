@@ -5,6 +5,7 @@ import type { ActionState } from "@/lib/form";
 import { SEATING_PREFERENCES } from "@/lib/constants";
 import { Field, Input, Select, Textarea, Toggle } from "@/components/ui";
 import { FormFooter } from "@/components/form-footer";
+import { ActionForm } from "@/components/action-form";
 
 type Slot = { time: string; label: string; available: boolean; reason?: string; coversSeated: number };
 type Availability = { closed: boolean; requiresManager: boolean; slots: Slot[] };
@@ -55,7 +56,7 @@ export function ReservationForm({ action, initial, largePartyThreshold }: { acti
   const timeInList = !!selectedSlot;
 
   return (
-    <form action={formAction} className="space-y-4">
+    <ActionForm action={formAction} className="space-y-4">
       {initial.id ? <input type="hidden" name="id" value={initial.id} /> : null}
       <Field label="Guest name" htmlFor="guestName">
         <Input id="guestName" name="guestName" defaultValue={initial.guestName} required autoComplete="off" />
@@ -106,6 +107,6 @@ export function ReservationForm({ action, initial, largePartyThreshold }: { acti
       <Toggle name="isWaitlist" label="Waitlist entry" description="Not a confirmed booking — call the guest if a table opens." defaultChecked={initial.isWaitlist} />
 
       <FormFooter state={state} pending={pending} mode="settings" submitLabel={initial.id ? "Save changes" : "Book it"} />
-    </form>
+    </ActionForm>
   );
 }

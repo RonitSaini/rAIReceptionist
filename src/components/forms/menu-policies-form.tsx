@@ -8,6 +8,7 @@ import { Button, Field, Input, Toggle, inputClass } from "@/components/ui";
 import { FormFooter, type FormMode } from "@/components/form-footer";
 import { DeliveryRadiusMap, deliveryMapAvailable } from "@/components/forms/delivery-radius-map";
 import { accountCountry, displayDistance, postalLabel, toMiles, unitWord } from "@/lib/locale";
+import { ActionForm } from "@/components/action-form";
 
 type Row = Omit<MenuItemView, "id" | "price"> & { key: number; price: string };
 
@@ -38,7 +39,7 @@ export function MenuPoliciesForm({ account, menu, mode }: { account: AccountView
   const menuJson = JSON.stringify(rows.filter((r) => r.name.trim()).map((r) => ({ name: r.name, category: r.category, price: r.price, description: r.description, dietaryTags: r.dietaryTags, enabled: r.enabled })));
 
   return (
-    <form action={action} className="space-y-6">
+    <ActionForm action={action} className="space-y-6">
       <input type="hidden" name="menu" value={menuJson} />
 
       <section className="space-y-3">
@@ -131,6 +132,6 @@ export function MenuPoliciesForm({ account, menu, mode }: { account: AccountView
       </section>
 
       <FormFooter state={state} pending={pending} mode={mode} backHref="/onboarding/3" />
-    </form>
+    </ActionForm>
   );
 }

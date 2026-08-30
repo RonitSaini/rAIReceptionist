@@ -8,6 +8,7 @@ import { generateGreeting, greetingHasDisclosure } from "@/lib/greeting";
 import { Button, Field, Input, Textarea, inputClass } from "@/components/ui";
 import { FormFooter, type FormMode } from "@/components/form-footer";
 import { WebTestCall } from "@/components/web-test-call";
+import { ActionForm } from "@/components/action-form";
 
 type VoiceSample = { id: string; name: string; available: boolean; previewUrl: string | null };
 type VoiceOption = { id: string; name: string; provider: string; gender: string | null; accent: string | null; age: string | null; recommended: boolean; previewUrl: string | null };
@@ -106,7 +107,7 @@ export function VoiceForm({ account, mode }: { account: AccountView; mode: FormM
   const filtered = all.filter((v) => (!filter.gender || v.gender === filter.gender) && (!q || v.name.toLowerCase().includes(q) || v.provider.includes(q) || (v.accent ?? "").toLowerCase().includes(q)));
 
   return (
-    <form action={action} className="space-y-6">
+    <ActionForm action={action} className="space-y-6">
       <input type="hidden" name="voiceId" value={voiceId} />
 
       {/* Two columns on desktop: voices left, greeting + test call right (sticky). Stacked on phones. */}
@@ -229,6 +230,6 @@ export function VoiceForm({ account, mode }: { account: AccountView; mode: FormM
       </section>
       </div>
       </div>
-    </form>
+    </ActionForm>
   );
 }
