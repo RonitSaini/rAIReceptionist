@@ -34,7 +34,7 @@ let loader: Promise<GoogleNs> | null = null;
  */
 function loadMaps(): Promise<GoogleNs> {
   loader ??= new Promise<GoogleNs>((resolve, reject) => {
-    const w = window as Window & { google?: { maps?: Record<string, unknown> } };
+    const w = window as unknown as { google?: { maps?: Record<string, unknown> } };
     const g = (w.google ??= {}) as { maps?: Record<string, unknown> };
     const maps = (g.maps ??= {}) as Record<string, unknown> & { importLibrary?: (name: string) => Promise<unknown> };
     if (typeof maps.importLibrary === "function" && maps.__fdReady) {
