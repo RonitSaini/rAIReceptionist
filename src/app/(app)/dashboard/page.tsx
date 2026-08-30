@@ -74,8 +74,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const coversAhead = dash.coversAhead.reduce((sum, d) => sum + d.value, 0);
   const showWeek = weekCalls > 0 || coversAhead > 0;
   const fmtHour = (hr: number) => `${hr % 12 === 0 ? 12 : hr % 12} ${hr < 12 ? "AM" : "PM"}`;
-  const sentimentTotal = dash.ai.sentiment.positive + dash.ai.sentiment.neutral + dash.ai.sentiment.negative;
-  const positivePct = sentimentTotal > 0 ? Math.round((dash.ai.sentiment.positive / sentimentTotal) * 100) : null;
+  const s = dash.ai.sentiment;
+  const sentimentTotal = s.positive + s.neutral + s.negative;
+  const mood = sentimentTotal === 0 ? null : s.positive >= s.neutral && s.positive >= s.negative ? "Positive" : s.negative > s.neutral ? "Negative" : "Neutral";
+  const moodPct = mood ? Math.round(((mood === "Positive" ? s.positive : mood === "Negative" ? s.negative : s.neutral) / sentimentTotal) * 100) : null;
 
   return (
     <div className="space-y-5">
@@ -244,7 +246,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                   <Stat label={`${account.hostName} answered`} value={<CountUp to={dash.ai.answered} />} />
                   <Stat label="Handled solo" value={dash.ai.handledPct != null ? `${dash.ai.handledPct}%` : "—"} sub="no callback needed" />
                   <Stat label="Avg length" value={formatDuration(dash.ai.avgDuration)} />
-                  <Stat label="Callers positive" value={positivePct != null ? `${positivePct}%` : "—"} sub={dash.ai.peakHour != null ? `busiest around ${fmtHour(dash.ai.peakHour)}` : undefined} />
+                  <Stat label="Caller mood" value={mood ?? "—"} sub={[moodPct != null ? `${moodPct}% of calls` : null, dash.ai.peakHour != null ? `busiest ${fmtHour(dash.ai.peakHour)}` : null].filter(Boolean).join(" · ") || undefined} />
                 </div>
               ) : null}
             </Card>
