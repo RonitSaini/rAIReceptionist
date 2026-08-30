@@ -106,3 +106,17 @@ export async function googleGeocode(address: string): Promise<LatLng | null> {
   const tooCoarse = (first?.types ?? []).every((t) => t === "country" || t === "administrative_area_level_1" || t === "political");
   return tooCoarse ? null : { lat: loc.lat, lng: loc.lng };
 }
+
+/**
+ * Geocode via Places autocomplete + details — the same calls the address form uses. Handles landmarks and
+ * loosely spoken addresses ("Grand Central, 42nd Street") better than the Geocoding API and keeps working
+ * when that API isn't enabled or billed. One session token makes the pair bill as a single session.
+ */
+export async function placesGeocode(address: string): Promise<LatLng | null> {
+  if (!key() || address.trim().length < 3) return null;
+  const session = crypto.randomUUID();
+  const [first] = await autocompleteAddresses(address, session);
+  if (!first) return null;
+  const place = await placeAddress(first.placeId, session);
+  return place ? { lat: place.lat, lng: place.lng } : null;
+}
