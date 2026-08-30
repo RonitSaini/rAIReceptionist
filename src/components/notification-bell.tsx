@@ -182,7 +182,10 @@ export function NotificationBell({ initialCount, initialItems }: { initialCount:
                         {unread ? <StatusDot className="text-brand-600" label="Unread" /> : null}
                       </span>
                       {n.body ? <span className="block line-clamp-1 text-xs text-gray-600">{n.body}</span> : null}
-                      <span className="block text-[11px] text-gray-500">{timeAgo(new Date(n.createdAt), now)}</span>
+                      {/* Relative time differs between server render and hydration by design; patch, don't warn. */}
+                      <span className="block text-[11px] text-gray-500" suppressHydrationWarning>
+                        {timeAgo(new Date(n.createdAt), now)}
+                      </span>
                       </button>
                     </form>
                     {unread ? (

@@ -3,22 +3,24 @@
 import { useActionState, useEffect, useRef } from "react";
 import { signIn } from "next-auth/react";
 import { signUp } from "@/actions/auth";
+import type { ActionState } from "@/lib/form";
 import { Alert, Button, Field, Input } from "@/components/ui";
 import { GoogleButton } from "@/components/google-button";
 
 export function SignupForm({ googleEnabled }: { googleEnabled: boolean }) {
-  const [state, action, pending] = useActionState(signUp, null);
+  // React resets the form once a server action completes, so the credentials must be captured
+  // on the way in — reading the fields afterwards yields empty strings and a failed sign-in.
+  const credsRef = useRef<{ email: string; password: string } | null>(null);
+  const [state, action, pending] = useActionState(async (prev: ActionState, fd: FormData) => {
+    credsRef.current = { email: String(fd.get("email") ?? ""), password: String(fd.get("password") ?? "") };
+    return signUp(prev, fd);
+  }, null);
   const formRef = useRef<HTMLFormElement>(null);
 
   // After the server creates the user, sign in with the same credentials and continue to step 2.
   useEffect(() => {
-    if (!state?.ok || !formRef.current) return;
-    const fd = new FormData(formRef.current);
-    signIn("credentials", {
-      email: String(fd.get("email") ?? ""),
-      password: String(fd.get("password") ?? ""),
-      callbackUrl: "/onboarding/2",
-    });
+    if (!state?.ok || !credsRef.current) return;
+    signIn("credentials", { ...credsRef.current, callbackUrl: "/onboarding/2" });
   }, [state]);
 
   return (
