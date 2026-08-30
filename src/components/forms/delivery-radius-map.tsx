@@ -28,15 +28,40 @@ const BROWSER_KEY = process.env.NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY ?? "";
 const MILE = 1609.344;
 let loader: Promise<GoogleNs> | null = null;
 
+/**
+ * Google's "dynamic library import" bootstrap, typed: defines google.maps.importLibrary up front, appends
+ * the API script once (with the callback the API expects) and resolves when it is ready.
+ */
 function loadMaps(): Promise<GoogleNs> {
-  if (window.google?.maps) return Promise.resolve(window.google);
   loader ??= new Promise<GoogleNs>((resolve, reject) => {
-    const s = document.createElement("script");
-    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(BROWSER_KEY)}&v=weekly&loading=async`;
-    s.async = true;
-    s.onload = () => (window.google ? resolve(window.google) : reject(new Error("Google Maps failed to load")));
-    s.onerror = () => reject(new Error("Google Maps failed to load"));
-    document.head.appendChild(s);
+    const w = window as Window & { google?: { maps?: Record<string, unknown> } };
+    const g = (w.google ??= {}) as { maps?: Record<string, unknown> };
+    const maps = (g.maps ??= {}) as Record<string, unknown> & { importLibrary?: (name: string) => Promise<unknown> };
+    if (typeof maps.importLibrary === "function" && maps.__fdReady) {
+      resolve(w.google as unknown as GoogleNs);
+      return;
+    }
+    const requested = new Set<string>();
+    let script: Promise<void> | null = null;
+    const load = () =>
+      (script ??= new Promise<void>((ok, fail) => {
+        const s = document.createElement("script");
+        const q = new URLSearchParams({ key: BROWSER_KEY, v: "weekly", libraries: [...requested].join(","), callback: "google.maps.__ib__" });
+        s.src = `https://maps.googleapis.com/maps/api/js?${q}`;
+        s.async = true;
+        maps.__ib__ = () => {
+          maps.__fdReady = true;
+          ok();
+        };
+        s.onerror = () => fail(new Error("The Google Maps JavaScript API could not load."));
+        document.head.appendChild(s);
+      }));
+    // Until the API arrives, importLibrary queues the request; the API replaces it with the real one on load.
+    maps.importLibrary = (name: string, ...rest: unknown[]) => {
+      requested.add(name);
+      return load().then(() => (maps.importLibrary as (n: string, ...r: unknown[]) => Promise<unknown>)(name, ...rest));
+    };
+    load().then(() => resolve(w.google as unknown as GoogleNs), reject);
   });
   return loader;
 }
