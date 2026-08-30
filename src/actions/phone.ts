@@ -6,7 +6,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAccount } from "@/lib/current-account";
 import { str, type ActionState } from "@/lib/form";
-import { appUrl, appUrlIsPublic, retellConfigured, twilioConfigured } from "@/lib/env";
+import { appUrl, appUrlIsPublic, retellConfigured, stripeConfigured, twilioConfigured } from "@/lib/env";
+import { subscriptionActive } from "@/lib/billing-ui";
 import { createCall, isTrialRestriction, listOwnedNumbers, purchaseNumber, searchAvailableNumbers, updateNumberWebhooks, TwilioError } from "@/lib/twilio";
 import { syncRetellAgent } from "@/lib/agent-sync";
 
@@ -25,6 +26,8 @@ function areaCodeOf(phone: string | null | undefined): string | undefined {
 export async function provisionPhoneNumber(_prev: ActionState, fd: FormData): Promise<ActionState> {
   const { account } = await requireAccount();
   if (account.twilioNumber) return { ok: true, message: "You already have a number." };
+  // A number costs money every month — only issue one to a paying (or trialing) account. Skipped where Stripe is not set up (local dev).
+  if (stripeConfigured() && !subscriptionActive(account)) return { ok: false, error: "An active subscription is needed before a number can be connected. Subscribe under Settings → Billing, then come back here." };
   if (!twilioConfigured() || !retellConfigured()) return { ok: false, error: "Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and RETELL_API_KEY to the environment first." };
   if (!appUrlIsPublic()) return { ok: false, error: `NEXT_PUBLIC_APP_URL must be a public https URL so Twilio and Retell can reach the app (currently ${appUrl()}). Use your Vercel URL or an ngrok tunnel.` };
 

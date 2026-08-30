@@ -5,6 +5,8 @@ import { liveCallCutoff } from "@/lib/calls";
 import { todayServiceStatus } from "@/lib/availability";
 import { dayBoundsUtc, formatClock, formatTime, nowUtc, timeAgo, todayString } from "@/lib/time";
 import { formatUsPhone } from "@/lib/form";
+import { stripeConfigured } from "@/lib/env";
+import { subscriptionActive } from "@/lib/billing-ui";
 import { humanize } from "@/lib/constants";
 import { Badge, LinkButton, StatusDot, classificationTone } from "@/components/ui";
 import { CountUp } from "@/components/count-up";
@@ -153,9 +155,15 @@ export async function SidebarPanel({ account }: { account: Account }) {
             <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold">
               <StatusDot className="text-amber-500" /> {account.hostName} isn&apos;t on a line yet
             </p>
-            <Link href="/settings?tab=phone" className="text-sm font-semibold text-brand-700">
-              Connect a number
-            </Link>
+            {!stripeConfigured() || subscriptionActive(account) ? (
+              <Link href="/settings?tab=phone" className="text-sm font-semibold text-brand-700">
+                Connect a number
+              </Link>
+            ) : (
+              <Link href="/settings?tab=billing" className="text-sm font-semibold text-brand-700">
+                Subscribe to connect a number
+              </Link>
+            )}
           </>
         )}
         <Link href="/settings?tab=voice" className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-gray-500 transition-colors hover:text-ink tiny:hidden">

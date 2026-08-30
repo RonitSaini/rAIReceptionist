@@ -13,13 +13,14 @@ import type { FormMode } from "@/components/form-footer";
 import { WebTestCall } from "@/components/web-test-call";
 import { ActionForm } from "@/components/action-form";
 
-type Status = { twilio: boolean; retell: boolean; publicUrl: boolean; appUrl: string; lastSynced: string | null };
+type Status = { twilio: boolean; retell: boolean; publicUrl: boolean; subscribed: boolean; appUrl: string; lastSynced: string | null };
 
 export function PhonePanel({ account, mode, status }: { account: AccountView; mode: FormMode; status: Status }) {
   const [provisionState, provisionAction, provisioning] = useActionState(provisionPhoneNumber, null);
   const [result, setResult] = useState<ActionState>(null);
   const [pending, startTransition] = useTransition();
   const ready = status.twilio && status.retell && status.publicUrl;
+  const canConnect = ready && status.subscribed;
   const hasNumber = !!account.twilioNumber;
   const areaCodeDefault = account.cellPhone?.replace(/\D/g, "").replace(/^1/, "").slice(0, 3) ?? "";
 
@@ -55,10 +56,21 @@ export function PhonePanel({ account, mode, status }: { account: AccountView; mo
             <Field label="Preferred area code" htmlFor="areaCode" hint="We'll pick a local number here if one's available.">
               <Input id="areaCode" name="areaCode" inputMode="numeric" maxLength={3} defaultValue={areaCodeDefault} placeholder="212" className="max-w-32" />
             </Field>
+            {!status.subscribed ? (
+              <Alert kind="info">
+                <p className="font-semibold">Your number is issued once your subscription is active.</p>
+                <p className="mt-1">
+                  {mode === "onboarding" ? "Finish the payment step next, then come back to Settings → Phone to connect your number." : "Subscribe under Billing and this button unlocks right away."}
+                </p>
+                <Link href={mode === "onboarding" ? "/onboarding/8" : "/settings?tab=billing"} className="mt-2 inline-block font-semibold text-brand-700">
+                  {mode === "onboarding" ? "Go to payment →" : "Open Billing →"}
+                </Link>
+              </Alert>
+            ) : null}
             {provisionState && !provisionState.ok && provisionState.error ? <Alert>{provisionState.error}</Alert> : null}
             {provisionState?.ok && provisionState.message ? <Alert kind="success">{provisionState.message}</Alert> : null}
-            <Button type="submit" size="lg" full disabled={!ready || provisioning}>
-              {provisioning ? "Setting up your number and AI host…" : "Get my number"}
+            <Button type="submit" size="lg" full disabled={!canConnect || provisioning} title={status.subscribed ? undefined : "Requires an active subscription"}>
+              {provisioning ? "Setting up your number and AI host…" : status.subscribed ? "Get my number" : "Subscribe to get a number"}
             </Button>
           </ActionForm>
         )}
