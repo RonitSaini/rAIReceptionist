@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { ArrowRightIcon } from "@/components/icons";
 import { requireAccount } from "@/lib/current-account";
@@ -5,19 +6,41 @@ import { prisma } from "@/lib/prisma";
 import { dayBoundsUtc, formatDateLong, formatDateTime, formatDuration, formatTime, nowUtc, timeAgo, todayString } from "@/lib/time";
 import { formatUsPhone } from "@/lib/form";
 import { humanize } from "@/lib/constants";
-import { NOTIFICATION_TYPE_LABEL } from "@/lib/notifications";
 import { CALL_SERIES, loadDashboard } from "@/lib/dashboard";
 import { setReservationStatus } from "@/actions/reservations";
 import { setTakeoutStatus } from "@/actions/takeout";
-import { Badge, Card, EmptyState, LinkButton, PageHeader, classificationTone, reservationTone, takeoutTone } from "@/components/ui";
+import { Badge, Card, LinkButton, PageHeader, classificationTone, reservationTone, takeoutTone } from "@/components/ui";
 import { NotificationList } from "@/components/notification-list";
 import { RESERVATION_TRANSITIONS, StatusButtons, TAKEOUT_TRANSITIONS } from "@/components/status-buttons";
 import { Reveal } from "@/components/reveal";
 import { CountUp } from "@/components/count-up";
 import { StatTile } from "@/components/stat-tile";
-import { Columns, HourBars, SegmentBar, StackedColumns } from "@/components/charts";
+import { Columns, StackedColumns } from "@/components/charts";
 
 export const metadata = { title: "Home" };
+
+/** Quiet text link used for card actions — the page keeps a single primary button (the header CTA). */
+function CardLink({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <Link href={href} className="inline-flex items-center gap-1 text-sm font-semibold text-brand-700">
+      {children} <ArrowRightIcon size={16} />
+    </Link>
+  );
+}
+
+function Quiet({ children }: { children: ReactNode }) {
+  return <p className="py-6 text-center text-sm text-gray-500">{children}</p>;
+}
+
+function Stat({ label, value, sub }: { label: string; value: ReactNode; sub?: string }) {
+  return (
+    <div className="min-w-0">
+      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</p>
+      <p className="text-xl font-black tabular-nums">{value}</p>
+      {sub ? <p className="text-xs text-gray-500">{sub}</p> : null}
+    </div>
+  );
+}
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ changed?: string }> }) {
   const { account, previousSeenAt } = await requireAccount();
@@ -42,12 +65,17 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     loadDashboard(account),
   ]);
 
-  const counts = sinceItems.reduce<Record<string, number>>((acc, n) => {
-    acc[n.type] = (acc[n.type] ?? 0) + 1;
-    return acc;
-  }, {});
   const t = dash.tiles;
+  const urgentIds = new Set(unacknowledged.map((n) => n.id));
+  const fresh = sinceItems.filter((n) => !urgentIds.has(n.id));
+  const hasNews = unacknowledged.length > 0 || fresh.length > 0;
+  const hasCallbacks = dash.callbacks.length > 0;
+  const weekCalls = dash.callsByDay.reduce((sum, d) => sum + Object.values(d.values as Record<string, number>).reduce((a, b) => a + b, 0), 0);
+  const coversAhead = dash.coversAhead.reduce((sum, d) => sum + d.value, 0);
+  const showWeek = weekCalls > 0 || coversAhead > 0;
   const fmtHour = (hr: number) => `${hr % 12 === 0 ? 12 : hr % 12} ${hr < 12 ? "AM" : "PM"}`;
+  const sentimentTotal = dash.ai.sentiment.positive + dash.ai.sentiment.neutral + dash.ai.sentiment.negative;
+  const positivePct = sentimentTotal > 0 ? Math.round((dash.ai.sentiment.positive / sentimentTotal) * 100) : null;
 
   return (
     <div className="space-y-5">
@@ -55,99 +83,90 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
       {/* KPI row */}
       <Reveal index={0} className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatTile label="Calls today" value={t.callsToday} icon="phone" live href="/calls" delta={{ value: t.callsDelta, label: "vs yesterday" }} />
+        <StatTile label="Calls today" value={t.callsToday} icon="phone" live href="/calls" delta={{ value: t.callsDelta, label: "vs yesterday" }} note={t.liveCalls > 0 ? `${t.liveCalls} live now` : undefined} />
         <StatTile label="Covers today" value={t.coversToday} icon="utensils" href={`/reservations?date=${today}`} delta={{ value: t.coversDelta, label: "vs yesterday" }} />
-        <StatTile label="Open orders" value={t.openOrders} icon="bag" href="/takeout" note={t.openOrders === 0 ? "Nothing waiting" : "New · confirmed · ready"} />
-        <StatTile label="Unread" value={t.unread} icon="bell" live href="/notifications" note={t.liveCalls > 0 ? `${t.liveCalls} call${t.liveCalls === 1 ? "" : "s"} live now` : "All caught up"} />
+        <StatTile label="Open orders" value={t.openOrders} icon="bag" href="/takeout" />
+        <StatTile label="Unread" value={t.unread} icon="bell" live href="/notifications" note={t.unread === 0 ? "All caught up" : undefined} />
       </Reveal>
 
-      <div className="grid gap-5 2xl:grid-cols-2 2xl:items-start">
-        <Reveal className="space-y-5" index={1}>
-          {unacknowledged.length > 0 ? (
-            <Card title="Needs your attention" className="border-red-200">
-              <NotificationList items={unacknowledged} compact />
-            </Card>
-          ) : null}
-
-          <Card
-            title={previousSeenAt ? `Since you last signed in (${formatDateTime(previousSeenAt, tz)})` : "Since you last signed in"}
-            action={
-              <Link href="/notifications" className="inline-flex items-center gap-1 text-sm font-semibold text-brand-700">
-                Inbox <ArrowRightIcon size={16} />
-              </Link>
-            }
-          >
-            {sinceItems.length === 0 ? (
-              <p className="text-sm text-gray-500">Nothing new. You&apos;re all caught up.</p>
-            ) : (
-              <>
-                <div className="mb-3 flex flex-wrap gap-2">
-                  {Object.entries(counts).map(([type, n]) => (
-                    <Badge key={type} tone="brand">
-                      {n} {NOTIFICATION_TYPE_LABEL[type as keyof typeof NOTIFICATION_TYPE_LABEL] ?? humanize(type)}
-                      {n === 1 ? "" : "s"}
-                    </Badge>
-                  ))}
-                </div>
-                <NotificationList items={sinceItems.slice(0, 6)} compact />
-                {sinceItems.length > 6 ? (
+      {/* What needs you — only rendered when there is something to act on */}
+      {hasNews || hasCallbacks ? (
+        <div className={`grid gap-5 ${hasNews && hasCallbacks ? "lg:grid-cols-2 lg:items-start" : ""}`}>
+          {hasNews ? (
+            <Reveal index={1}>
+              <Card title={unacknowledged.length > 0 ? "Needs your attention" : "Since you last signed in"} className={unacknowledged.length > 0 ? "border-red-200" : undefined} action={<CardLink href="/notifications">Inbox</CardLink>}>
+                <NotificationList items={[...unacknowledged, ...fresh].slice(0, 6)} compact />
+                {unacknowledged.length + fresh.length > 6 ? (
                   <Link href="/notifications" className="mt-3 flex items-center justify-center gap-1 text-sm font-semibold text-brand-700">
-                    See all {sinceItems.length} <ArrowRightIcon size={16} />
+                    See all {unacknowledged.length + fresh.length} <ArrowRightIcon size={16} />
                   </Link>
                 ) : null}
-              </>
-            )}
-          </Card>
+              </Card>
+            </Reveal>
+          ) : null}
 
-          <Card
-            title="Callbacks owed"
-            action={
-              <Link href="/calls?type=message" className="text-sm font-semibold text-brand-700">
-                Messages
-              </Link>
-            }
-          >
-            {dash.callbacks.length === 0 ? (
-              <p className="text-sm text-gray-500">No one is waiting on a call back. Nice.</p>
-            ) : (
-              <ul className="divide-y divide-gray-100">
-                {dash.callbacks.map((c, i) => (
-                  <Reveal as="li" index={i + 1} key={c.id} className="py-2.5">
-                    <Link href={`/calls/${c.id}`} className="lift -mx-2 flex items-start justify-between gap-3 rounded-lg px-2 py-1 hover:bg-gray-50">
-                      <span className="min-w-0">
-                        <span className="block truncate font-semibold">
-                          {c.callerName ?? "Unknown caller"}
-                          {c.callerPhone ? <span className="font-normal text-gray-500"> · {formatUsPhone(c.callerPhone)}</span> : null}
+          {hasCallbacks ? (
+            <Reveal index={hasNews ? 2 : 1}>
+              <Card
+                title={
+                  <>
+                    Callbacks owed · <CountUp to={dash.callbacks.length} />
+                  </>
+                }
+                action={<CardLink href="/calls?type=message">Messages</CardLink>}
+              >
+                <ul className="divide-y divide-gray-100">
+                  {dash.callbacks.map((c, i) => (
+                    <Reveal as="li" index={i + 1} key={c.id} className="py-2.5">
+                      <Link href={`/calls/${c.id}`} className="lift -mx-2 flex items-start justify-between gap-3 rounded-lg px-2 py-1 hover:bg-gray-50">
+                        <span className="min-w-0">
+                          <span className="block truncate font-semibold">
+                            {c.callerName ?? "Unknown caller"}
+                            {c.callerPhone ? <span className="font-normal text-gray-500"> · {formatUsPhone(c.callerPhone)}</span> : null}
+                          </span>
+                          {c.messageText ? <span className="line-clamp-1 text-sm text-gray-600">{c.messageText}</span> : null}
+                          <span className="text-xs text-gray-500">{timeAgo(c.startedAt, now)}</span>
                         </span>
-                        {c.messageText ? <span className="line-clamp-1 text-sm text-gray-600">{c.messageText}</span> : null}
-                        <span className="text-xs text-gray-500">{timeAgo(c.startedAt, now)}</span>
-                      </span>
-                      <Badge tone={c.escalationReason ? "red" : classificationTone[c.classification]} className="shrink-0">
-                        {c.escalationReason ? humanize(c.escalationReason) : humanize(c.classification)}
-                      </Badge>
-                    </Link>
-                  </Reveal>
-                ))}
-              </ul>
-            )}
-          </Card>
+                        <Badge tone={c.escalationReason ? "red" : classificationTone[c.classification]} className="shrink-0">
+                          {c.escalationReason ? humanize(c.escalationReason) : humanize(c.classification)}
+                        </Badge>
+                      </Link>
+                    </Reveal>
+                  ))}
+                </ul>
+              </Card>
+            </Reveal>
+          ) : null}
+        </div>
+      ) : (
+        <Reveal index={1}>
+          <p className="text-sm text-gray-500">
+            Nothing new since you last signed in{previousSeenAt ? ` (${formatDateTime(previousSeenAt, tz)})` : ""}.{" "}
+            <Link href="/notifications" className="font-semibold text-brand-700">
+              Inbox
+            </Link>
+          </p>
         </Reveal>
+      )}
 
-        <Reveal className="space-y-5" index={2}>
+      {/* Today */}
+      <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+        <Reveal index={2}>
           <Card
             title={
               <>
                 Today&apos;s reservations · <CountUp to={t.coversToday} /> covers
               </>
             }
-            action={
-              <LinkButton href="/reservations/new" size="sm">
-                + Add
-              </LinkButton>
-            }
+            action={<CardLink href={`/reservations?date=${today}`}>Book</CardLink>}
           >
             {todaysReservations.length === 0 ? (
-              <EmptyState title="No reservations today" />
+              <Quiet>
+                No reservations today.{" "}
+                <Link href="/reservations/new" className="font-semibold text-brand-700">
+                  Add one
+                </Link>
+              </Quiet>
             ) : (
               <ul className="divide-y divide-gray-100">
                 {todaysReservations.map((r, i) => (
@@ -162,7 +181,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                         {r.seatingPreference ? ` · ${r.seatingPreference}` : ""}
                       </p>
                     </div>
-                    <div className="flex shrink-0 flex-col items-end gap-1">
+                    <div className="flex shrink-0 items-center gap-2">
                       <Badge tone={reservationTone[r.status]} className={changed === r.id ? "badge-pop" : undefined}>{humanize(r.status)}</Badge>
                       <StatusButtons id={r.id} current={r.status} transitions={RESERVATION_TRANSITIONS[r.status].slice(0, 1)} action={setReservationStatus} returnTo="/dashboard" size="sm" />
                     </div>
@@ -170,25 +189,25 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                 ))}
               </ul>
             )}
-            <Link href={`/reservations?date=${today}`} className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-brand-700">
-              Open today&apos;s book <ArrowRightIcon size={16} />
-            </Link>
           </Card>
+        </Reveal>
 
+        <Reveal index={3}>
           <Card
             title={
               <>
-                Open takeout orders · <CountUp to={openOrders.length} />
+                Takeout orders · <CountUp to={openOrders.length} /> open
               </>
             }
-            action={
-              <LinkButton href="/takeout/new" size="sm">
-                + Add
-              </LinkButton>
-            }
+            action={<CardLink href="/takeout">Takeout</CardLink>}
           >
             {openOrders.length === 0 ? (
-              <EmptyState title="No open orders" />
+              <Quiet>
+                No open orders.{" "}
+                <Link href="/takeout/new" className="font-semibold text-brand-700">
+                  Add one
+                </Link>
+              </Quiet>
             ) : (
               <ul className="divide-y divide-gray-100">
                 {openOrders.map((o, i) => (
@@ -202,7 +221,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                         {o.guestPhone ? ` · ${formatUsPhone(o.guestPhone)}` : ""} · {o.items}
                       </p>
                     </div>
-                    <div className="flex shrink-0 flex-col items-end gap-1">
+                    <div className="flex shrink-0 items-center gap-2">
                       <Badge tone={takeoutTone[o.status]} className={changed === o.id ? "badge-pop" : undefined}>{humanize(o.status)}</Badge>
                       <StatusButtons id={o.id} current={o.status} transitions={TAKEOUT_TRANSITIONS[o.status].slice(0, 1)} action={setTakeoutStatus} returnTo="/dashboard" size="sm" />
                     </div>
@@ -214,79 +233,36 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         </Reveal>
       </div>
 
-      {/* Charts */}
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Reveal index={3}>
-          <Card title="Calls this week" action={<span className="text-xs text-gray-500">Last 7 days · by outcome</span>}>
-            <StackedColumns days={dash.callsByDay} series={[...CALL_SERIES]} title="Calls per day, last 7 days, by outcome" />
-          </Card>
-        </Reveal>
-        <Reveal index={4}>
-          <Card
-            title="Covers ahead"
-            action={
-              <span className="text-xs text-gray-500">
-                Next 7 days{t.aiBookedAhead > 0 ? ` · ${t.aiBookedAhead} booked by ${account.hostName}` : ""}
-              </span>
-            }
-          >
-            <Columns items={dash.coversAhead} title="Covers booked per day, next 7 days" unit=" covers" />
-          </Card>
-        </Reveal>
-      </div>
-
-      <Reveal index={5}>
-        <Card title={`${account.hostName} this week`} action={<span className="text-xs text-gray-500">Real calls only · last 7 days</span>}>
-          {dash.ai.answered === 0 ? (
-            <p className="text-sm text-gray-500">
-              No real calls yet this week. Once {account.hostName} is answering your line, you&apos;ll see how many calls were handled end-to-end, how long they took, how callers felt, and when your phone is busiest.
-            </p>
-          ) : (
-            <div className="grid gap-5 md:grid-cols-3">
-              <div className="grid grid-cols-3 gap-3 md:col-span-3 lg:col-span-1 lg:grid-cols-1">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Answered</p>
-                  <p className="text-2xl font-black tabular-nums">
-                    <CountUp to={dash.ai.answered} />
-                  </p>
+      {/* The week — hidden until there is something to chart */}
+      {showWeek ? (
+        <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+          <Reveal index={4}>
+            <Card title="Calls this week" action={<span className="text-xs text-gray-500">Last 7 days · by outcome</span>}>
+              <StackedColumns days={dash.callsByDay} series={[...CALL_SERIES]} title="Calls per day, last 7 days, by outcome" />
+              {dash.ai.answered > 0 ? (
+                <div className="mt-4 grid grid-cols-2 gap-4 border-t border-gray-100 pt-4 sm:grid-cols-4">
+                  <Stat label={`${account.hostName} answered`} value={<CountUp to={dash.ai.answered} />} />
+                  <Stat label="Handled solo" value={dash.ai.handledPct != null ? `${dash.ai.handledPct}%` : "—"} sub="no callback needed" />
+                  <Stat label="Avg length" value={formatDuration(dash.ai.avgDuration)} />
+                  <Stat label="Callers positive" value={positivePct != null ? `${positivePct}%` : "—"} sub={dash.ai.peakHour != null ? `busiest around ${fmtHour(dash.ai.peakHour)}` : undefined} />
                 </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Handled solo</p>
-                  <p className="text-2xl font-black tabular-nums">{dash.ai.handledPct != null ? `${dash.ai.handledPct}%` : "—"}</p>
-                  <p className="text-xs text-gray-500">no callback needed</p>
-                </div>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Avg length</p>
-                  <p className="text-2xl font-black tabular-nums">{formatDuration(dash.ai.avgDuration)}</p>
-                </div>
-              </div>
-              <div className="md:col-span-3 lg:col-span-1">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">How callers felt</p>
-                <SegmentBar
-                  title="Caller sentiment, last 7 days"
-                  segments={[
-                    { label: "Positive", value: dash.ai.sentiment.positive, color: "var(--viz-good)" },
-                    { label: "Neutral", value: dash.ai.sentiment.neutral, color: "var(--viz-neutral)" },
-                    { label: "Negative", value: dash.ai.sentiment.negative, color: "var(--viz-critical)" },
-                  ]}
-                />
-              </div>
-              <div className="md:col-span-3 lg:col-span-1">
-                <p className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                  Busiest hours <span className="normal-case tracking-normal text-gray-400">last 30 days</span>
-                  {dash.ai.peakHour != null ? (
-                    <span className="ml-auto inline-flex items-center gap-1 normal-case tracking-normal text-gray-600">
-                      {/* Historical data: a steady dot, not a ripple (ripple means live or wants-you). */}
-                      <span className="inline-block h-2 w-2 rounded-full bg-brand-600" aria-hidden="true" /> peak {fmtHour(dash.ai.peakHour)}
-                    </span>
-                  ) : null}
-                </p>
-                <HourBars counts={dash.ai.hourCounts} title="Calls by hour of day, last 30 days" tz={tz} />
-              </div>
-            </div>
-          )}
-        </Card>
-      </Reveal>
+              ) : null}
+            </Card>
+          </Reveal>
+          <Reveal index={5}>
+            <Card
+              title="Covers ahead"
+              action={
+                <span className="text-xs text-gray-500">
+                  Next 7 days{t.aiBookedAhead > 0 ? ` · ${t.aiBookedAhead} booked by ${account.hostName}` : ""}
+                </span>
+              }
+            >
+              <Columns items={dash.coversAhead} title="Covers booked per day, next 7 days" unit=" covers" />
+            </Card>
+          </Reveal>
+        </div>
+      ) : null}
     </div>
   );
 }
