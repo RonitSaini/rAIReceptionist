@@ -48,9 +48,14 @@ export function SidebarNav({ items }: { items: SidebarNavItem[] }) {
 
   const activeEl = () => navRef.current?.querySelector<HTMLElement>('[data-active="true"]') ?? null;
 
-  // Snap the highlight + bar to the active item on mount, route change and resize.
+  // First paint and resize SNAP the highlight + bar to the active item (nothing should be seen
+  // travelling on load). Route changes SLIDE them there — the bar arrives, expo-out, like the
+  // mobile tab bar. Clicking already starts the slide (onClick below), so this is a no-op when the
+  // navigation came from the rail and the real move when it came from anywhere else.
+  const firstPaint = useRef(true);
   useEffect(() => {
-    moveTo(activeEl(), { bar: true, instant: true });
+    moveTo(activeEl(), { bar: true, instant: firstPaint.current });
+    firstPaint.current = false;
     const onResize = () => moveTo(activeEl(), { bar: true, instant: true });
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
@@ -75,6 +80,7 @@ export function SidebarNav({ items }: { items: SidebarNavItem[] }) {
             aria-current={active ? "page" : undefined}
             onMouseEnter={(e) => moveTo(e.currentTarget)}
             onFocus={(e) => moveTo(e.currentTarget)}
+            onClick={(e) => moveTo(e.currentTarget, { bar: true })}
             className={`relative z-10 flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors short:min-h-9 ${active ? "text-brand-800" : "text-gray-600 hover:text-ink"}`}
           >
             {it.icon ? <DrawIcon name={it.icon} size={18} delay={i * 70} className="shrink-0" /> : null}
