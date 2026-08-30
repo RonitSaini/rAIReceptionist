@@ -106,8 +106,9 @@ export function dayOfWeekOf(dateStr: string): number {
 }
 
 /** Start of the week (Sunday) containing the date. */
+/** Monday of the week containing the date (the book runs Mon → Sun). */
 export function startOfWeek(dateStr: string): string {
-  return addDays(dateStr, -dayOfWeekOf(dateStr));
+  return addDays(dateStr, -((dayOfWeekOf(dateStr) + 6) % 7));
 }
 
 /** UTC bounds [start, end) for a local calendar day. */
