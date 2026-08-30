@@ -75,3 +75,25 @@ export function formatDistance(miles: number, country: Country): string {
   const v = displayDistance(miles, country);
   return `${v} ${unitWord(country, v)}`;
 }
+
+// ---------- Country on the account ----------
+
+export const COUNTRIES: { code: Country; name: string }[] = [
+  { code: "US", name: "United States" },
+  { code: "CA", name: "Canada" },
+];
+
+export function asCountry(v: string | null | undefined): Country | null {
+  return v === "US" || v === "CA" ? v : null;
+}
+
+/** The stored country, with the province inference as a safety net for rows saved before the column existed. */
+export function accountCountry(a: { country?: string | null; state?: string | null }): Country {
+  return asCountry(a.country) ?? countryOf(a.state);
+}
+
+/** Postal-code validity for one specific country (the form knows which one the owner chose). */
+export function isPostalCodeFor(s: string, country: Country): boolean {
+  const v = s.trim();
+  return country === "CA" ? CA_POSTAL.test(v) : US_ZIP.test(v);
+}

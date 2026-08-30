@@ -2,7 +2,7 @@ import type { Account, Call, CallClassification } from "@prisma/client";
 import { prisma } from "./prisma";
 import { getAvailableTimes, nearestAlternatives, periodsForDay } from "./availability";
 import { distanceMiles, extractZip, formatRestaurantAddress, geocodeAddress } from "./geo";
-import { countryOf, displayDistance, formatDistance, KM_PER_MILE, postalLabel, unitWord } from "./locale";
+import { accountCountry, displayDistance, formatDistance, KM_PER_MILE, postalLabel, unitWord } from "./locale";
 import { dayOfWeekOf, formatDateString, formatClock, isValidDateString, timeToMinutes, todayString, zonedToUtc, formatDateTime } from "./time";
 import { formatUsPhone, normalizeUsPhone } from "./form";
 import { MESSAGE_REASONS, type FunctionName } from "./agent-config";
@@ -169,7 +169,7 @@ async function restaurantLocation(a: Account): Promise<{ lat: number; lng: numbe
   if (a.latitude != null && a.longitude != null) return { lat: a.latitude, lng: a.longitude };
   const addr = formatRestaurantAddress(a) ?? (a.deliveryZip ? a.deliveryZip : null);
   if (!addr) return null;
-  const loc = await geocodeAddress(addr);
+  const loc = await geocodeAddress(addr, accountCountry(a));
   if (loc) await prisma.account.update({ where: { id: a.id }, data: { latitude: loc.lat, longitude: loc.lng } }).catch(() => {});
   return loc;
 }
@@ -179,8 +179,8 @@ export async function checkDeliveryArea(a: Account, address: string): Promise<{ 
   const radius = a.deliveryRadiusMiles != null ? Number(a.deliveryRadiusMiles) : null;
   if (!address.trim()) return { deliverable: false, uncertain: true, reason: "No address given." };
 
-  const country = countryOf(a.state);
-  const [origin, target] = await Promise.all([restaurantLocation(a), geocodeAddress(address)]);
+  const country = accountCountry(a);
+  const [origin, target] = await Promise.all([restaurantLocation(a), geocodeAddress(address, country)]);
   if (origin && target && radius != null) {
     const d = distanceMiles(origin, target);
     // Spoken in the restaurant's unit (km for Canada); stored and compared in miles.

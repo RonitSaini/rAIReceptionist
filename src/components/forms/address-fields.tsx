@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { US_STATES } from "@/lib/constants";
-import { CA_PROVINCES, countryOf } from "@/lib/locale";
+import { CA_PROVINCES, type Country } from "@/lib/locale";
 import { Input, Select } from "@/components/ui";
 
 type Suggestion = { placeId: string; main: string; secondary: string; text: string };
@@ -15,7 +15,7 @@ export type AddressValue = { addressLine1: string; addressLine2: string; city: s
  * field and pins the exact coordinates (hidden inputs); editing any field afterwards drops the pin so the
  * server re-geocodes on save. Without GOOGLE_MAPS_API_KEY the server answers 503 and this is a plain form.
  */
-export function AddressFields({ initial }: { initial: AddressValue }) {
+export function AddressFields({ initial, country }: { initial: AddressValue; country: Country }) {
   const [v, setV] = useState<AddressValue>(initial);
   const [query, setQuery] = useState(initial.addressLine1);
   const [items, setItems] = useState<Suggestion[]>([]);
@@ -40,7 +40,7 @@ export function AddressFields({ initial }: { initial: AddressValue }) {
     const t = setTimeout(async () => {
       sessionRef.current ??= crypto.randomUUID();
       try {
-        const res = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(query)}&session=${sessionRef.current}`, { signal: controller.signal });
+        const res = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(query)}&session=${sessionRef.current}&country=${country}`, { signal: controller.signal });
         if (res.status === 503) {
           setAvailable(false);
           return;
@@ -58,7 +58,7 @@ export function AddressFields({ initial }: { initial: AddressValue }) {
       clearTimeout(t);
       controller.abort();
     };
-  }, [query, available]);
+  }, [query, available, country]);
 
   async function choose(s: Suggestion) {
     setOpen(false);
@@ -93,11 +93,11 @@ export function AddressFields({ initial }: { initial: AddressValue }) {
   }
 
   const pinned = v.latitude != null && v.longitude != null;
-  const country = countryOf(v.state);
+  const regions: readonly string[] = country === "CA" ? CA_PROVINCES : US_STATES;
 
   return (
     <fieldset className="space-y-3">
-      <legend className="text-sm font-semibold text-gray-800">Restaurant address</legend>
+      <legend className="text-sm font-semibold text-gray-800">Restaurant address <span className="font-normal text-gray-500">({country === "CA" ? "Canada" : "United States"})</span></legend>
       <div className="relative">
         <Input
           name="addressLine1"
@@ -146,24 +146,15 @@ export function AddressFields({ initial }: { initial: AddressValue }) {
       <Input name="addressLine2" value={v.addressLine2} onChange={(e) => set({ addressLine2: e.target.value }, true)} placeholder="Suite, floor (optional)" autoComplete="address-line2" aria-label="Address line 2" />
       <div className="grid grid-cols-6 gap-2">
         <Input name="city" value={v.city} onChange={(e) => set({ city: e.target.value })} placeholder="City" autoComplete="address-level2" aria-label="City" className="col-span-3" />
-        <Select name="state" value={v.state} onChange={(e) => set({ state: e.target.value })} aria-label="State or province" className="col-span-1 px-2">
-          <option value="">ST</option>
-          <optgroup label="United States">
-            {US_STATES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label="Canada">
-            {CA_PROVINCES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </optgroup>
+        <Select name="state" value={v.state} onChange={(e) => set({ state: e.target.value })} aria-label={country === "CA" ? "Province" : "State"} className="col-span-1 px-2">
+          <option value="">{country === "CA" ? "Prov" : "ST"}</option>
+          {regions.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
         </Select>
-        <Input name="zip" value={v.zip} onChange={(e) => set({ zip: e.target.value })} placeholder={country === "CA" ? "Postal code" : "ZIP"} inputMode={country === "CA" ? "text" : "numeric"} autoComplete="postal-code" aria-label="ZIP or postal code" className="col-span-2" />
+        <Input name="zip" value={v.zip} onChange={(e) => set({ zip: e.target.value })} placeholder={country === "CA" ? "Postal code" : "ZIP"} inputMode={country === "CA" ? "text" : "numeric"} autoComplete="postal-code" aria-label={country === "CA" ? "Postal code" : "ZIP code"} className="col-span-2" />
       </div>
       <input type="hidden" name="latitude" value={pinned ? String(v.latitude) : ""} />
       <input type="hidden" name="longitude" value={pinned ? String(v.longitude) : ""} />

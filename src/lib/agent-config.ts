@@ -1,7 +1,7 @@
 import type { Account, BusinessHours, ManagerAvailability, MenuItem } from "@prisma/client";
 import type { AgentRequest, CustomTool, EndCallTool, PostCallAnalysisField, RetellLlmRequest } from "./retell";
 import { functionSecret } from "./retell";
-import { countryOf, formatDistance, postalLabel, unitWord } from "./locale";
+import { accountCountry, formatDistance, postalLabel, unitWord } from "./locale";
 import { DAYS_OF_WEEK, ESCALATION_TYPES } from "./constants";
 import { formatClock } from "./time";
 import { formatUsd } from "./form";
@@ -100,7 +100,7 @@ function takeoutSection(a: Account): string {
   ];
   if (a.offersDelivery) {
     lines.push(
-      `DELIVERY: Offered within ${a.deliveryRadiusMiles != null ? formatDistance(Number(a.deliveryRadiusMiles), countryOf(a.state)) : `a few ${unitWord(countryOf(a.state))}`} of the restaurant. Before accepting a delivery order, ask for the full street address including city and ${postalLabel(countryOf(a.state))} and call check_delivery_area. If the address is outside the area or the check is uncertain, apologize, say delivery isn't available there, and offer pickup instead. Never promise delivery to an address that hasn't passed the check.`,
+      `DELIVERY: Offered within ${a.deliveryRadiusMiles != null ? formatDistance(Number(a.deliveryRadiusMiles), accountCountry(a)) : `a few ${unitWord(accountCountry(a))}`} of the restaurant. Before accepting a delivery order, ask for the full street address including city and ${postalLabel(accountCountry(a))} and call check_delivery_area. If the address is outside the area or the check is uncertain, apologize, say delivery isn't available there, and offer pickup instead. Never promise delivery to an address that hasn't passed the check.`,
     );
   } else {
     lines.push("DELIVERY: Not offered. If asked, politely say you don't deliver and offer pickup instead.");

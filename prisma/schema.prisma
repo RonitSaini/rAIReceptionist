@@ -48,6 +48,7 @@ model Account {
   addressLine2   String?
   city           String?
   state          String?
+  country        String  @default("US") // "US" or "CA" — drives address format, time zones, distance units
   zip            String?
   timeZone       String  @default("America/New_York")
   cuisineType    String?

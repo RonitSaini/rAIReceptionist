@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { googleMapsConfigured } from "@/lib/env";
 import { autocompleteAddresses } from "@/lib/places";
+import { asCountry } from "@/lib/locale";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,7 @@ export async function GET(req: NextRequest) {
   if (!googleMapsConfigured()) return NextResponse.json({ error: "not_configured", suggestions: [] }, { status: 503 });
   const q = req.nextUrl.searchParams.get("q") ?? "";
   const token = req.nextUrl.searchParams.get("session") ?? undefined;
-  const suggestions = await autocompleteAddresses(q.slice(0, 200), token);
+  const country = asCountry(req.nextUrl.searchParams.get("country")) ?? undefined;
+  const suggestions = await autocompleteAddresses(q.slice(0, 200), token, country);
   return NextResponse.json({ suggestions });
 }

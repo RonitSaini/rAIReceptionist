@@ -7,7 +7,7 @@ import { DIETARY_TAGS, MENU_CATEGORIES } from "@/lib/constants";
 import { Button, Field, Input, Toggle, inputClass } from "@/components/ui";
 import { FormFooter, type FormMode } from "@/components/form-footer";
 import { DeliveryRadiusMap, deliveryMapAvailable } from "@/components/forms/delivery-radius-map";
-import { countryOf, displayDistance, postalLabel, toMiles, unitWord } from "@/lib/locale";
+import { accountCountry, displayDistance, postalLabel, toMiles, unitWord } from "@/lib/locale";
 
 type Row = Omit<MenuItemView, "id" | "price"> & { key: number; price: string };
 
@@ -21,7 +21,7 @@ export function MenuPoliciesForm({ account, menu, mode }: { account: AccountView
   const [rows, setRows] = useState<Row[]>(() => (menu.length ? menu.map((m) => newRow({ ...m, price: m.price == null ? "" : m.price.toFixed(2) })) : [newRow()]));
   const [expanded, setExpanded] = useState<number | null>(null);
   const [offersDelivery, setOffersDelivery] = useState(account.offersDelivery);
-  const country = countryOf(account.state);
+  const country = accountCountry(account);
   const unit = country === "CA" ? "km" : "mi";
   const [radius, setRadius] = useState(account.deliveryRadiusMiles == null ? "" : String(displayDistance(account.deliveryRadiusMiles, country)));
   const radiusNum = Number.parseFloat(radius);

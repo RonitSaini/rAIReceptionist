@@ -1,7 +1,7 @@
 "use server";
 
 import { formatRestaurantAddress, geocodeAddress } from "@/lib/geo";
-import { countryOf, isPostalCode, normalizePostalCode, toMiles } from "@/lib/locale";
+import { accountCountry, asCountry, CA_PROVINCES, isPostalCodeFor, normalizePostalCode, toMiles } from "@/lib/locale";
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -13,7 +13,7 @@ import { retellConfigured } from "@/lib/env";
 import { requireAccount } from "@/lib/current-account";
 import { bool, int, json, list, normalizeUsPhone, optDecimal, optInt, optStr, str, type ActionState } from "@/lib/form";
 import { greetingHasDisclosure } from "@/lib/greeting";
-import { ALL_TIME_ZONES, DIETARY_TAGS, ESCALATION_TYPES, ONBOARDING_DONE, VOICES } from "@/lib/constants";
+import { DIETARY_TAGS, ESCALATION_TYPES, ONBOARDING_DONE, timeZonesFor, US_STATES, VOICES } from "@/lib/constants";
 import { isValidTimeString, timeToMinutes } from "@/lib/time";
 
 type Mode = "onboarding" | "settings";
@@ -45,14 +45,19 @@ export async function saveBusinessBasics(_prev: ActionState, fd: FormData): Prom
   const ownerName = optStr(fd, "ownerName");
   const cellRaw = str(fd, "cellPhone");
   const cellPhone = cellRaw ? normalizeUsPhone(cellRaw) : null;
+  const country = asCountry(str(fd, "country"));
   const zip = normalizePostalCode(str(fd, "zip"));
   const timeZone = str(fd, "timeZone");
+  const state = optStr(fd, "state");
 
-  if (cellRaw && !cellPhone) return { ok: false, error: "Enter a valid 10-digit US cell number." };
-  if (zip && !isPostalCode(zip)) return { ok: false, error: "Enter a valid ZIP code (12345) or Canadian postal code (A1A 1A1)." };
-  if (!ALL_TIME_ZONES.some((t) => t.id === timeZone)) return { ok: false, error: "Choose a time zone." };
+  if (!country) return { ok: false, error: "Choose your country first." };
+  if (cellRaw && !cellPhone) return { ok: false, error: "Enter a valid 10-digit cell number." };
+  const regions: readonly string[] = country === "CA" ? CA_PROVINCES : US_STATES;
+  if (state && !regions.includes(state)) return { ok: false, error: country === "CA" ? "Choose a Canadian province." : "Choose a US state." };
+  if (zip && !isPostalCodeFor(zip, country)) return { ok: false, error: country === "CA" ? "Enter a valid Canadian postal code (A1A 1A1)." : "Enter a valid 5-digit ZIP code." };
+  if (!timeZonesFor(country).some((t) => t.id === timeZone)) return { ok: false, error: country === "CA" ? "Choose a Canadian time zone." : "Choose a US time zone." };
 
-  const address = { addressLine1: optStr(fd, "addressLine1"), addressLine2: optStr(fd, "addressLine2"), city: optStr(fd, "city"), state: optStr(fd, "state"), zip: zip || null };
+  const address = { addressLine1: optStr(fd, "addressLine1"), addressLine2: optStr(fd, "addressLine2"), city: optStr(fd, "city"), state, zip: zip || null };
   // Coordinates: the pin from a picked Google suggestion wins; otherwise re-geocode whenever the address
   // changed (a stale pin would put the delivery radius around the old location).
   const pinLat = Number.parseFloat(str(fd, "latitude"));
@@ -62,7 +67,7 @@ export async function saveBusinessBasics(_prev: ActionState, fd: FormData): Prom
   if (Number.isFinite(pinLat) && Number.isFinite(pinLng)) coords = { latitude: pinLat, longitude: pinLng };
   else if (addressChanged || account.latitude == null) {
     const line = formatRestaurantAddress(address);
-    const loc = line ? await geocodeAddress(line) : null;
+    const loc = line ? await geocodeAddress(line, country) : null;
     coords = { latitude: loc?.lat ?? null, longitude: loc?.lng ?? null };
   }
 
@@ -72,6 +77,7 @@ export async function saveBusinessBasics(_prev: ActionState, fd: FormData): Prom
       restaurantName,
       ownerName,
       cellPhone,
+      country,
       ...address,
       ...(coords ?? {}),
       timeZone,
@@ -136,14 +142,15 @@ export async function saveMenuPolicies(_prev: ActionState, fd: FormData): Promis
   const offersDelivery = bool(fd, "offersDelivery");
   const deliveryZip = optStr(fd, "deliveryZip") ? normalizePostalCode(str(fd, "deliveryZip")) : null;
   // The owner types the radius in their own unit (km for Canadian provinces); miles are what we store.
-  const radiusUnit = str(fd, "radiusUnit") === "km" || countryOf(account.state) === "CA" ? "km" : "mi";
+  const country = accountCountry(account);
+  const radiusUnit = str(fd, "radiusUnit") === "km" || country === "CA" ? "km" : "mi";
   const radiusTyped = optDecimal(fd, "deliveryRadiusMiles");
   const deliveryRadiusMiles = radiusTyped == null ? null : (Math.round(toMiles(Number(radiusTyped), radiusUnit) * 10) / 10).toFixed(1);
   const largePartyThreshold = int(fd, "largePartyThreshold", 8);
 
   if (largePartyThreshold < 2 || largePartyThreshold > 100) return { ok: false, error: "Large-party threshold must be between 2 and 100." };
   if (offersDelivery) {
-    if (!deliveryZip || !isPostalCode(deliveryZip)) return { ok: false, error: "Delivery needs a valid ZIP or postal code." };
+    if (!deliveryZip || !isPostalCodeFor(deliveryZip, country)) return { ok: false, error: country === "CA" ? "Delivery needs a valid postal code (A1A 1A1)." : "Delivery needs a valid 5-digit ZIP code." };
     if (!deliveryRadiusMiles || Number(deliveryRadiusMiles) <= 0) return { ok: false, error: `Delivery needs a radius in ${radiusUnit === "km" ? "kilometres" : "miles"}.` };
   }
 

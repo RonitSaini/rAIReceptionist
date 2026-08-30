@@ -10,9 +10,9 @@ export type LatLng = { lat: number; lng: number };
 
 const CENSUS = "https://geocoding.geo.census.gov/geocoder/locations/onelineaddress";
 
-export async function geocodeAddress(address: string, timeoutMs = 6000): Promise<LatLng | null> {
+export async function geocodeAddress(address: string, country?: "US" | "CA", timeoutMs = 6000): Promise<LatLng | null> {
   // Geocoding API → Places (autocomplete + details) → US Census. Each returns null when unavailable.
-  return (await googleGeocode(address)) ?? (await placesGeocode(address)) ?? (await censusGeocode(address, timeoutMs));
+  return (await googleGeocode(address, country)) ?? (await placesGeocode(address, country)) ?? (country === "CA" ? null : await censusGeocode(address, timeoutMs));
 }
 
 async function censusGeocode(address: string, timeoutMs: number): Promise<LatLng | null> {
