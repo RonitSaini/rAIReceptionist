@@ -26,7 +26,7 @@ export function BusinessBasicsForm({ account, mode }: { account: AccountView; mo
     setCountry(next);
     if (!next) return;
     const zones = timeZonesFor(next);
-    if (!zones.some((z) => z.id === timeZone)) setTimeZone(zones[0].id);
+    if (!zones.some((z) => z.id === timeZone)) setTimeZone(next === "CA" ? "America/Toronto" : "America/New_York"); // Eastern is the most common in both
     setAddressKey((k) => k + 1); // remount the address block so the old country's region/postal code don't linger
   }
 
