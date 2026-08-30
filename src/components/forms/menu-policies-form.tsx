@@ -6,6 +6,7 @@ import type { AccountView, MenuItemView } from "@/lib/serialize";
 import { DIETARY_TAGS, MENU_CATEGORIES } from "@/lib/constants";
 import { Button, Field, Input, Toggle, inputClass } from "@/components/ui";
 import { FormFooter, type FormMode } from "@/components/form-footer";
+import { DeliveryRadiusMap, deliveryMapAvailable } from "@/components/forms/delivery-radius-map";
 
 type Row = Omit<MenuItemView, "id" | "price"> & { key: number; price: string };
 
@@ -19,6 +20,9 @@ export function MenuPoliciesForm({ account, menu, mode }: { account: AccountView
   const [rows, setRows] = useState<Row[]>(() => (menu.length ? menu.map((m) => newRow({ ...m, price: m.price == null ? "" : m.price.toFixed(2) })) : [newRow()]));
   const [expanded, setExpanded] = useState<number | null>(null);
   const [offersDelivery, setOffersDelivery] = useState(account.offersDelivery);
+  const [radius, setRadius] = useState(account.deliveryRadiusMiles == null ? "" : String(account.deliveryRadiusMiles));
+  const radiusNum = Number.parseFloat(radius);
+  const pinned = account.latitude != null && account.longitude != null;
 
   function update(key: number, patch: Partial<Row>) {
     setRows((prev) => prev.map((r) => (r.key === key ? { ...r, ...patch } : r)));
@@ -103,13 +107,20 @@ export function MenuPoliciesForm({ account, menu, mode }: { account: AccountView
         <Toggle name="takesTakeoutOrders" label="Take takeout orders by phone" defaultChecked={account.takesTakeoutOrders} />
         <Toggle name="offersDelivery" label="Offer delivery" description="Callers outside the area are offered pickup instead." checked={offersDelivery} onChange={setOffersDelivery} />
         {offersDelivery ? (
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Delivery from ZIP" htmlFor="deliveryZip">
-              <Input id="deliveryZip" name="deliveryZip" inputMode="numeric" placeholder="10001" defaultValue={account.deliveryZip ?? ""} />
-            </Field>
-            <Field label="Radius (miles)" htmlFor="deliveryRadiusMiles">
-              <Input id="deliveryRadiusMiles" name="deliveryRadiusMiles" inputMode="decimal" placeholder="5" defaultValue={account.deliveryRadiusMiles ?? ""} />
-            </Field>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Radius (miles)" htmlFor="deliveryRadiusMiles" hint="Measured from your restaurant address.">
+                <Input id="deliveryRadiusMiles" name="deliveryRadiusMiles" inputMode="decimal" placeholder="5" value={radius} onChange={(e) => setRadius(e.target.value)} />
+              </Field>
+              <Field label="Delivery from ZIP" htmlFor="deliveryZip" hint="Fallback when an address can't be located.">
+                <Input id="deliveryZip" name="deliveryZip" inputMode="numeric" placeholder="10001" defaultValue={account.deliveryZip ?? ""} />
+              </Field>
+            </div>
+            {pinned && deliveryMapAvailable() && Number.isFinite(radiusNum) && radiusNum > 0 ? (
+              <DeliveryRadiusMap center={{ lat: account.latitude as number, lng: account.longitude as number }} radiusMiles={radiusNum} label={account.restaurantName} />
+            ) : !pinned ? (
+              <p className="text-xs text-gray-500">Save your restaurant address (Business step) to see the delivery area on a map. Callers&apos; addresses are checked against this radius.</p>
+            ) : null}
           </div>
         ) : null}
       </section>

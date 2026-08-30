@@ -44,3 +44,8 @@ export function appUrlIsPublic(): boolean {
   const u = appUrl();
   return !/localhost|127\.0\.0\.1|0\.0\.0\.0/.test(u) && u.startsWith("https://");
 }
+
+/** Server key for Places API (New) + Geocoding API — address suggestions and delivery-area checks. */
+export function googleMapsConfigured(): boolean {
+  return !!process.env.GOOGLE_MAPS_API_KEY;
+}

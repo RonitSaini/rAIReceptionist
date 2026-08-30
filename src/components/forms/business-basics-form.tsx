@@ -3,10 +3,11 @@
 import { useActionState } from "react";
 import { saveBusinessBasics } from "@/actions/onboarding";
 import type { AccountView } from "@/lib/serialize";
-import { CUISINE_TYPES, PRICE_RANGES, US_STATES, US_TIME_ZONES } from "@/lib/constants";
+import { CUISINE_TYPES, PRICE_RANGES, US_TIME_ZONES } from "@/lib/constants";
 import { formatUsPhone } from "@/lib/form";
 import { Field, Input, Select } from "@/components/ui";
 import { FormFooter, type FormMode } from "@/components/form-footer";
+import { AddressFields } from "@/components/forms/address-fields";
 
 export function BusinessBasicsForm({ account, mode }: { account: AccountView; mode: FormMode }) {
   const [state, action, pending] = useActionState(saveBusinessBasics, null);
@@ -23,23 +24,7 @@ export function BusinessBasicsForm({ account, mode }: { account: AccountView; mo
         <Input id="cellPhone" name="cellPhone" type="tel" inputMode="tel" autoComplete="tel" defaultValue={formatUsPhone(account.cellPhone)} placeholder="(555) 123-4567" />
       </Field>
 
-      <fieldset className="space-y-3">
-        <legend className="text-sm font-semibold text-gray-800">Restaurant address</legend>
-        <Input name="addressLine1" defaultValue={account.addressLine1 ?? ""} placeholder="Street address" autoComplete="address-line1" aria-label="Street address" />
-        <Input name="addressLine2" defaultValue={account.addressLine2 ?? ""} placeholder="Suite, floor (optional)" autoComplete="address-line2" aria-label="Address line 2" />
-        <div className="grid grid-cols-6 gap-2">
-          <Input name="city" defaultValue={account.city ?? ""} placeholder="City" autoComplete="address-level2" aria-label="City" className="col-span-3" />
-          <Select name="state" defaultValue={account.state ?? ""} aria-label="State" className="col-span-1 px-2">
-            <option value="">ST</option>
-            {US_STATES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </Select>
-          <Input name="zip" defaultValue={account.zip ?? ""} placeholder="ZIP" inputMode="numeric" autoComplete="postal-code" aria-label="ZIP code" className="col-span-2" />
-        </div>
-      </fieldset>
+      <AddressFields initial={{ addressLine1: account.addressLine1 ?? "", addressLine2: account.addressLine2 ?? "", city: account.city ?? "", state: account.state ?? "", zip: account.zip ?? "", latitude: account.latitude, longitude: account.longitude }} />
 
       <Field label="Time zone" htmlFor="timeZone" hint="All times in the app are shown in this time zone.">
         <Select id="timeZone" name="timeZone" defaultValue={account.timeZone} required>

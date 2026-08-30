@@ -1,5 +1,7 @@
 "use server";
 
+import { formatRestaurantAddress, geocodeAddress } from "@/lib/geo";
+
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
@@ -49,17 +51,28 @@ export async function saveBusinessBasics(_prev: ActionState, fd: FormData): Prom
   if (zip && !isZip(zip)) return { ok: false, error: "Enter a valid 5-digit ZIP code." };
   if (!US_TIME_ZONES.some((t) => t.id === timeZone)) return { ok: false, error: "Choose a time zone." };
 
+  const address = { addressLine1: optStr(fd, "addressLine1"), addressLine2: optStr(fd, "addressLine2"), city: optStr(fd, "city"), state: optStr(fd, "state"), zip: zip || null };
+  // Coordinates: the pin from a picked Google suggestion wins; otherwise re-geocode whenever the address
+  // changed (a stale pin would put the delivery radius around the old location).
+  const pinLat = Number.parseFloat(str(fd, "latitude"));
+  const pinLng = Number.parseFloat(str(fd, "longitude"));
+  const addressChanged = (Object.keys(address) as (keyof typeof address)[]).some((k) => (address[k] ?? null) !== (account[k] ?? null));
+  let coords: { latitude: number | null; longitude: number | null } | null = null;
+  if (Number.isFinite(pinLat) && Number.isFinite(pinLng)) coords = { latitude: pinLat, longitude: pinLng };
+  else if (addressChanged || account.latitude == null) {
+    const line = formatRestaurantAddress(address);
+    const loc = line ? await geocodeAddress(line) : null;
+    coords = { latitude: loc?.lat ?? null, longitude: loc?.lng ?? null };
+  }
+
   await prisma.account.update({
     where: { id: account.id },
     data: {
       restaurantName,
       ownerName,
       cellPhone,
-      addressLine1: optStr(fd, "addressLine1"),
-      addressLine2: optStr(fd, "addressLine2"),
-      city: optStr(fd, "city"),
-      state: optStr(fd, "state"),
-      zip: zip || null,
+      ...address,
+      ...(coords ?? {}),
       timeZone,
       cuisineType: optStr(fd, "cuisineType"),
       priceRange: optStr(fd, "priceRange"),

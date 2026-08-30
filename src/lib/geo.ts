@@ -1,13 +1,22 @@
 /**
  * Address geocoding + distance for delivery-area checks.
- * Uses the free US Census Bureau geocoder (no API key). US addresses only.
+ * Google Geocoding when GOOGLE_MAPS_API_KEY is set (tolerant of spoken addresses), otherwise — or if Google
+ * finds nothing — the free US Census Bureau geocoder (no key). US addresses only.
  */
+
+import { googleGeocode } from "./places";
 
 export type LatLng = { lat: number; lng: number };
 
 const CENSUS = "https://geocoding.geo.census.gov/geocoder/locations/onelineaddress";
 
 export async function geocodeAddress(address: string, timeoutMs = 6000): Promise<LatLng | null> {
+  const g = await googleGeocode(address);
+  if (g) return g;
+  return censusGeocode(address, timeoutMs);
+}
+
+async function censusGeocode(address: string, timeoutMs: number): Promise<LatLng | null> {
   const url = `${CENSUS}?benchmark=Public_AR_Current&format=json&address=${encodeURIComponent(address)}`;
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);

@@ -233,6 +233,12 @@ Both use one Google OAuth client. Set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET
 
 How it works: **Settings → Reservations → Connect Google Calendar** runs the OAuth flow (signed, 10-minute state), stores the refresh token encrypted, and backfills upcoming reservations as events. From then on every reservation created/edited/cancelled — by staff or by the AI — is mirrored (`src/lib/google-calendar.ts`, best-effort, errors shown on the settings card). Availability reads the calendar too: any *other* event on the chosen calendar blocks those times for phone bookings (our own events are tagged and ignored). You can pick which calendar to use, re-sync, or disconnect (which revokes the token). The built-in book remains the source of truth.
 
+## Google Maps: address suggestions + delivery area
+
+With `GOOGLE_MAPS_API_KEY` set, the restaurant-address form (sign-up step 2 / Settings → Business) suggests US addresses as you type via **Places API (New)**; picking one fills street, city, state and ZIP and pins exact coordinates. Every delivery-area check on a call geocodes the caller's spoken address with the **Geocoding API** (falling back to the free US Census geocoder), measures straight-line miles from that pin and compares it to the radius — the AI only promises delivery inside it. With `NEXT_PUBLIC_GOOGLE_MAPS_BROWSER_KEY` set, the Menu & policies step draws the radius on a Google map that updates as you edit it.
+
+Setup (same Google Cloud project as sign-in): enable *Places API (New)*, *Geocoding API*, *Maps JavaScript API*; create a server key (API-restricted to the first two) and a browser key (restricted to Maps JavaScript API + your site's URLs). Both keys are read from the environment; the server key is never sent to the browser — suggestions go through `/api/places/*`, which require a signed-in session.
+
 ## Project layout
 
 ```
