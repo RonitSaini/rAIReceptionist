@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowLeftIcon } from "@/components/icons";
+import { DrawIcon } from "@/components/draw-icon";
 import { notFound } from "next/navigation";
 import { requireAccount } from "@/lib/current-account";
 import { prisma } from "@/lib/prisma";
@@ -78,15 +79,17 @@ export default async function CallDetailPage({ params }: { params: Promise<{ id:
         <Card title="Result">
           {call.reservation ? (
             <Link href={`/reservations/${call.reservation.id}`} className="block rounded-xl border border-gray-200 p-3 hover:bg-gray-50">
-              <p className="font-semibold">
-                📅 {call.reservation.isWaitlist ? "Waitlist" : "Reservation"} · {call.reservation.guestName}, party of {call.reservation.partySize}
+              <p className="flex items-center gap-1.5 font-semibold">
+                <DrawIcon name="calendar" size={16} draw={false} className="shrink-0 text-gray-400" /> {call.reservation.isWaitlist ? "Waitlist" : "Reservation"} · {call.reservation.guestName}, party of {call.reservation.partySize}
               </p>
               <p className="text-sm text-gray-500">{formatDateTime(call.reservation.startTime, account.timeZone)}</p>
             </Link>
           ) : null}
           {call.takeoutOrder ? (
             <Link href={`/takeout/${call.takeoutOrder.id}`} className="mt-2 block rounded-xl border border-gray-200 p-3 hover:bg-gray-50">
-              <p className="font-semibold">🥡 {call.takeoutOrder.isDelivery ? "Delivery" : "Takeout"} · {call.takeoutOrder.guestName}</p>
+              <p className="flex items-center gap-1.5 font-semibold">
+                <DrawIcon name="bag" size={16} draw={false} className="shrink-0 text-gray-400" /> {call.takeoutOrder.isDelivery ? "Delivery" : "Takeout"} · {call.takeoutOrder.guestName}
+              </p>
               <p className="text-sm text-gray-500">{formatDateTime(call.takeoutOrder.pickupTime, account.timeZone)}</p>
             </Link>
           ) : null}

@@ -5,6 +5,7 @@ import { useActionState, useState, useTransition } from "react";
 import { completePhoneStep } from "@/actions/onboarding";
 import { placeTestCall, provisionPhoneNumber, repairNumberWebhooks, syncAgentNow } from "@/actions/phone";
 import type { AccountView } from "@/lib/serialize";
+import { DrawIcon } from "@/components/draw-icon";
 import type { ActionState } from "@/lib/form";
 import { formatUsPhone } from "@/lib/form";
 import { Alert, Badge, Button, Card, Field, Input } from "@/components/ui";
@@ -102,7 +103,7 @@ export function PhonePanel({ account, mode, status }: { account: AccountView; mo
           We&apos;ll call {account.cellPhone ? formatUsPhone(account.cellPhone) : "your cell (add it in Business basics)"} from your FrontDesk AI number so you can hear the greeting and try booking a table.
         </p>
         <Button type="button" variant="secondary" className="mt-3" disabled={!hasNumber || !account.cellPhone || pending} onClick={() => run(placeTestCall)}>
-          📞 Call me to test
+          <DrawIcon name="phone" size={16} draw={false} /> Call me to test
         </Button>
         {hasNumber ? <p className="mt-2 text-xs text-gray-500">Or just call {formatUsPhone(account.twilioNumber)} from any phone.</p> : null}
       </Card>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RetellWebClient } from "retell-client-js-sdk";
 import { Alert, Button } from "@/components/ui";
+import { DrawIcon } from "@/components/draw-icon";
 
 type Status = "idle" | "starting" | "connected" | "ended" | "error";
 type Line = { role: "agent" | "user"; content: string };
@@ -118,7 +119,7 @@ export function WebTestCall({ hostName, compact = false }: { hostName: string; c
             </>
           ) : (
             <Button type="button" size={compact ? "sm" : "md"} onClick={start}>
-              🎧 {status === "idle" ? "Start test call" : "Call again"}
+              <DrawIcon name="headphones" size={16} draw={false} /> {status === "idle" ? "Start test call" : "Call again"}
             </Button>
           )}
         </div>
