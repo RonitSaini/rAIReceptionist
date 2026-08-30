@@ -79,7 +79,7 @@ export function ReservationForm({ action, initial, largePartyThreshold }: { acti
             {slots.map((s) => (
               <option key={s.time} value={s.time}>
                 {s.label}
-                {!s.available ? (s.reason === "past" ? " (past)" : " (full)") : ""}
+                {!s.available ? (s.reason === "past" ? " (past)" : s.reason === "calendar_busy" ? " (busy on calendar)" : " (full)") : ""}
                 {s.coversSeated > 0 ? ` · ${s.coversSeated} seated` : ""}
               </option>
             ))}

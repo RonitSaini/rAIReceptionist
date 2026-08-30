@@ -343,13 +343,18 @@ model Call {
 // ---------- Google Calendar (Phase 5) ----------
 
 model GoogleCalendarConnection {
-  id           String   @id @default(cuid())
-  accountId    String   @unique
-  account      Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  id           String    @id @default(cuid())
+  accountId    String    @unique
+  account      Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
   accessToken  String
   refreshToken String
   expiresAt    DateTime
-  calendarId   String   @default("primary")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  calendarId   String    @default("primary")
+  calendarName String?
+  email        String? // Google account the calendar belongs to
+  scope        String?
+  lastSyncedAt DateTime?
+  lastError    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 }

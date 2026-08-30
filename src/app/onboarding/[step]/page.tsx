@@ -5,6 +5,7 @@ import { requireAccount } from "@/lib/current-account";
 import { serializeAccount, serializeMenuItem } from "@/lib/serialize";
 import { ONBOARDING_LAST_STEP } from "@/lib/constants";
 import { OnboardingProgress } from "@/components/onboarding-progress";
+import { getGoogleCalendarView } from "@/lib/google-calendar-view";
 import { CreateAccountForm } from "@/components/forms/create-account-form";
 import { BusinessBasicsForm } from "@/components/forms/business-basics-form";
 import { HoursForm } from "@/components/forms/hours-form";
@@ -16,8 +17,9 @@ import { PaymentStep, parseCheckoutResult } from "@/components/forms/payment-ste
 
 export const metadata = { title: "Setup" };
 
-export default async function OnboardingStepPage({ params, searchParams }: { params: Promise<{ step: string }>; searchParams: Promise<{ checkout?: string }> }) {
+export default async function OnboardingStepPage({ params, searchParams }: { params: Promise<{ step: string }>; searchParams: Promise<{ checkout?: string; google?: string; message?: string }> }) {
   const { step: stepParam } = await params;
+  const { google: googleStatus, message: googleMessage } = await searchParams;
   const step = Number.parseInt(stepParam, 10);
   if (!Number.isInteger(step) || step < 1 || step > ONBOARDING_LAST_STEP) notFound();
 
@@ -71,7 +73,7 @@ export default async function OnboardingStepPage({ params, searchParams }: { par
       return (
         <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
           <OnboardingProgress step={5} />
-          <ReservationSettingsForm account={view} mode="onboarding" />
+          <ReservationSettingsForm account={view} mode="onboarding" google={await getGoogleCalendarView(account.id)} googleStatus={googleStatus} googleMessage={googleMessage} />
         </div>
       );
     case 6:

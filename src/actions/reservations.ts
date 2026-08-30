@@ -2,6 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
+import { syncReservationToGoogle } from "@/lib/google-calendar";
 import { withChanged } from "@/lib/form";
 import type { ReservationStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -58,6 +60,7 @@ export async function createReservation(_prev: ActionState, fd: FormData): Promi
     reservationId: reservation.id,
   });
 
+  after(() => syncReservationToGoogle(reservation.id));
   revalidatePath("/reservations");
   revalidatePath("/dashboard");
   redirect(`/reservations/${reservation.id}`);
@@ -73,6 +76,7 @@ export async function updateReservation(_prev: ActionState, fd: FormData): Promi
   if ("error" in parsed) return { ok: false, error: parsed.error };
 
   await prisma.reservation.update({ where: { id }, data: parsed.data });
+  after(() => syncReservationToGoogle(id));
   revalidatePath("/reservations");
   revalidatePath(`/reservations/${id}`);
   revalidatePath("/dashboard");
@@ -90,6 +94,7 @@ export async function setReservationStatus(fd: FormData): Promise<void> {
   if (!existing) return;
 
   await prisma.reservation.update({ where: { id }, data: { status } });
+  after(() => syncReservationToGoogle(id));
   revalidatePath("/reservations");
   revalidatePath(`/reservations/${id}`);
   revalidatePath("/dashboard");

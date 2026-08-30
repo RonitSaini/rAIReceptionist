@@ -33,6 +33,7 @@ export default async function ReservationDetailPage({ params, searchParams }: { 
         <p className="mt-3 text-xs text-gray-500">
           {r.isWaitlist ? "Waitlist entry · " : ""}
           {r.source === "ai" ? "Booked by your AI host" : "Added manually"}
+          {r.googleEventId ? " · 📆 On Google Calendar" : ""}
           {r.calls[0] ? (
             <>
               {" · "}

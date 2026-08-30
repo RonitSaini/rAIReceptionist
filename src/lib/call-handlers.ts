@@ -6,6 +6,7 @@ import { dayOfWeekOf, formatDateString, formatClock, isValidDateString, timeToMi
 import { formatUsPhone, normalizeUsPhone } from "./form";
 import { MESSAGE_REASONS, type FunctionName } from "./agent-config";
 import { afterEscalation, afterMessageTaken, afterReservationBooked, afterTakeoutOrdered } from "./outcomes";
+import { syncReservationToGoogle } from "./google-calendar";
 
 /**
  * Implementations of the custom functions the Retell agent can call during a call.
@@ -145,6 +146,7 @@ async function createReservation(ctx: HandlerContext, args: Args, isWaitlist: bo
   });
   await tagCall(ctx, { classification: isWaitlist ? "waitlist" : "reservation", reservationId: reservation.id, callerName: guestName });
   await afterReservationBooked(a, reservation, ctx.call);
+  await syncReservationToGoogle(reservation.id); // no-op unless a calendar is connected
 
   const when = formatDateTime(startTime, a.timeZone);
   return {

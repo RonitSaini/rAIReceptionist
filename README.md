@@ -14,7 +14,7 @@ Phase 1 is complete and needs **no API keys** — only a Postgres database.
 | 2 | Twilio number provisioning, Retell agent + prompt generation, call webhooks, calls page | ✅ Done |
 | 3 | Call outcomes → notifications, manager escalation (outbound call + acknowledge), guest SMS with reply-to-cancel | ✅ Done |
 | 4 | Stripe setup fee + subscription, billing webhooks, subscription gating | ✅ Done |
-| 5 | Google Calendar OAuth + sync | ⏳ |
+| 5 | Google Calendar OAuth + sync | ✅ Done |
 
 Step 7 (phone number) is live once the Phase 2 keys are set — see [Phase 2 setup](#phase-2-setup-phone-number--ai-host). Step 8 (payment) is live once the Phase 4 keys are set — see [Phase 4 setup](#phase-4-setup-billing-stripe); without them it stays a skippable placeholder.
 
@@ -218,6 +218,20 @@ Everything below is wired from the Retell function handlers (`src/lib/call-handl
 - **Acknowledge window sweep:** `GET /api/cron/escalations` (Bearer `CRON_SECRET`), run after every Retell webhook (so during service it fires within minutes) plus a daily safety-net cron in `vercel.json` (`0 13 * * *`, 9 AM ET — Vercel's Hobby plan rejects anything more frequent). For exact 10-minute timing when the line is quiet, change the schedule to `*/5 * * * *` on Vercel Pro, or hit the route from any external scheduler with the Bearer secret.
 - **SMS requirements:** texts go from the restaurant's Twilio number (or `TWILIO_MESSAGING_SERVICE_SID`). Twilio trial accounts can only text verified numbers, and US application-to-person SMS from local numbers needs **A2P 10DLC** registration in the Twilio Console. Failed sends never break a call — they're logged and noted on the record.
 - **Inbound texts:** `POST /api/twilio/sms` cancels the guest's next upcoming reservation or order on CANCEL; any other text is saved as a message notification with a polite auto-reply.
+
+## Phase 5: Google Calendar sync (and Google sign-in)
+
+Both use one Google OAuth client. Set `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` (locally and on Vercel) and the **Sign in with Google** button and **Connect Google Calendar** appear on their own.
+
+1. Google Cloud Console → create a project → **APIs & Services → Library** → enable **Google Calendar API**.
+2. **OAuth consent screen**: External, add the scopes `calendar.events`, `calendar.readonly`, `userinfo.email`; add yourself as a test user while the app is unverified.
+3. **Credentials → Create OAuth client ID → Web application**. Authorized redirect URIs:
+   - `https://r-ai-receptionist.vercel.app/api/auth/callback/google` (sign-in)
+   - `https://r-ai-receptionist.vercel.app/api/google-calendar/callback` (calendar)
+   - the same two with `http://localhost:3000` for local dev.
+4. Optionally set `TOKEN_ENCRYPTION_KEY` (any long random string); stored calendar tokens are AES-256-GCM encrypted with it.
+
+How it works: **Settings → Reservations → Connect Google Calendar** runs the OAuth flow (signed, 10-minute state), stores the refresh token encrypted, and backfills upcoming reservations as events. From then on every reservation created/edited/cancelled — by staff or by the AI — is mirrored (`src/lib/google-calendar.ts`, best-effort, errors shown on the settings card). Availability reads the calendar too: any *other* event on the chosen calendar blocks those times for phone bookings (our own events are tagged and ignored). You can pick which calendar to use, re-sync, or disconnect (which revokes the token). The built-in book remains the source of truth.
 
 ## Project layout
 

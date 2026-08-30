@@ -1,5 +1,6 @@
 import type { Account, BusinessHours } from "@prisma/client";
 import { prisma } from "./prisma";
+import { googleBusyBlocks, overlapsBusy } from "./google-calendar";
 import { dayBoundsUtc, dayOfWeekOf, formatClock, minutesToTime, timeToMinutes, toDateString, toTimeString, zonedToUtc } from "./time";
 
 /**
@@ -13,7 +14,7 @@ export type Slot = {
   startUtc: Date;
   endUtc: Date;
   available: boolean;
-  reason?: "past" | "slot_full" | "capacity";
+  reason?: "past" | "slot_full" | "capacity" | "calendar_busy";
   coversBooked: number; // covers starting in this exact slot
   coversSeated: number; // covers overlapping this slot's turn window
 };
@@ -96,6 +97,9 @@ export async function getAvailableTimes(
     select: { startTime: true, endTime: true, partySize: true },
   });
 
+  // Other events on the connected Google Calendar (not our own reservation events) block their time.
+  const busy = await googleBusyBlocks(account.id, new Date(dayStart.getTime() - turnMs), new Date(dayEnd.getTime() + turnMs));
+
   const slots: Slot[] = [];
   for (const period of periods) {
     const openMin = timeToMinutes(period.open);
@@ -128,6 +132,9 @@ export async function getAvailableTimes(
       } else if (account.seatingCapacity != null && coversSeated + partySize > account.seatingCapacity) {
         available = false;
         reason = "capacity";
+      } else if (overlapsBusy(busy, startUtc, endUtc)) {
+        available = false;
+        reason = "calendar_busy";
       }
 
       slots.push({ time, label: formatClock(minutesToTime(m % (24 * 60))), startUtc, endUtc, available, reason, coversBooked, coversSeated });

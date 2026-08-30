@@ -17,6 +17,7 @@ import { PortalButton } from "@/components/forms/billing-buttons";
 import { InvoicesCard } from "@/components/billing-invoices";
 import { SignOutButton } from "@/components/sign-out-button";
 import { Reveal } from "@/components/reveal";
+import { getGoogleCalendarView } from "@/lib/google-calendar-view";
 
 export const metadata = { title: "Settings" };
 
@@ -32,9 +33,9 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]["key"];
 
-export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ tab?: string; checkout?: string }> }) {
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ tab?: string; checkout?: string; google?: string; message?: string }> }) {
   const { account } = await requireAccount();
-  const { tab: tabParam, checkout } = await searchParams;
+  const { tab: tabParam, checkout, google: googleStatus, message: googleMessage } = await searchParams;
   const tab: TabKey = TABS.some((t) => t.key === tabParam) ? (tabParam as TabKey) : "business";
   const view = serializeAccount(account);
 
@@ -63,7 +64,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 
         {tab === "reservations" ? (
           <Card title="Reservation book">
-            <ReservationSettingsForm account={view} mode="settings" googleConnected={false} />
+            <ReservationSettingsForm account={view} mode="settings" google={await getGoogleCalendarView(account.id)} googleStatus={googleStatus} googleMessage={googleMessage} />
           </Card>
         ) : null}
 
