@@ -253,15 +253,115 @@ body {
   }
 }
 
-/* Interactive cards lift gently on hover. */
+/*
+ * Interactive cards and link rows lift on hover (never plain <section> cards — a hover on a
+ * non-interactive surface is a false affordance). The shadow sits on a pseudo-element and is
+ * faded via opacity, so box-shadow itself never animates.
+ */
 .lift {
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  position: relative;
+  transition: transform 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
+}
+.lift::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 8px 24px -12px rgb(0 0 0 / 0.25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
 }
 @media (hover: hover) {
   .lift:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 24px -12px rgb(0 0 0 / 0.25);
     border-color: var(--color-gray-300);
+  }
+  .lift:hover::after {
+    opacity: 1;
+  }
+}
+
+/*
+ * Chart bars grow up from the baseline. transform-box: fill-box makes the origin the bottom of the
+ * bar (or of a stacked column's <g>), i.e. the baseline. Paused while the enclosing .reveal card is
+ * still hidden, then delayed past the card's own arrival (--reveal-delay inherits) so the two
+ * entrances are sequenced, not stacked. Labels fade in after their bar. The rx stretching during
+ * the grow is transient and reads as growth — fine.
+ */
+.bar-grow {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: bar-grow 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--reveal-delay, 0ms) + 250ms + var(--bar-delay, 0ms));
+}
+.bar-label {
+  animation: bar-label 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--reveal-delay, 0ms) + 550ms + var(--bar-delay, 0ms));
+}
+.js .reveal:not(.is-visible) .bar-grow,
+.js .reveal:not(.is-visible) .bar-label {
+  animation-play-state: paused;
+}
+@keyframes bar-grow {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+@keyframes bar-label {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/*
+ * Bell popover (native Popover API). Anchored under the bell by the component on ≥ md (inline top /
+ * right); a bottom sheet under md. Enters with .slide-in; the sheet swaps in its own keyframe.
+ */
+.notif-panel {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  width: min(24rem, calc(100vw - 2rem));
+  max-height: min(70dvh, 32rem);
+  padding: 0;
+  border: 1px solid var(--color-gray-200);
+  border-radius: 1rem;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: 0 16px 40px -16px rgb(0 0 0 / 0.35);
+  overflow: hidden;
+}
+.notif-panel:popover-open {
+  display: flex;
+  flex-direction: column;
+}
+.notif-panel::backdrop {
+  background: transparent;
+}
+@media (max-width: 767px) {
+  .notif-panel {
+    inset: auto 0 0 0;
+    width: 100%;
+    max-height: 75dvh;
+    border-radius: 1rem 1rem 0 0;
+    border-bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  /* Compound selector so this beats .slide-in's shorthand regardless of source order. */
+  .notif-panel.slide-in {
+    animation-name: sheet-in;
+  }
+  .notif-panel::backdrop {
+    background: rgb(0 0 0 / 0.35);
+  }
+}
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
@@ -283,7 +383,7 @@ body {
 /* Onboarding progress bar grows in from the left. */
 .progress-fill {
   transform-origin: left center;
-  animation: progress-grow 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: progress-grow 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; /* a bar arriving: 550ms like every arrival */
 }
 @keyframes progress-grow {
   from {
@@ -294,13 +394,64 @@ body {
   }
 }
 
-/* Sidebar nav: hover highlight glides between items with a springy ease; the active bar follows. */
-.nav-highlight {
-  transition: transform 0.35s cubic-bezier(0.34, 1.3, 0.64, 1), height 0.35s cubic-bezier(0.34, 1.3, 0.64, 1), opacity 0.2s ease;
-  will-change: transform, height;
-}
+/*
+ * Sidebar nav: the hover highlight and active bar ARRIVE at an item (expo-out, 300ms) — transform only.
+ * Items are uniform height, so height is set by JS on mount/resize and never transitioned.
+ */
+.nav-highlight,
 .nav-bar {
-  transition: transform 0.4s cubic-bezier(0.34, 1.3, 0.64, 1), height 0.4s ease, opacity 0.2s ease;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.15s ease;
+  will-change: transform;
+}
+
+/*
+ * Self-drawing line icons (<DrawIcon>): same pathLength="1" trick as the theme toggle and bell.
+ * Draws on mount and on active-state change — never on hover. The first path is the outline (0.7s);
+ * every later path is a detail that draws in the back half, like the bell's clapper.
+ * Stagger a row with --draw-delay.
+ */
+.draw-icon path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+.draw-icon.is-drawing path {
+  animation: icon-draw 0.7s ease both;
+  animation-delay: var(--draw-delay, 0ms);
+}
+.draw-icon.is-drawing path:not(:first-child) {
+  animation-duration: 0.35s;
+  animation-delay: calc(var(--draw-delay, 0ms) + 0.35s);
+}
+@keyframes icon-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+/*
+ * Live counters (<CountUp live>): only the digits that changed blur-slide in, in the direction the
+ * value moved (--digit-dir: 1 = up, -1 = down). The container pops (.badge-pop); the digits never
+ * overshoot — a value tween must never show a number that isn't real.
+ */
+.digit-in {
+  display: inline-block;
+  animation: digit-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes digit-in {
+  from {
+    opacity: 0;
+    transform: translateY(calc(0.4em * var(--digit-dir, 1)));
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
 }
 
 /* Buttons: soft press. */
@@ -320,11 +471,31 @@ body {
   .page-enter,
   .skeleton::after,
   .status-dot::before,
-  .slide-in {
+  .slide-in,
+  .nav-highlight,
+  .nav-bar,
+  .draw-icon.is-drawing path,
+  .digit-in,
+  .progress-fill,
+  .bar-grow,
+  .bar-label,
+  .notif-panel,
+  .lift,
+  .lift::after {
     animation: none;
     transition: none;
   }
+  /* Reduced motion lands on the END state, never the hidden one: reset every hidden initial state. */
   .js .reveal {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+  .bar-grow {
+    transform: none;
+  }
+  .bar-label,
+  .digit-in {
     opacity: 1;
     transform: none;
     filter: none;
