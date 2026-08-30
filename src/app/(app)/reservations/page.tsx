@@ -9,7 +9,7 @@ import { Badge, EmptyState, LinkButton, PageHeader, reservationTone } from "@/co
 import { RESERVATION_TRANSITIONS, StatusButtons } from "@/components/status-buttons";
 import { Reveal } from "@/components/reveal";
 
-export const metadata = { title: "Reservations" };
+export const metadata = { title: "Book" };
 
 export default async function ReservationsPage({ searchParams }: { searchParams: Promise<{ date?: string; view?: string; show?: string; changed?: string }> }) {
   const { account } = await requireAccount();
@@ -17,7 +17,7 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
   const sp = await searchParams;
   const today = todayString(tz);
   const date = isValidDateString(sp.date) ? sp.date : today;
-  const view = sp.view === "week" ? "week" : "day";
+  const view = sp.view === "day" ? "day" : "week"; // the week calendar is the book's home view
   const showAll = sp.show === "all";
 
   const rangeStart = view === "week" ? startOfWeek(date) : date;
@@ -30,113 +30,127 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
     orderBy: { startTime: "asc" },
   });
 
-  const href = (d: string, v: string = view) => `/reservations?date=${d}&view=${v}${showAll ? "&show=all" : ""}`;
+  const href = (d: string, v: string = view) => `/reservations?date=${d}${v === "day" ? "&view=day" : ""}${showAll ? "&show=all" : ""}`;
   const step = view === "week" ? 7 : 1;
   const days = view === "week" ? Array.from({ length: 7 }, (_, i) => addDays(rangeStart, i)) : [date];
   const byDay = new Map(days.map((d) => [d, [] as typeof reservations]));
   for (const r of reservations) byDay.get(toDateString(r.startTime, tz))?.push(r);
 
+  const weekEnd = addDays(rangeStart, 6);
+  const title =
+    view === "week"
+      ? `${formatDateString(rangeStart, { month: "short", day: "numeric" })} – ${formatDateString(weekEnd, { month: "short", day: "numeric", year: "numeric" })}`
+      : formatDateString(date, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  const onToday = view === "week" ? rangeStart === startOfWeek(today) : date === today;
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <PageHeader
-        title="Reservations"
+        title="Book"
         action={
-          <LinkButton href={`/reservations/new?date=${date}`} size="sm">
+          <LinkButton href={`/reservations/new?date=${date === today || view === "day" ? date : rangeStart}`} size="sm">
             + New
           </LinkButton>
         }
       />
 
-      <div className="flex items-center justify-between gap-2 rounded-2xl border border-gray-200 bg-surface p-2">
-        <Link href={href(addDays(date, -step))} className="flex h-11 w-11 items-center justify-center rounded-xl hover:bg-gray-100" aria-label="Previous">
-          <ArrowLeftIcon size={22} />
+      {/* Period navigator: round arrows either side, the range centred, Today underneath */}
+      <div className="flex items-center justify-between gap-3">
+        <Link href={href(addDays(date, -step))} className="lift flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-surface shadow-sm hover:bg-gray-50" aria-label={view === "week" ? "Previous week" : "Previous day"}>
+          <ArrowLeftIcon size={20} />
         </Link>
-        <div className="text-center">
-          <p className="font-bold">{view === "week" ? `${formatDateString(rangeStart, { month: "short", day: "numeric" })} – ${formatDateString(addDays(rangeStart, 6), { month: "short", day: "numeric" })}` : formatDateString(date, { weekday: "long", month: "long", day: "numeric" })}</p>
-          {date !== today ? (
-            <Link href={href(today)} className="text-xs font-semibold text-brand-700">
-              Jump to today
-            </Link>
+        <div className="min-w-0 text-center">
+          <p className="truncate text-lg font-bold tracking-tight">{title}</p>
+          {onToday ? (
+            <span className="text-xs font-semibold text-brand-700">Today</span>
           ) : (
-            <span className="text-xs text-gray-500">Today</span>
+            <Link href={href(today)} className="text-xs font-semibold text-brand-700 hover:underline">
+              Today
+            </Link>
           )}
         </div>
-        <Link href={href(addDays(date, step))} className="flex h-11 w-11 items-center justify-center rounded-xl hover:bg-gray-100" aria-label="Next">
-          <ArrowRightIcon size={22} />
+        <Link href={href(addDays(date, step))} className="lift flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-surface shadow-sm hover:bg-gray-50" aria-label={view === "week" ? "Next week" : "Next day"}>
+          <ArrowRightIcon size={20} />
         </Link>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="inline-flex overflow-hidden rounded-xl border border-gray-300 bg-surface">
-          <Link href={href(date, "day")} className={`px-4 py-2 text-sm font-semibold ${view === "day" ? "bg-brand-600 text-white" : "text-gray-700"}`}>
-            Day
-          </Link>
-          <Link href={href(date, "week")} className={`px-4 py-2 text-sm font-semibold ${view === "week" ? "bg-brand-600 text-white" : "text-gray-700"}`}>
-            Week
-          </Link>
-        </div>
-        <Link href={`/reservations?date=${date}&view=${view}${showAll ? "" : "&show=all"}`} className="text-sm font-semibold text-gray-500">
-          {showAll ? "Hide cancelled / no-shows" : "Show cancelled / no-shows"}
-        </Link>
-      </div>
-
-      {reservations.length === 0 ? (
-        <EmptyState title={view === "week" ? "No reservations this week" : "No reservations this day"} action={<LinkButton href={`/reservations/new?date=${date}`}>Add a reservation</LinkButton>} />
-      ) : (
-        <div className={view === "week" ? "grid grid-cols-1 gap-3 md:grid-cols-7 md:gap-2" : "space-y-3"}>
-          {days.map((d) => {
+      {view === "week" ? (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-7 md:gap-3">
+          {days.map((d, i) => {
             const items = byDay.get(d) ?? [];
-            if (view === "day") {
-              return (
-                <ul key={d} className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
-                  {items.map((r, i) => (
-                    <Reveal as="li" index={i} key={r.id} className="lift flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-surface p-4">
-                      <div className="min-w-0">
-                        <Link href={`/reservations/${r.id}`} className="block font-semibold">
-                          {formatTime(r.startTime, tz)} · {r.guestName}
-                        </Link>
-                        <p className="text-sm text-gray-500">
-                          Party of {r.partySize}
-                          {r.isWaitlist ? " · waitlist" : ""}
-                          {r.seatingPreference ? ` · ${r.seatingPreference}` : ""}
-                          {r.source === "ai" ? " · booked by AI" : ""}
-                        </p>
-                        {r.specialRequests ? <p className="text-sm text-gray-600">“{r.specialRequests}”</p> : null}
-                      </div>
-                      <div className="flex shrink-0 flex-col items-end gap-1">
-                        <Badge tone={reservationTone[r.status]} className={sp.changed === r.id ? "badge-pop" : undefined}>{humanize(r.status)}</Badge>
-                        <StatusButtons id={r.id} current={r.status} transitions={RESERVATION_TRANSITIONS[r.status].slice(0, 2)} action={setReservationStatus} returnTo={href(date)} size="sm" />
-                      </div>
-                    </Reveal>
-                  ))}
-                </ul>
-              );
-            }
+            const isToday = d === today;
             const covers = items.filter((r) => !r.isWaitlist).reduce((s, r) => s + r.partySize, 0);
             return (
-              <Reveal key={d} index={days.indexOf(d)} className={`lift rounded-2xl border bg-surface p-3 ${d === today ? "border-brand-400" : "border-gray-200"}`}>
-                <Link href={href(d, "day")} className="flex items-baseline justify-between">
-                  <span className="font-bold">{formatDateString(d, { weekday: "short", day: "numeric" })}</span>
-                  <span className="text-xs text-gray-500">{covers} covers</span>
+              <Reveal key={d} index={i} className="flex flex-col gap-3">
+                <Link href={href(d, "day")} className="flex items-baseline gap-1.5 px-0.5" title={`Open ${formatDateString(d, { weekday: "long", month: "long", day: "numeric" })}`}>
+                  <span className={`text-xs font-semibold uppercase tracking-wide ${isToday ? "text-brand-700" : "text-gray-500"}`}>{formatDateString(d, { weekday: "short" })}</span>
+                  <span className={`text-lg font-bold leading-none ${isToday ? "text-brand-700" : "text-ink"}`}>{formatDateString(d, { day: "numeric" })}</span>
+                  {covers > 0 ? <span className="ml-auto text-xs text-gray-500">{covers} covers</span> : null}
                 </Link>
+
                 {items.length === 0 ? (
-                  <p className="mt-2 text-xs text-gray-400">—</p>
+                  <div className={`flex min-h-16 flex-1 items-center justify-center rounded-xl border border-dashed px-2 text-sm text-gray-400 ${isToday ? "border-brand-300" : "border-gray-300"}`}>No reservations</div>
                 ) : (
-                  <ul className="mt-2 space-y-1.5">
+                  <ul className="flex flex-1 flex-col gap-1.5">
                     {items.map((r) => (
                       <li key={r.id}>
-                        <Link href={`/reservations/${r.id}`} className="block rounded-lg bg-gray-50 px-2 py-1.5 text-sm hover:bg-gray-100">
-                          <span className="font-semibold">{formatTime(r.startTime, tz)}</span> {r.guestName} <span className="text-gray-500">({r.partySize})</span>
+                        <Link href={`/reservations/${r.id}`} className={`lift block rounded-xl border bg-surface px-2.5 py-2 text-sm shadow-sm hover:bg-gray-50 ${isToday ? "border-brand-200" : "border-gray-200"}`}>
+                          <span className="block font-semibold">{formatTime(r.startTime, tz)}</span>
+                          <span className="block truncate text-gray-700">{r.guestName}</span>
+                          <span className="text-xs text-gray-500">
+                            Party of {r.partySize}
+                            {r.isWaitlist ? " · waitlist" : ""}
+                          </span>
                         </Link>
                       </li>
                     ))}
                   </ul>
                 )}
+
+                <LinkButton href={`/reservations/new?date=${d}`} variant="secondary" size="sm" full className="shadow-sm">
+                  + Add
+                </LinkButton>
               </Reveal>
             );
           })}
         </div>
+      ) : reservations.length === 0 ? (
+        <EmptyState title="No reservations this day" action={<LinkButton href={`/reservations/new?date=${date}`}>Add a reservation</LinkButton>} />
+      ) : (
+        <ul className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
+          {(byDay.get(date) ?? []).map((r, i) => (
+            <Reveal as="li" index={i} key={r.id} className="lift flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-surface p-4">
+              <div className="min-w-0">
+                <Link href={`/reservations/${r.id}`} className="block font-semibold">
+                  {formatTime(r.startTime, tz)} · {r.guestName}
+                </Link>
+                <p className="text-sm text-gray-500">
+                  Party of {r.partySize}
+                  {r.isWaitlist ? " · waitlist" : ""}
+                  {r.seatingPreference ? ` · ${r.seatingPreference}` : ""}
+                  {r.source === "ai" ? " · booked by AI" : ""}
+                </p>
+                {r.specialRequests ? <p className="text-sm text-gray-600">“{r.specialRequests}”</p> : null}
+              </div>
+              <div className="flex shrink-0 flex-col items-end gap-1">
+                <Badge tone={reservationTone[r.status]} className={sp.changed === r.id ? "badge-pop" : undefined}>{humanize(r.status)}</Badge>
+                <StatusButtons id={r.id} current={r.status} transitions={RESERVATION_TRANSITIONS[r.status].slice(0, 2)} action={setReservationStatus} returnTo={href(date)} size="sm" />
+              </div>
+            </Reveal>
+          ))}
+        </ul>
       )}
+
+      <div className="flex flex-wrap items-center gap-4 text-sm">
+        {view === "day" ? (
+          <Link href={href(date, "week")} className="font-semibold text-brand-700">
+            ← Back to week
+          </Link>
+        ) : null}
+        <Link href={`/reservations?date=${date}${view === "day" ? "&view=day" : ""}${showAll ? "" : "&show=all"}`} className="font-semibold text-gray-500 hover:text-ink">
+          {showAll ? "Hide cancelled / no-shows" : "Show cancelled / no-shows"}
+        </Link>
+      </div>
     </div>
   );
 }
