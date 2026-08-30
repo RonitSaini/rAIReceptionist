@@ -1,4 +1,6 @@
 import type { NextRequest } from "next/server";
+import { after } from "next/server";
+import { syncReservationToGoogle } from "@/lib/google-calendar";
 import { prisma } from "@/lib/prisma";
 import { escapeXml, parseTwilioForm, publicRequestUrl, twiml, validateTwilioSignature } from "@/lib/twilio";
 import { appUrl, twilioConfigured } from "@/lib/env";
@@ -57,6 +59,7 @@ export async function POST(req: NextRequest) {
   });
   if (reservation) {
     await prisma.reservation.update({ where: { id: reservation.id }, data: { status: "cancelled", cancelledAt: new Date(), cancelledBy: "guest" } });
+    after(() => syncReservationToGoogle(reservation.id)); // remove the mirrored calendar event
     await createNotification({
       accountId: account.id,
       type: reservation.isWaitlist ? "waitlist" : "reservation",
