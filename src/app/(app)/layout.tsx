@@ -4,6 +4,8 @@ import { ArrowRightIcon } from "@/components/icons";
 import { requireAccount } from "@/lib/current-account";
 import { countUnread, recentNotifications } from "@/lib/notifications";
 import { ONBOARDING_DONE } from "@/lib/constants";
+import { stripeConfigured } from "@/lib/env";
+import { subscriptionActive } from "@/lib/billing-ui";
 import { AppNav } from "@/components/app-nav";
 import { NotificationBell } from "@/components/notification-bell";
 import { SignOutButton } from "@/components/sign-out-button";
@@ -16,6 +18,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { account } = await requireAccount();
   const [unread, recent] = await Promise.all([countUnread(account.id), recentNotifications(account.id)]);
   const setupIncomplete = account.onboardingStep < ONBOARDING_DONE;
+  // Billing nag only once setup is done and Stripe is actually wired up on this deployment.
+  const billingLapsed = !setupIncomplete && stripeConfigured() && !subscriptionActive(account);
+  const paymentFailed = account.subscriptionStatus === "past_due";
 
   return (
     <div className="min-h-dvh bg-paper md:flex">
@@ -55,6 +60,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         {setupIncomplete ? (
           <Link href={`/onboarding/${account.onboardingStep}`} className="flex items-center justify-center gap-1 bg-amber-100 px-4 py-2 text-center text-sm font-semibold text-amber-900">
             Setup is {account.onboardingStep - 1} of 8 steps done — tap to continue <ArrowRightIcon size={16} />
+          </Link>
+        ) : null}
+
+        {billingLapsed ? (
+          <Link href="/settings?tab=billing" className={`flex items-center justify-center gap-1 px-4 py-2 text-center text-sm font-semibold ${paymentFailed ? "bg-red-100 text-red-900" : "bg-amber-100 text-amber-900"}`}>
+            {paymentFailed ? "Your last payment failed — update your card to keep the AI host answering" : "Set up billing to keep your AI host answering"} <ArrowRightIcon size={16} />
           </Link>
         ) : null}
 

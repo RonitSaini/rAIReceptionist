@@ -2,12 +2,14 @@ import type { Account, MenuItem } from "@prisma/client";
 
 /** Plain-object versions of Prisma rows (Decimal -> number) safe to pass to client components. */
 
-export type AccountView = Omit<Account, "largePartyDepositFee" | "deliveryRadiusMiles" | "lastSeenAt" | "createdAt" | "updatedAt"> & {
+export type AccountView = Omit<Account, "largePartyDepositFee" | "deliveryRadiusMiles" | "lastSeenAt" | "createdAt" | "updatedAt" | "subscriptionCurrentPeriodEnd" | "setupFeePaidAt"> & {
   largePartyDepositFee: number | null;
   deliveryRadiusMiles: number | null;
   lastSeenAt: string | null;
   createdAt: string;
   updatedAt: string;
+  subscriptionCurrentPeriodEnd: string | null;
+  setupFeePaidAt: string | null;
 };
 
 export function serializeAccount(a: Account): AccountView {
@@ -18,6 +20,8 @@ export function serializeAccount(a: Account): AccountView {
     lastSeenAt: a.lastSeenAt?.toISOString() ?? null,
     createdAt: a.createdAt.toISOString(),
     updatedAt: a.updatedAt.toISOString(),
+    subscriptionCurrentPeriodEnd: a.subscriptionCurrentPeriodEnd?.toISOString() ?? null,
+    setupFeePaidAt: a.setupFeePaidAt?.toISOString() ?? null,
   };
 }
 

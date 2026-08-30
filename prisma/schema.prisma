@@ -61,6 +61,10 @@ model Account {
   stripeCustomerId     String?            @unique
   stripeSubscriptionId String?
   subscriptionStatus   SubscriptionStatus @default(none)
+  // Mirrored from Stripe by the webhook (src/app/api/stripe/webhook) and the explicit "Refresh status" action.
+  subscriptionCurrentPeriodEnd  DateTime?
+  subscriptionCancelAtPeriodEnd Boolean   @default(false)
+  setupFeePaidAt                DateTime?
 
   // Voice + greeting
   voiceId  String  @default("11labs-Adrian")
@@ -107,6 +111,16 @@ model Account {
   takeoutOrders       TakeoutOrder[]
   calls               Call[]
   googleCalendar      GoogleCalendarConnection?
+}
+
+// ---------- Stripe webhook idempotency ----------
+
+/// Every Stripe event id we've processed. Stripe may deliver an event more than once; a redelivery is
+/// acknowledged (2xx) without re-running side effects.
+model StripeEvent {
+  id          String   @id // Stripe event id (evt_...)
+  type        String
+  processedAt DateTime @default(now())
 }
 
 // ---------- Notifications (in-app) ----------

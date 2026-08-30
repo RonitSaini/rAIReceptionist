@@ -13,10 +13,10 @@ Phase 1 is complete and needs **no API keys** — only a Postgres database.
 | 1 | Scaffold, schema, auth, onboarding 1–6, settings, reservation book, reservations/takeout CRUD, notifications, dashboard | ✅ Done |
 | 2 | Twilio number provisioning, Retell agent + prompt generation, call webhooks, calls page | ✅ Done |
 | 3 | Call outcomes → notifications, manager escalation (outbound call + acknowledge), guest SMS with reply-to-cancel | ⏳ |
-| 4 | Stripe setup fee + subscription, billing webhooks, subscription gating | ⏳ |
+| 4 | Stripe setup fee + subscription, billing webhooks, subscription gating | ✅ Done |
 | 5 | Google Calendar OAuth + sync | ⏳ |
 
-Onboarding step 8 (payment) is a placeholder screen until Phase 4. Step 7 (phone number) is live once the Phase 2 keys are set — see [Phase 2 setup](#phase-2-setup-phone-number--ai-host).
+Step 7 (phone number) is live once the Phase 2 keys are set — see [Phase 2 setup](#phase-2-setup-phone-number--ai-host). Step 8 (payment) is live once the Phase 4 keys are set — see [Phase 4 setup](#phase-4-setup-billing-stripe); without them it stays a skippable placeholder.
 
 ## Local setup (Windows / PowerShell)
 
@@ -143,6 +143,65 @@ If you later change the app URL (e.g. move from ngrok to Vercel), click **Re-lin
 
 The agent prompt is generated in `src/lib/agent-config.ts` from hours, menu, prices, policies, reservation rules, delivery rules and escalation rules, and re-synced automatically whenever settings are saved. Delivery-area checks geocode addresses with the free US Census geocoder (no key) and compare straight-line miles to the delivery radius.
 
+## Phase 4 setup: billing (Stripe)
+
+One-time setup fee + monthly subscription through Stripe-hosted Checkout, self-service card/invoice/cancel through the Stripe Customer Portal, and webhooks keeping `Account.subscriptionStatus` in sync. `src/lib/stripe.ts` wraps the official `stripe` SDK, pinned to the SDK's own API version (`2026-08-26.dahlia`) so types and wire format agree — bump both together via the `upgrade-stripe` skill.
+
+### 1. Products and prices
+
+In the Stripe Dashboard (start in a **sandbox**): **Product catalog → Add product**.
+
+- *FrontDesk AI subscription* — recurring, monthly → copy the price id into `STRIPE_PRICE_MONTHLY`.
+- *FrontDesk AI setup* — one-time → `STRIPE_PRICE_SETUP_FEE` (optional; leave empty for no setup fee).
+
+Both appear on the first Checkout; only the subscription renews. The plan card reads the amounts from Stripe, so there is nothing to hardcode.
+
+### 2. API key
+
+**Developers → API keys → Create restricted key.** Give it *write* on Customers, Checkout Sessions, Subscriptions, Invoices, Customer portal and *read* on Prices; leave the rest at *none*. Put it in `STRIPE_SECRET_KEY` (an `sk_` secret key also works, but the restricted key limits the blast radius if it leaks). On Vercel mark the variable **sensitive**.
+
+### 3. Webhook
+
+**Developers → Webhooks → Add destination**, URL `https://<your app>/api/stripe/webhook`, events:
+
+```
+checkout.session.completed        checkout.session.async_payment_succeeded   checkout.session.async_payment_failed
+customer.subscription.created     customer.subscription.updated              customer.subscription.deleted
+invoice.paid                      invoice.payment_failed                     invoice.payment_action_required
+```
+
+Copy the signing secret into `STRIPE_WEBHOOK_SECRET`. Every event is verified with the SDK's `constructEvent` against the raw body and recorded by id (`StripeEvent`), so Stripe's redeliveries are acknowledged without running twice. Register the endpoint **after** the code is deployed — Stripe disables endpoints that keep failing — then send a test event from the Dashboard to see it go green.
+
+**Local testing** — install the [Stripe CLI](https://docs.stripe.com/stripe-cli/install) and run:
+
+```powershell
+stripe login
+stripe listen --forward-to localhost:3000/api/stripe/webhook
+```
+
+Use the `whsec_…` it prints as `STRIPE_WEBHOOK_SECRET`. Test card: `4242 4242 4242 4242`, any future date, any CVC. If you skip the listener, the **Refresh status** button on the billing screen pulls the state from Stripe on demand.
+
+### 4. Customer portal
+
+**Settings → Billing → Customer portal**: turn on *update payment method*, *invoice history* and *cancel subscription* (at period end). The **Open billing portal** button in Settings → Billing uses this configuration.
+
+### 5. Apply the schema and run
+
+```powershell
+npm run db:push
+npm run dev
+```
+
+Then **Settings → Billing** (or onboarding step 8) → **Pay with Stripe**. The webhook flips the status to *Active* and drops a "Payment received" notification; failed renewals set *Past due* and raise an urgent notification; the app shell shows a banner until billing is fixed. `npm test` includes a webhook signature/dedupe check that runs when `STRIPE_WEBHOOK_SECRET` is set.
+
+### Gating
+
+Set `BILLING_REQUIRED="true"` in production to make the AI host stop answering calls for accounts without an *active* / *trialing* subscription (callers hear a short "currently unavailable" message). Leave it unset in development so demo accounts keep working.
+
+### Tax and Managed Payments — decision pending
+
+New Stripe accounts have **Managed Payments** on by default: Stripe (via Link) is merchant of record, collects and remits sales tax, handles disputes and refunds, and charges **3.5% on top of** processing fees. It only covers fully automated digital products with an eligible product tax code, so it is a fit for the AI subscription only if onboarding is self-serve; a human-delivered setup fee is not eligible. The alternative is to turn Managed Payments off (Dashboard → Settings → Managed Payments), keep the tax codes, and enable **Stripe Tax** plus a registration in each state where nexus requires it — without a registration Stripe silently collects nothing. See [Managed Payments eligibility](https://docs.stripe.com/payments/managed-payments/eligibility) and [Collect taxes for recurring payments](https://docs.stripe.com/billing/taxes/collect-taxes). The app works in either mode.
+
 ## Project layout
 
 ```
@@ -152,8 +211,8 @@ src/proxy.ts                Route protection (Next.js proxy / middleware)
 src/app/(auth)/             /login, /signup
 src/app/onboarding/[step]   Onboarding steps 1–8 (one screen per step)
 src/app/(app)/              Dashboard shell: /dashboard, /notifications, /calls, /reservations, /takeout, /settings
-src/app/api/                NextAuth, notification unread-count poll, availability lookup
-src/actions/                Server actions (auth, onboarding, reservations, takeout, notifications)
+src/app/api/                NextAuth, notification polls, availability lookup, Twilio/Retell/Stripe webhooks
+src/actions/                Server actions (auth, onboarding, phone, billing, reservations, takeout, notifications)
 src/lib/                    prisma, auth, availability engine, time-zone helpers, notifications, constants
 src/components/             UI primitives, forms, nav, notification bell
 ```

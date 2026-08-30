@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { parseTwilioForm, publicRequestUrl, twimlDialSip, twimlSay, validateTwilioSignature } from "@/lib/twilio";
 import { registerPhoneCall, sipUriForCall, RetellError } from "@/lib/retell";
 import { appUrl, retellConfigured, twilioConfigured } from "@/lib/env";
+import { canTakeCalls } from "@/lib/billing";
 import { formatDateString, formatTime, todayString } from "@/lib/time";
 import { formatUsPhone } from "@/lib/form";
 
@@ -36,6 +37,10 @@ export async function POST(req: NextRequest) {
 
   if (!account || !account.retellAgentId) {
     return twimlSay("Sorry, this restaurant's phone assistant isn't ready yet. Please call back later.");
+  }
+  // Phase 4: with BILLING_REQUIRED=true a lapsed subscription stops answering (the owner sees a banner in the app).
+  if (!canTakeCalls(account)) {
+    return twimlSay("Sorry, this restaurant's phone assistant is currently unavailable. Please call back later.");
   }
 
   // Twilio may retry the webhook — reuse the registration if we already have one for this CallSid.

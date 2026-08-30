@@ -1,9 +1,11 @@
 import Link from "next/link";
+import type { Account } from "@prisma/client";
 import { requireAccount } from "@/lib/current-account";
 import { prisma } from "@/lib/prisma";
-import { serializeAccount, serializeMenuItem } from "@/lib/serialize";
-import { humanize } from "@/lib/constants";
-import { Badge, Button, Card, PageHeader } from "@/components/ui";
+import { serializeAccount, serializeMenuItem, type AccountView } from "@/lib/serialize";
+import { stripeConfigured } from "@/lib/env";
+import { parseCheckoutResult, type CheckoutResult } from "@/lib/billing-ui";
+import { Card, PageHeader } from "@/components/ui";
 import { BusinessBasicsForm } from "@/components/forms/business-basics-form";
 import { HoursForm } from "@/components/forms/hours-form";
 import { MenuPoliciesForm } from "@/components/forms/menu-policies-form";
@@ -11,6 +13,8 @@ import { ReservationSettingsForm } from "@/components/forms/reservation-settings
 import { VoiceForm } from "@/components/forms/voice-form";
 import { PhoneStep } from "@/components/forms/phone-step";
 import { PaymentStep } from "@/components/forms/payment-step";
+import { PortalButton } from "@/components/forms/billing-buttons";
+import { InvoicesCard } from "@/components/billing-invoices";
 import { SignOutButton } from "@/components/sign-out-button";
 import { Reveal } from "@/components/reveal";
 
@@ -28,9 +32,9 @@ const TABS = [
 
 type TabKey = (typeof TABS)[number]["key"];
 
-export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ tab?: string; checkout?: string }> }) {
   const { account } = await requireAccount();
-  const { tab: tabParam } = await searchParams;
+  const { tab: tabParam, checkout } = await searchParams;
   const tab: TabKey = TABS.some((t) => t.key === tabParam) ? (tabParam as TabKey) : "business";
   const view = serializeAccount(account);
 
@@ -71,23 +75,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 
         {tab === "phone" ? <PhoneStep account={view} mode="settings" /> : null}
 
-        {tab === "billing" ? (
-          <div className="space-y-4">
-            <PaymentStep account={view} mode="settings" />
-            <Card title="Billing portal">
-              <p className="text-sm text-gray-500">Update your card, download invoices, or cancel from the Stripe billing portal.</p>
-              <div className="mt-3 flex items-center gap-3">
-                <Button type="button" variant="secondary" disabled>
-                  Open billing portal (coming soon)
-                </Button>
-                <Badge tone={account.subscriptionStatus === "active" ? "green" : "gray"}>{humanize(account.subscriptionStatus)}</Badge>
-              </div>
-            </Card>
-            <Card title="Account">
-              <SignOutButton className="font-semibold text-red-600" />
-            </Card>
-          </div>
-        ) : null}
+        {tab === "billing" ? <BillingTab account={account} view={view} checkout={parseCheckoutResult(checkout)} /> : null}
       </Reveal>
     </div>
   );
@@ -102,6 +90,24 @@ async function HoursTab({ accountId, view }: { accountId: string; view: ReturnTy
     <Card title="Hours & escalation">
       <HoursForm account={view} hours={hours} managerHours={manager} mode="settings" />
     </Card>
+  );
+}
+
+async function BillingTab({ account, view, checkout }: { account: Account; view: AccountView; checkout: CheckoutResult }) {
+  return (
+    <div className="space-y-4">
+      <PaymentStep account={view} mode="settings" checkout={checkout} />
+      <Card title="Billing portal">
+        <p className="text-sm text-gray-500">Update your card, download invoices, or cancel from the Stripe billing portal.</p>
+        <div className="mt-3">
+          <PortalButton disabled={!stripeConfigured() || !account.stripeCustomerId} />
+        </div>
+      </Card>
+      <InvoicesCard customerId={account.stripeCustomerId} timeZone={account.timeZone} />
+      <Card title="Account">
+        <SignOutButton className="font-semibold text-red-600" />
+      </Card>
+    </div>
   );
 }
 

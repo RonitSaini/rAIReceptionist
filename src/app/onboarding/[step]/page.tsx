@@ -12,11 +12,11 @@ import { MenuPoliciesForm } from "@/components/forms/menu-policies-form";
 import { ReservationSettingsForm } from "@/components/forms/reservation-settings-form";
 import { VoiceForm } from "@/components/forms/voice-form";
 import { PhoneStep } from "@/components/forms/phone-step";
-import { PaymentStep } from "@/components/forms/payment-step";
+import { PaymentStep, parseCheckoutResult } from "@/components/forms/payment-step";
 
 export const metadata = { title: "Setup" };
 
-export default async function OnboardingStepPage({ params }: { params: Promise<{ step: string }> }) {
+export default async function OnboardingStepPage({ params, searchParams }: { params: Promise<{ step: string }>; searchParams: Promise<{ checkout?: string }> }) {
   const { step: stepParam } = await params;
   const step = Number.parseInt(stepParam, 10);
   if (!Number.isInteger(step) || step < 1 || step > ONBOARDING_LAST_STEP) notFound();
@@ -88,13 +88,15 @@ export default async function OnboardingStepPage({ params }: { params: Promise<{
           <PhoneStep account={view} mode="onboarding" />
         </div>
       );
-    case 8:
+    case 8: {
+      const { checkout } = await searchParams;
       return (
         <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
           <OnboardingProgress step={8} />
-          <PaymentStep account={view} mode="onboarding" />
+          <PaymentStep account={view} mode="onboarding" checkout={parseCheckoutResult(checkout)} />
         </div>
       );
+    }
     default:
       notFound();
   }

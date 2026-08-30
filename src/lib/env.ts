@@ -13,6 +13,27 @@ export function retellConfigured(): boolean {
   return !!process.env.RETELL_API_KEY;
 }
 
+export function stripeConfigured(): boolean {
+  return !!process.env.STRIPE_SECRET_KEY;
+}
+
+/** The monthly price is required for checkout; the setup fee is optional. */
+export function stripePricesConfigured(): boolean {
+  return !!process.env.STRIPE_PRICE_MONTHLY;
+}
+
+export function stripeWebhookConfigured(): boolean {
+  return !!process.env.STRIPE_WEBHOOK_SECRET;
+}
+
+/**
+ * "true" = the AI host stops answering calls for accounts without an active subscription.
+ * Off by default so dev and demo accounts keep working before Stripe is wired up.
+ */
+export function billingRequired(): boolean {
+  return process.env.BILLING_REQUIRED === "true";
+}
+
 /** Both integrations present — the phone number can be provisioned and wired to an agent. */
 export function phoneStackConfigured(): boolean {
   return twilioConfigured() && retellConfigured();
