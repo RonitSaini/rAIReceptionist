@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRightIcon } from "@/components/icons";
+import { DrawIcon } from "@/components/draw-icon";
 import type { Notification } from "@prisma/client";
 import { acknowledgeNotification, markNotificationRead } from "@/actions/notifications";
 import { NOTIFICATION_TYPE_ICON, NOTIFICATION_TYPE_LABEL, notificationHref } from "@/lib/notifications";
@@ -17,9 +18,7 @@ export function NotificationList({ items, compact = false, grid = false }: { ite
         const href = notificationHref(n);
         return (
           <Reveal as="li" index={i} key={n.id} className={`flex gap-3 p-4 ${grid ? "lift rounded-2xl border border-gray-200 bg-surface" : ""} ${unread ? "bg-brand-50/40" : ""} ${needsAck ? "border-l-4 border-l-red-500" : ""}`}>
-            <span className="text-xl" aria-hidden="true">
-              {NOTIFICATION_TYPE_ICON[n.type]}
-            </span>
+            <DrawIcon name={NOTIFICATION_TYPE_ICON[n.type]} size={20} draw={false} className={`mt-0.5 shrink-0 ${needsAck ? "text-red-600" : "text-gray-400"}`} />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone={notificationTone[n.type]}>{NOTIFICATION_TYPE_LABEL[n.type]}</Badge>

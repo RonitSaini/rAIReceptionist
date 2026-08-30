@@ -8,6 +8,7 @@ import { formatUsPhone } from "@/lib/form";
 import { humanize } from "@/lib/constants";
 import { Badge, LinkButton, StatusDot, classificationTone } from "@/components/ui";
 import { CountUp } from "@/components/count-up";
+import { DrawIcon } from "@/components/draw-icon";
 import { Reveal } from "@/components/reveal";
 
 function SectionTitle({ children, href }: { children: React.ReactNode; href?: string }) {
@@ -51,13 +52,14 @@ export async function SidebarPanel({ account }: { account: Account }) {
   const covers = todayRes.reduce((s, r) => s + r.partySize, 0);
   const service = todayServiceStatus(hours, tz);
 
-  const stats: { label: string; value: number; href: string; live?: boolean }[] = [
+  // `live`: values that change while the layout stays mounted (after actions refresh it) — animate the digits, not a re-tween.
+  const stats: { label: string; value: number; href: string; live?: boolean; dot?: boolean }[] = [
     { label: "Reservations", value: todayRes.length, href: "/reservations" },
     { label: "Covers", value: covers, href: "/reservations" },
     { label: "Open orders", value: openOrders, href: "/takeout" },
-    { label: "Unread", value: unread, href: "/notifications" },
-    { label: "Calls today", value: callsToday, href: "/calls" },
-    { label: "Live now", value: liveCalls, href: "/calls", live: liveCalls > 0 },
+    { label: "Unread", value: unread, href: "/notifications", live: true },
+    { label: "Calls today", value: callsToday, href: "/calls", live: true },
+    { label: "Live now", value: liveCalls, href: "/calls", live: true, dot: liveCalls > 0 },
   ];
 
   return (
@@ -68,8 +70,8 @@ export async function SidebarPanel({ account }: { account: Account }) {
           {stats.map((s) => (
             <Link key={s.label} href={s.href} className="group rounded-lg px-1 py-0.5 transition-colors hover:bg-gray-50">
               <dd className="flex items-center gap-1.5 text-lg font-bold leading-tight text-ink short:text-base">
-                <CountUp to={s.value} />
-                {s.live ? <StatusDot className="text-green-500" label="Live" /> : null}
+                <CountUp to={s.value} live={s.live} />
+                {s.dot ? <StatusDot className="text-green-500" label="Live" /> : null}
               </dd>
               <dt className="text-[11px] text-gray-500 group-hover:text-gray-700">{s.label}</dt>
             </Link>
@@ -102,10 +104,10 @@ export async function SidebarPanel({ account }: { account: Account }) {
           <SectionTitle>Quick actions</SectionTitle>
         </div>
         <LinkButton href="/reservations/new" variant="secondary" size="sm" full className="justify-start short:flex-1 short:justify-center" title="New reservation">
-          📅 <span className="short:sr-only">New </span>reservation
+          <DrawIcon name="calendar" size={16} draw={false} /> <span className="short:sr-only">New </span>reservation
         </LinkButton>
         <LinkButton href="/takeout/new" variant="secondary" size="sm" full className="justify-start short:flex-1 short:justify-center" title="New takeout order">
-          🥡 <span className="short:sr-only">New </span>takeout
+          <DrawIcon name="bag" size={16} draw={false} /> <span className="short:sr-only">New </span>takeout
         </LinkButton>
       </Reveal>
 
@@ -118,6 +120,7 @@ export async function SidebarPanel({ account }: { account: Account }) {
             </>
           ) : (
             <>
+              {/* Steady dot: closed is the expected state, not a live one — ripple would say the opposite. */}
               <span className="inline-block h-2 w-2 rounded-full bg-gray-400" aria-hidden="true" /> {service.periods.length === 0 ? "Closed today" : "Closed right now"}
             </>
           )}
@@ -147,14 +150,16 @@ export async function SidebarPanel({ account }: { account: Account }) {
           </>
         ) : (
           <>
-            <p className="mt-1 text-sm font-semibold">{account.hostName} isn&apos;t on a line yet</p>
+            <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold">
+              <StatusDot className="text-amber-500" /> {account.hostName} isn&apos;t on a line yet
+            </p>
             <Link href="/settings?tab=phone" className="text-sm font-semibold text-brand-700">
               Connect a number
             </Link>
           </>
         )}
-        <Link href="/settings?tab=voice" className="mt-2 block text-xs font-semibold text-gray-500 hover:text-ink tiny:hidden">
-          🎧 Test call in browser
+        <Link href="/settings?tab=voice" className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-gray-500 transition-colors hover:text-ink tiny:hidden">
+          <DrawIcon name="headphones" size={14} draw={false} /> Test call in browser
         </Link>
       </Reveal>
 
@@ -164,9 +169,9 @@ export async function SidebarPanel({ account }: { account: Account }) {
           <p className="mt-2 text-sm text-gray-500">No calls yet.</p>
         ) : (
           <ul className="fade-bottom relative mt-2 grid min-h-0 flex-1 auto-rows-[44px] content-start overflow-hidden pb-7">
-            {recentCalls.map((c) => (
-              <li key={c.id} className="min-h-0 min-w-0">
-                <Link href={`/calls/${c.id}`} className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg px-1 py-1 transition-colors hover:bg-gray-50">
+            {recentCalls.map((c, i) => (
+              <Reveal as="li" index={i + 1} key={c.id} className="min-h-0 min-w-0">
+                <Link href={`/calls/${c.id}`} className="lift flex w-full min-w-0 items-center justify-between gap-2 rounded-lg px-1 py-1 hover:bg-gray-50">
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm text-gray-700">{c.callerName ?? (c.callerPhone ? formatUsPhone(c.callerPhone) : "Unknown caller")}</span>
                     <span className="block text-[11px] text-gray-500">{timeAgo(c.startedAt, now)}</span>
@@ -175,7 +180,7 @@ export async function SidebarPanel({ account }: { account: Account }) {
                     {humanize(c.classification)}
                   </Badge>
                 </Link>
-              </li>
+              </Reveal>
             ))}
           </ul>
         )}

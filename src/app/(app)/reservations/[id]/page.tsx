@@ -13,8 +13,9 @@ import { RESERVATION_TRANSITIONS, StatusButtons } from "@/components/status-butt
 
 export const metadata = { title: "Reservation" };
 
-export default async function ReservationDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ReservationDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ changed?: string }> }) {
   const { id } = await params;
+  const { changed } = await searchParams;
   const { account } = await requireAccount();
   const r = await prisma.reservation.findFirst({ where: { id, accountId: account.id }, include: { calls: { take: 1, orderBy: { startedAt: "desc" } } } });
   if (!r) notFound();
@@ -25,7 +26,7 @@ export default async function ReservationDetailPage({ params }: { params: Promis
       <Link href={`/reservations?date=${toDateString(r.startTime, tz)}`} className="inline-flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-ink">
         <ArrowLeftIcon size={18} /> Reservations
       </Link>
-      <PageHeader title={r.guestName} subtitle={`${formatDateTime(r.startTime, tz)} · party of ${r.partySize}${r.guestPhone ? ` · ${formatUsPhone(r.guestPhone)}` : ""}`} action={<Badge tone={reservationTone[r.status]}>{humanize(r.status)}</Badge>} />
+      <PageHeader title={r.guestName} subtitle={`${formatDateTime(r.startTime, tz)} · party of ${r.partySize}${r.guestPhone ? ` · ${formatUsPhone(r.guestPhone)}` : ""}`} action={<Badge tone={reservationTone[r.status]} className={changed === r.id ? "badge-pop" : undefined}>{humanize(r.status)}</Badge>} />
 
       <Card title="Status">
         <StatusButtons id={r.id} current={r.status} transitions={RESERVATION_TRANSITIONS[r.status]} action={setReservationStatus} />

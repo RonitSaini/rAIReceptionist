@@ -38,7 +38,23 @@ async function main() {
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
-    console.log("Demo user already exists — skipping seed. Delete the user to re-seed.");
+    // Re-runnable top-up: keep at least one unread notification so the bell ring, badge pop and
+    // mark-read → count refresh paths stay demoable after everything has been read.
+    const unread = await prisma.notification.count({ where: { accountId: existing.accountId, readAt: null } });
+    if (unread === 0) {
+      await prisma.notification.create({
+        data: {
+          accountId: existing.accountId,
+          type: "reservation",
+          title: "New reservation: Sam Rivera, party of 4",
+          body: "Tonight 7:30 PM · Window table if possible · Celebrating a birthday",
+          createdAt: minutesAgo(3),
+        },
+      });
+      console.log("Demo user already exists — added one unread notification so the bell has something to ring about.");
+    } else {
+      console.log(`Demo user already exists — skipping seed (${unread} unread notification(s) present). Delete the user to re-seed.`);
+    }
     return;
   }
 

@@ -83,3 +83,8 @@ export function formatUsd(value: number | string | { toString(): string } | null
   if (!Number.isFinite(n)) return "";
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
 }
+
+/** Append `changed=<id>` to a redirect target so the destination page can pop that row's status badge. */
+export function withChanged(path: string, id: string): string {
+  return `${path}${path.includes("?") ? "&" : "?"}changed=${encodeURIComponent(id)}`;
+}

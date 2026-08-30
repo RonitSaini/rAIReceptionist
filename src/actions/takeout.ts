@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { withChanged } from "@/lib/form";
 import type { TakeoutStatus } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireAccount } from "@/lib/current-account";
@@ -89,5 +90,5 @@ export async function setTakeoutStatus(fd: FormData): Promise<void> {
   revalidatePath("/takeout");
   revalidatePath(`/takeout/${id}`);
   revalidatePath("/dashboard");
-  redirect(returnTo);
+  redirect(withChanged(returnTo, id));
 }

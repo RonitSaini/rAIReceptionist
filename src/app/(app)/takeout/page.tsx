@@ -12,9 +12,9 @@ import { Reveal } from "@/components/reveal";
 
 export const metadata = { title: "Takeout orders" };
 
-export default async function TakeoutPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+export default async function TakeoutPage({ searchParams }: { searchParams: Promise<{ status?: string; changed?: string }> }) {
   const { account } = await requireAccount();
-  const { status } = await searchParams;
+  const { status, changed } = await searchParams;
   const filter = status === "all" ? "all" : TAKEOUT_STATUSES.includes(status as TakeoutStatus) ? (status as TakeoutStatus) : "open";
 
   const orders = await prisma.takeoutOrder.findMany({
@@ -66,7 +66,7 @@ export default async function TakeoutPage({ searchParams }: { searchParams: Prom
                   </p>
                   <p className="mt-1 line-clamp-2 whitespace-pre-line text-sm text-gray-800">{o.items}</p>
                 </div>
-                <Badge tone={takeoutTone[o.status]}>{humanize(o.status)}</Badge>
+                <Badge tone={takeoutTone[o.status]} className={changed === o.id ? "badge-pop" : undefined}>{humanize(o.status)}</Badge>
               </div>
               <div className="mt-auto pt-3">
                 <StatusButtons id={o.id} current={o.status} transitions={TAKEOUT_TRANSITIONS[o.status]} action={setTakeoutStatus} returnTo={`/takeout?status=${filter}`} size="sm" />

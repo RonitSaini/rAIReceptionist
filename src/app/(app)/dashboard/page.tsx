@@ -9,7 +9,7 @@ import { NOTIFICATION_TYPE_LABEL } from "@/lib/notifications";
 import { CALL_SERIES, loadDashboard } from "@/lib/dashboard";
 import { setReservationStatus } from "@/actions/reservations";
 import { setTakeoutStatus } from "@/actions/takeout";
-import { Badge, Card, EmptyState, LinkButton, PageHeader, StatusDot, classificationTone, reservationTone, takeoutTone } from "@/components/ui";
+import { Badge, Card, EmptyState, LinkButton, PageHeader, classificationTone, reservationTone, takeoutTone } from "@/components/ui";
 import { NotificationList } from "@/components/notification-list";
 import { RESERVATION_TRANSITIONS, StatusButtons, TAKEOUT_TRANSITIONS } from "@/components/status-buttons";
 import { Reveal } from "@/components/reveal";
@@ -19,8 +19,9 @@ import { Columns, HourBars, SegmentBar, StackedColumns } from "@/components/char
 
 export const metadata = { title: "Home" };
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ changed?: string }> }) {
   const { account, previousSeenAt } = await requireAccount();
+  const { changed } = await searchParams; // id whose status just changed → its badge pops
   const tz = account.timeZone;
   const today = todayString(tz);
   const now = nowUtc();
@@ -54,10 +55,10 @@ export default async function DashboardPage() {
 
       {/* KPI row */}
       <Reveal index={0} className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatTile label="Calls today" value={t.callsToday} icon="📞" href="/calls" delta={{ value: t.callsDelta, label: "vs yesterday" }} />
-        <StatTile label="Covers today" value={t.coversToday} icon="🍽️" href={`/reservations?date=${today}`} delta={{ value: t.coversDelta, label: "vs yesterday" }} />
-        <StatTile label="Open orders" value={t.openOrders} icon="🥡" href="/takeout" note={t.openOrders === 0 ? "Nothing waiting" : "New · confirmed · ready"} />
-        <StatTile label="Unread" value={t.unread} icon="🔔" href="/notifications" note={t.liveCalls > 0 ? `${t.liveCalls} call${t.liveCalls === 1 ? "" : "s"} live now` : "All caught up"} />
+        <StatTile label="Calls today" value={t.callsToday} icon="phone" live href="/calls" delta={{ value: t.callsDelta, label: "vs yesterday" }} />
+        <StatTile label="Covers today" value={t.coversToday} icon="utensils" href={`/reservations?date=${today}`} delta={{ value: t.coversDelta, label: "vs yesterday" }} />
+        <StatTile label="Open orders" value={t.openOrders} icon="bag" href="/takeout" note={t.openOrders === 0 ? "Nothing waiting" : "New · confirmed · ready"} />
+        <StatTile label="Unread" value={t.unread} icon="bell" live href="/notifications" note={t.liveCalls > 0 ? `${t.liveCalls} call${t.liveCalls === 1 ? "" : "s"} live now` : "All caught up"} />
       </Reveal>
 
       <div className="grid gap-5 2xl:grid-cols-2 2xl:items-start">
@@ -110,9 +111,9 @@ export default async function DashboardPage() {
               <p className="text-sm text-gray-500">No one is waiting on a call back. Nice.</p>
             ) : (
               <ul className="divide-y divide-gray-100">
-                {dash.callbacks.map((c) => (
-                  <li key={c.id} className="py-2.5">
-                    <Link href={`/calls/${c.id}`} className="flex items-start justify-between gap-3">
+                {dash.callbacks.map((c, i) => (
+                  <Reveal as="li" index={i + 1} key={c.id} className="py-2.5">
+                    <Link href={`/calls/${c.id}`} className="lift -mx-2 flex items-start justify-between gap-3 rounded-lg px-2 py-1 hover:bg-gray-50">
                       <span className="min-w-0">
                         <span className="block truncate font-semibold">
                           {c.callerName ?? "Unknown caller"}
@@ -125,7 +126,7 @@ export default async function DashboardPage() {
                         {c.escalationReason ? humanize(c.escalationReason) : humanize(c.classification)}
                       </Badge>
                     </Link>
-                  </li>
+                  </Reveal>
                 ))}
               </ul>
             )}
@@ -149,8 +150,8 @@ export default async function DashboardPage() {
               <EmptyState title="No reservations today" />
             ) : (
               <ul className="divide-y divide-gray-100">
-                {todaysReservations.map((r) => (
-                  <li key={r.id} className="flex items-center justify-between gap-3 py-3">
+                {todaysReservations.map((r, i) => (
+                  <Reveal as="li" index={i + 1} key={r.id} className="flex items-center justify-between gap-3 py-3">
                     <div className="min-w-0">
                       <Link href={`/reservations/${r.id}`} className="block font-semibold">
                         {formatTime(r.startTime, tz)} · {r.guestName}
@@ -162,10 +163,10 @@ export default async function DashboardPage() {
                       </p>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">
-                      <Badge tone={reservationTone[r.status]}>{humanize(r.status)}</Badge>
+                      <Badge tone={reservationTone[r.status]} className={changed === r.id ? "badge-pop" : undefined}>{humanize(r.status)}</Badge>
                       <StatusButtons id={r.id} current={r.status} transitions={RESERVATION_TRANSITIONS[r.status].slice(0, 1)} action={setReservationStatus} returnTo="/dashboard" size="sm" />
                     </div>
-                  </li>
+                  </Reveal>
                 ))}
               </ul>
             )}
@@ -190,8 +191,8 @@ export default async function DashboardPage() {
               <EmptyState title="No open orders" />
             ) : (
               <ul className="divide-y divide-gray-100">
-                {openOrders.map((o) => (
-                  <li key={o.id} className="flex items-center justify-between gap-3 py-3">
+                {openOrders.map((o, i) => (
+                  <Reveal as="li" index={i + 1} key={o.id} className="flex items-center justify-between gap-3 py-3">
                     <div className="min-w-0">
                       <Link href={`/takeout/${o.id}`} className="block font-semibold">
                         {formatDateTime(o.pickupTime, tz)} · {o.guestName}
@@ -202,10 +203,10 @@ export default async function DashboardPage() {
                       </p>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1">
-                      <Badge tone={takeoutTone[o.status]}>{humanize(o.status)}</Badge>
+                      <Badge tone={takeoutTone[o.status]} className={changed === o.id ? "badge-pop" : undefined}>{humanize(o.status)}</Badge>
                       <StatusButtons id={o.id} current={o.status} transitions={TAKEOUT_TRANSITIONS[o.status].slice(0, 1)} action={setTakeoutStatus} returnTo="/dashboard" size="sm" />
                     </div>
-                  </li>
+                  </Reveal>
                 ))}
               </ul>
             )}
@@ -275,7 +276,8 @@ export default async function DashboardPage() {
                   Busiest hours <span className="normal-case tracking-normal text-gray-400">last 30 days</span>
                   {dash.ai.peakHour != null ? (
                     <span className="ml-auto inline-flex items-center gap-1 normal-case tracking-normal text-gray-600">
-                      <StatusDot className="text-brand-600" /> peak {fmtHour(dash.ai.peakHour)}
+                      {/* Historical data: a steady dot, not a ripple (ripple means live or wants-you). */}
+                      <span className="inline-block h-2 w-2 rounded-full bg-brand-600" aria-hidden="true" /> peak {fmtHour(dash.ai.peakHour)}
                     </span>
                   ) : null}
                 </p>

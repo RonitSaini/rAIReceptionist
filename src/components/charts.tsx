@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { ChartTooltip } from "@/components/chart-tooltip";
 
 /**
@@ -16,6 +17,9 @@ function niceMax(v: number): number {
   const step = n <= 2 ? 0.5 : n <= 5 ? 1 : 2;
   return Math.ceil(n / step) * step * p;
 }
+
+/** Per-bar stagger for .bar-grow / .bar-label (see globals.css). */
+const barDelay = (i: number, step = 40) => ({ "--bar-delay": `${i * step}ms` }) as CSSProperties;
 
 const W = 600;
 const H = 200;
@@ -51,7 +55,9 @@ export function StackedColumns({ days, series, title, unit = "" }: { days: Stack
           const total = totals[i];
           return (
             <g key={d.label + i}>
-              {series.map((s, si) => {
+              {/* The whole stack grows as one from the baseline (fill-box origin = bottom of the lowest segment). */}
+              <g className="bar-grow" style={barDelay(i)}>
+                {series.map((s, si) => {
                 const v = d.values[s.key] ?? 0;
                 if (v <= 0) return null;
                 const y1 = y(acc + v);
@@ -73,8 +79,9 @@ export function StackedColumns({ days, series, title, unit = "" }: { days: Stack
                   />
                 );
               })}
+              </g>
               {total > 0 ? (
-                <text x={x + barW / 2} y={y(total) - 5} textAnchor="middle" fontSize={11} fontWeight={600} fill="var(--color-gray-700)">
+                <text className="bar-label" style={barDelay(i)} x={x + barW / 2} y={y(total) - 5} textAnchor="middle" fontSize={11} fontWeight={600} fill="var(--color-gray-700)">
                   {total}
                 </text>
               ) : null}
@@ -138,9 +145,9 @@ export function Columns({ items, title, unit = "", color = "var(--viz-single)" }
           const h = Math.max(0, y(0) - y(it.value));
           return (
             <g key={it.label + i}>
-              <rect x={x} y={y(it.value)} width={barW} height={h} rx={4} fill={it.highlight ? color : "var(--viz-single-soft)"} data-tip={`${it.label}${it.sublabel ? ` · ${it.sublabel}` : ""}\n${it.value}${unit}`} />
+              <rect className="bar-grow" style={barDelay(i)} x={x} y={y(it.value)} width={barW} height={h} rx={4} fill={it.highlight ? color : "var(--viz-single-soft)"} data-tip={`${it.label}${it.sublabel ? ` · ${it.sublabel}` : ""}\n${it.value}${unit}`} />
               {it.value > 0 ? (
-                <text x={x + barW / 2} y={y(it.value) - 5} textAnchor="middle" fontSize={11} fontWeight={600} fill="var(--color-gray-700)">
+                <text className="bar-label" style={barDelay(i)} x={x + barW / 2} y={y(it.value) - 5} textAnchor="middle" fontSize={11} fontWeight={600} fill="var(--color-gray-700)">
                   {it.value}
                 </text>
               ) : null}
@@ -208,7 +215,7 @@ export function HourBars({ counts, title, tz }: { counts: number[]; title: strin
           const bh = (c / max) * (h - 22);
           return (
             <g key={hr}>
-              <rect x={hr * bw + 2} y={h - 18 - bh} width={bw - 4} height={Math.max(bh, c > 0 ? 3 : 1)} rx={3} fill={hr === peak && c > 0 ? "var(--viz-single)" : "var(--viz-single-soft)"} data-tip={`${fmtHour(hr)}–${fmtHour((hr + 1) % 24)}: ${c} call${c === 1 ? "" : "s"}`} />
+              <rect className="bar-grow" style={barDelay(hr, 15)} x={hr * bw + 2} y={h - 18 - bh} width={bw - 4} height={Math.max(bh, c > 0 ? 3 : 1)} rx={3} fill={hr === peak && c > 0 ? "var(--viz-single)" : "var(--viz-single-soft)"} data-tip={`${fmtHour(hr)}–${fmtHour((hr + 1) % 24)}: ${c} call${c === 1 ? "" : "s"}`} />
               {hr % 6 === 0 ? (
                 <text x={hr * bw + bw / 2} y={h - 4} textAnchor="middle" fontSize={10} fill="var(--color-gray-500)">
                   {fmtHour(hr)}

@@ -13,8 +13,9 @@ import { StatusButtons, TAKEOUT_TRANSITIONS } from "@/components/status-buttons"
 
 export const metadata = { title: "Takeout order" };
 
-export default async function TakeoutDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function TakeoutDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ changed?: string }> }) {
   const { id } = await params;
+  const { changed } = await searchParams;
   const { account } = await requireAccount();
   const o = await prisma.takeoutOrder.findFirst({ where: { id, accountId: account.id }, include: { calls: { take: 1, orderBy: { startedAt: "desc" } } } });
   if (!o) notFound();
@@ -25,7 +26,7 @@ export default async function TakeoutDetailPage({ params }: { params: Promise<{ 
       <Link href="/takeout" className="inline-flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-ink">
         <ArrowLeftIcon size={18} /> Takeout orders
       </Link>
-      <PageHeader title={o.guestName} subtitle={`${o.isDelivery ? "Delivery" : "Pickup"} ${formatDateTime(o.pickupTime, tz)}${o.guestPhone ? ` · ${formatUsPhone(o.guestPhone)}` : ""}`} action={<Badge tone={takeoutTone[o.status]}>{humanize(o.status)}</Badge>} />
+      <PageHeader title={o.guestName} subtitle={`${o.isDelivery ? "Delivery" : "Pickup"} ${formatDateTime(o.pickupTime, tz)}${o.guestPhone ? ` · ${formatUsPhone(o.guestPhone)}` : ""}`} action={<Badge tone={takeoutTone[o.status]} className={changed === o.id ? "badge-pop" : undefined}>{humanize(o.status)}</Badge>} />
 
       <Card title="Order">
         <p className="whitespace-pre-line text-base">{o.items}</p>

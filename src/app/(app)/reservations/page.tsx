@@ -11,7 +11,7 @@ import { Reveal } from "@/components/reveal";
 
 export const metadata = { title: "Reservations" };
 
-export default async function ReservationsPage({ searchParams }: { searchParams: Promise<{ date?: string; view?: string; show?: string }> }) {
+export default async function ReservationsPage({ searchParams }: { searchParams: Promise<{ date?: string; view?: string; show?: string; changed?: string }> }) {
   const { account } = await requireAccount();
   const tz = account.timeZone;
   const sp = await searchParams;
@@ -104,7 +104,7 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
                         {r.specialRequests ? <p className="text-sm text-gray-600">“{r.specialRequests}”</p> : null}
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-1">
-                        <Badge tone={reservationTone[r.status]}>{humanize(r.status)}</Badge>
+                        <Badge tone={reservationTone[r.status]} className={sp.changed === r.id ? "badge-pop" : undefined}>{humanize(r.status)}</Badge>
                         <StatusButtons id={r.id} current={r.status} transitions={RESERVATION_TRANSITIONS[r.status].slice(0, 2)} action={setReservationStatus} returnTo={href(date)} size="sm" />
                       </div>
                     </Reveal>
