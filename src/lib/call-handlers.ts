@@ -2,7 +2,7 @@ import type { Account, Call, CallClassification } from "@prisma/client";
 import { prisma } from "./prisma";
 import { getAvailableTimes, nearestAlternatives, periodsForDay } from "./availability";
 import { distanceMiles, extractZip, formatRestaurantAddress, geocodeAddress } from "./geo";
-import { countryOf, formatDistance, KM_PER_MILE, postalLabel } from "./locale";
+import { countryOf, displayDistance, formatDistance, KM_PER_MILE, postalLabel, unitWord } from "./locale";
 import { dayOfWeekOf, formatDateString, formatClock, isValidDateString, timeToMinutes, todayString, zonedToUtc, formatDateTime } from "./time";
 import { formatUsPhone, normalizeUsPhone } from "./form";
 import { MESSAGE_REASONS, type FunctionName } from "./agent-config";
@@ -174,7 +174,7 @@ async function restaurantLocation(a: Account): Promise<{ lat: number; lng: numbe
   return loc;
 }
 
-export async function checkDeliveryArea(a: Account, address: string): Promise<{ deliverable: boolean; uncertain?: boolean; distanceMiles?: number; reason: string }> {
+export async function checkDeliveryArea(a: Account, address: string): Promise<{ deliverable: boolean; uncertain?: boolean; distanceMiles?: number; distanceKm?: number; reason: string }> {
   if (!a.offersDelivery) return { deliverable: false, reason: "The restaurant does not offer delivery." };
   const radius = a.deliveryRadiusMiles != null ? Number(a.deliveryRadiusMiles) : null;
   if (!address.trim()) return { deliverable: false, uncertain: true, reason: "No address given." };
@@ -185,10 +185,11 @@ export async function checkDeliveryArea(a: Account, address: string): Promise<{ 
     const d = distanceMiles(origin, target);
     // Spoken in the restaurant's unit (km for Canada); stored and compared in miles.
     const away = formatDistance(d, country);
-    const area = formatDistance(radius, country).replace(" ", "-");
+    const area = `${displayDistance(radius, country)}-${unitWord(country, 1)}`; // "5-kilometre", "3-mile"
+    const distanceKm = Math.round(d * KM_PER_MILE * 10) / 10;
     return d <= radius
-      ? { deliverable: true, distanceMiles: Math.round(d * 10) / 10, reason: `About ${away} away, within the ${area} delivery area.` }
-      : { deliverable: false, distanceMiles: Math.round(d * 10) / 10, reason: `About ${away} away, outside the ${area} delivery area.` };
+      ? { deliverable: true, distanceMiles: Math.round(d * 10) / 10, distanceKm, reason: `About ${away} away, within the ${area} delivery area.` }
+      : { deliverable: false, distanceMiles: Math.round(d * 10) / 10, distanceKm, reason: `About ${away} away, outside the ${area} delivery area.` };
   }
   // Geocoding unavailable — fall back to a ZIP / postal-code match.
   const zip = extractZip(address);
@@ -203,7 +204,7 @@ export async function checkDeliveryAreaHandler(ctx: HandlerContext, args: Args):
     success: true,
     deliverable: r.deliverable,
     distance_miles: r.distanceMiles,
-    distance_km: r.distanceMiles == null ? undefined : Math.round(r.distanceMiles * KM_PER_MILE * 10) / 10,
+    distance_km: r.distanceKm,
     message: r.deliverable ? `Yes, delivery is available to that address. ${r.reason}` : `Delivery is not available there (${r.reason}). Apologize and offer pickup instead.`,
   };
 }
