@@ -2,8 +2,9 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "CallCover", template: "%s · CallCover" },
-  description: "AI phone receptionist for restaurants",
+  title: { default: "FrontDesk AI", template: "%s · FrontDesk AI" },
+  description: "FrontDesk AI — the AI phone receptionist for restaurants. Answers your line, books reservations, takes takeout orders, and keeps you in the loop.",
+  applicationName: "FrontDesk AI",
 };
 
 export const viewport: Viewport = {

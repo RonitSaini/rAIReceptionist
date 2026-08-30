@@ -15,7 +15,7 @@ export function ReservationSettingsForm({ account, mode, googleConnected = false
         <h2 className="text-base font-bold">Reservation book</h2>
         <div className="rounded-2xl border-2 border-brand-600 bg-brand-50 p-4">
           <p className="font-semibold text-brand-900">Built-in book (default)</p>
-          <p className="text-sm text-brand-800">Reservations live in CallCover. You manage them on the Reservations page.</p>
+          <p className="text-sm text-brand-800">Reservations live in FrontDesk AI. You manage them on the Reservations page.</p>
         </div>
         <div className="rounded-2xl border border-gray-200 bg-surface p-4">
           <p className="font-semibold">Also sync to Google Calendar</p>

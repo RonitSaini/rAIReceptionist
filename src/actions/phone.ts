@@ -31,7 +31,7 @@ export async function provisionPhoneNumber(_prev: ActionState, fd: FormData): Pr
 
   const requested = str(fd, "areaCode").replace(/\D/g, "");
   const areaCode = (requested.length === 3 ? requested : undefined) ?? areaCodeOf(account.cellPhone) ?? process.env.TWILIO_DEFAULT_AREA_CODE ?? undefined;
-  const friendlyName = `CallCover · ${account.restaurantName}`;
+  const friendlyName = `FrontDesk AI · ${account.restaurantName}`;
 
   try {
     // 1) A number already on the Twilio account that no restaurant is using yet (e.g. the free trial number).
@@ -85,7 +85,7 @@ export async function repairNumberWebhooks(): Promise<ActionState> {
   if (!account.twilioNumberSid) return { ok: false, error: "No number to update." };
   if (!twilioConfigured()) return { ok: false, error: "Twilio is not configured." };
   try {
-    await updateNumberWebhooks(account.twilioNumberSid, { ...webhookUrls(), friendlyName: `CallCover · ${account.restaurantName}` });
+    await updateNumberWebhooks(account.twilioNumberSid, { ...webhookUrls(), friendlyName: `FrontDesk AI · ${account.restaurantName}` });
     return { ok: true, message: "Webhooks updated." };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };

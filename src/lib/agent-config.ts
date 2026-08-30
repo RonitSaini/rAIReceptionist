@@ -296,7 +296,7 @@ export function buildAgentConfig(src: AgentSource, llmId: string, voiceId: strin
   const a = src.account;
   return {
     response_engine: { type: "retell-llm", llm_id: llmId },
-    agent_name: `CallCover · ${a.restaurantName}`.slice(0, 100),
+    agent_name: `FrontDesk AI · ${a.restaurantName}`.slice(0, 100),
     voice_id: voiceId,
     language: "en-US",
     webhook_url: `${src.appUrl}/api/retell/webhook`,

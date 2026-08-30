@@ -1,4 +1,4 @@
-export const APP_NAME = "CallCover";
+export const APP_NAME = "FrontDesk AI";
 
 export const ONBOARDING_LAST_STEP = 8;
 export const ONBOARDING_DONE = 9;

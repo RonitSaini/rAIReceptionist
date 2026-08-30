@@ -41,7 +41,7 @@ export function PhonePanel({ account, mode, status }: { account: AccountView; mo
         </Alert>
       ) : null}
 
-      <Card title="Your CallCover number">
+      <Card title="Your FrontDesk AI number">
         {hasNumber ? (
           <>
             <p className="text-3xl font-black tracking-tight text-brand-700">{formatUsPhone(account.twilioNumber)}</p>
@@ -85,7 +85,7 @@ export function PhonePanel({ account, mode, status }: { account: AccountView; mo
         <ol className="list-decimal space-y-2 pl-5 text-sm text-gray-700">
           <li>Keep your existing business number. Callers dial it as usual.</li>
           <li>
-            Forward it to {hasNumber ? <strong>{formatUsPhone(account.twilioNumber)}</strong> : "your CallCover number"}. On most carriers: dial <span className="font-mono">*72</span> then the number to turn forwarding on, and <span className="font-mono">*73</span> to turn it off.
+            Forward it to {hasNumber ? <strong>{formatUsPhone(account.twilioNumber)}</strong> : "your FrontDesk AI number"}. On most carriers: dial <span className="font-mono">*72</span> then the number to turn forwarding on, and <span className="font-mono">*73</span> to turn it off.
           </li>
           <li>Prefer to answer yourself when you can? Ask your carrier for &ldquo;forward when busy / no answer&rdquo; instead of unconditional forwarding.</li>
           <li>Everything the AI does shows up in this app — check the bell.</li>
@@ -99,7 +99,7 @@ export function PhonePanel({ account, mode, status }: { account: AccountView; mo
           </div>
         ) : null}
         <p className="text-sm text-gray-500">
-          We&apos;ll call {account.cellPhone ? formatUsPhone(account.cellPhone) : "your cell (add it in Business basics)"} from your CallCover number so you can hear the greeting and try booking a table.
+          We&apos;ll call {account.cellPhone ? formatUsPhone(account.cellPhone) : "your cell (add it in Business basics)"} from your FrontDesk AI number so you can hear the greeting and try booking a table.
         </p>
         <Button type="button" variant="secondary" className="mt-3" disabled={!hasNumber || !account.cellPhone || pending} onClick={() => run(placeTestCall)}>
           📞 Call me to test

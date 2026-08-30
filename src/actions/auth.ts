@@ -29,7 +29,7 @@ async function createAccountWithDefaults(restaurantName: string, tx: Parameters<
     data: {
       accountId: account.id,
       type: "system",
-      title: `Welcome to CallCover, ${restaurantName}!`,
+      title: `Welcome to FrontDesk AI, ${restaurantName}!`,
       body: "Finish setup to get your phone number and start taking calls. You can change any setting later.",
     },
   });
