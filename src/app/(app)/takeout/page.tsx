@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { DrawIcon } from "@/components/draw-icon";
 import type { TakeoutStatus } from "@prisma/client";
 import { requireAccount } from "@/lib/current-account";
 import { prisma } from "@/lib/prisma";
@@ -61,7 +62,8 @@ export default async function TakeoutPage({ searchParams }: { searchParams: Prom
                     {o.guestPhone ? <span className="font-normal text-gray-500"> · {formatUsPhone(o.guestPhone)}</span> : null}
                   </Link>
                   <p className="text-sm text-gray-500">
-                    {o.isDelivery ? "🚗 Delivery" : "🛍️ Pickup"} {formatDateTime(o.pickupTime, account.timeZone)}
+                    <DrawIcon name={o.isDelivery ? "truck" : "bag"} size={14} draw={false} className="mr-1 inline-block align-[-2px] text-gray-400" />
+                    {o.isDelivery ? "Delivery" : "Pickup"} {formatDateTime(o.pickupTime, account.timeZone)}
                     {o.source === "ai" ? " · taken by AI" : ""}
                   </p>
                   <p className="mt-1 line-clamp-2 whitespace-pre-line text-sm text-gray-800">{o.items}</p>
