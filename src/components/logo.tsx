@@ -10,7 +10,7 @@ const LOGO_FILE = path.join(process.cwd(), "public", "logo.png");
 const hasLogo = existsSync(LOGO_FILE);
 
 export function Logo({ href = "/dashboard", size = "md", className = "" }: { href?: string; size?: "md" | "lg"; className?: string }) {
-  const h = size === "lg" ? "h-28" : "h-14";
+  const h = size === "lg" ? "h-28" : "h-[3.325rem]"; // 0.95 × h-14
   return (
     <Link href={href} aria-label="FrontDesk AI — home" className={`inline-flex items-center ${className}`}>
       {hasLogo ? (
