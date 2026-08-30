@@ -1,4 +1,5 @@
 import type { AccountView } from "@/lib/serialize";
+import { formatDateTime } from "@/lib/time";
 import { appUrl, appUrlIsPublic, retellConfigured, twilioConfigured } from "@/lib/env";
 import type { FormMode } from "@/components/form-footer";
 import { PhonePanel } from "@/components/forms/phone-panel";
@@ -14,6 +15,7 @@ export function PhoneStep({ account, mode }: { account: AccountView; mode: FormM
         retell: retellConfigured(),
         publicUrl: appUrlIsPublic(),
         appUrl: appUrl(),
+        lastSynced: account.agentSyncedAt ? formatDateTime(new Date(account.agentSyncedAt), account.timeZone) : null,
       }}
     />
   );

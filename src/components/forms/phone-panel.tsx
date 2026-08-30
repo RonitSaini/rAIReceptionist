@@ -12,7 +12,7 @@ import { Alert, Badge, Button, Card, Field, Input } from "@/components/ui";
 import type { FormMode } from "@/components/form-footer";
 import { WebTestCall } from "@/components/web-test-call";
 
-type Status = { twilio: boolean; retell: boolean; publicUrl: boolean; appUrl: string };
+type Status = { twilio: boolean; retell: boolean; publicUrl: boolean; appUrl: string; lastSynced: string | null };
 
 export function PhonePanel({ account, mode, status }: { account: AccountView; mode: FormMode; status: Status }) {
   const [provisionState, provisionAction, provisioning] = useActionState(provisionPhoneNumber, null);
@@ -66,7 +66,8 @@ export function PhonePanel({ account, mode, status }: { account: AccountView; mo
       <Card title="AI host status">
         <div className="flex flex-wrap items-center gap-2 text-sm">
           {account.retellAgentId ? <Badge tone="green">Agent ready</Badge> : <Badge tone="gray">Not created yet</Badge>}
-          {account.agentSyncedAt ? <span className="text-gray-500">Last updated {new Date(account.agentSyncedAt).toLocaleString("en-US")}</span> : null}
+          {/* Formatted on the server in the restaurant's time zone — a client-side toLocaleString() differs from the SSR text and breaks hydration. */}
+          {status.lastSynced ? <span className="text-gray-500">Last updated {status.lastSynced}</span> : null}
         </div>
         {account.agentSyncError ? <Alert>Last sync failed: {account.agentSyncError}</Alert> : null}
         <p className="mt-2 text-sm text-gray-500">The AI host is rebuilt automatically whenever you save settings. Rebuild manually if something looks out of date.</p>
