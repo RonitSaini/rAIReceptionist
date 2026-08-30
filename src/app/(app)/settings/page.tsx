@@ -15,7 +15,7 @@ import { PhoneStep } from "@/components/forms/phone-step";
 import { PaymentStep } from "@/components/forms/payment-step";
 import { PortalButton } from "@/components/forms/billing-buttons";
 import { InvoicesCard } from "@/components/billing-invoices";
-import { SignOutButton } from "@/components/sign-out-button";
+import { AccountActions } from "@/components/account-actions";
 import { Reveal } from "@/components/reveal";
 import { getGoogleCalendarView } from "@/lib/google-calendar-view";
 
@@ -106,7 +106,7 @@ async function BillingTab({ account, view, checkout }: { account: Account; view:
       </Card>
       <InvoicesCard customerId={account.stripeCustomerId} timeZone={account.timeZone} />
       <Card title="Account">
-        <SignOutButton className="font-semibold text-red-600" />
+        <AccountActions restaurantName={account.restaurantName} />
       </Card>
     </div>
   );

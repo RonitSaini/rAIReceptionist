@@ -146,6 +146,12 @@ export function createAgent(body: AgentRequest) {
 export function updateAgent(agentId: string, body: Partial<AgentRequest>) {
   return request<{ agent_id: string; version?: number }>("PATCH", `/update-agent/${agentId}`, body);
 }
+export function deleteAgent(agentId: string) {
+  return request<void>("DELETE", `/delete-agent/${agentId}`);
+}
+export function deleteLlm(llmId: string) {
+  return request<void>("DELETE", `/delete-retell-llm/${llmId}`);
+}
 export function getAgent(agentId: string) {
   return request<{ agent_id: string }>("GET", `/get-agent/${agentId}`);
 }
