@@ -5,12 +5,13 @@ import { distanceMiles, extractZip, formatRestaurantAddress, geocodeAddress } fr
 import { dayOfWeekOf, formatDateString, formatClock, isValidDateString, timeToMinutes, todayString, zonedToUtc, formatDateTime } from "./time";
 import { formatUsPhone, normalizeUsPhone } from "./form";
 import { MESSAGE_REASONS, type FunctionName } from "./agent-config";
+import { afterEscalation, afterMessageTaken, afterReservationBooked, afterTakeoutOrdered } from "./outcomes";
 
 /**
  * Implementations of the custom functions the Retell agent can call during a call.
  * Each returns a plain object that Retell hands back to the LLM; `message` is what the agent should convey.
  *
- * Phase 3 hooks: notifications, manager outbound call and guest SMS are added where marked TODO(phase3).
+ * After each outcome, src/lib/outcomes.ts creates the in-app notification, texts the guest, and (for escalations) rings the manager.
  */
 
 export type HandlerContext = { account: Account; call: Call | null; callerPhone: string | null };
@@ -143,7 +144,7 @@ async function createReservation(ctx: HandlerContext, args: Args, isWaitlist: bo
     },
   });
   await tagCall(ctx, { classification: isWaitlist ? "waitlist" : "reservation", reservationId: reservation.id, callerName: guestName });
-  // TODO(phase3): createNotification + guest confirmation SMS.
+  await afterReservationBooked(a, reservation, ctx.call);
 
   const when = formatDateTime(startTime, a.timeZone);
   return {
@@ -248,7 +249,7 @@ export async function takeTakeoutOrderHandler(ctx: HandlerContext, args: Args): 
     data: { accountId: a.id, guestName, guestPhone, items, notes: str(args.notes) || null, pickupTime, isDelivery, deliveryAddress: isDelivery ? deliveryAddress : null, status: "new", source: "ai" },
   });
   await tagCall(ctx, { classification: "takeout", takeoutOrderId: order.id, callerName: guestName });
-  // TODO(phase3): createNotification + guest confirmation SMS.
+  await afterTakeoutOrdered(a, order, ctx.call);
 
   const when = formatDateTime(pickupTime, a.timeZone);
   return { success: true, order_id: order.id, message: `Order placed for ${guestName}, ${isDelivery ? "delivery" : "pickup"} at ${when}. Tell them they'll get a text confirmation at ${formatUsPhone(guestPhone)}.` };
@@ -269,7 +270,8 @@ export async function takeMessageHandler(ctx: HandlerContext, args: Args): Promi
   const classification: CallClassification = escalate ? "escalation" : "message";
   await tagCall(ctx, { classification, callerName, messageText: `${reason}: ${message}${callerPhone ? ` (call back ${formatUsPhone(callerPhone)})` : ""}`, escalationReason: escalate ? reason : null, callbackRequested: true });
   if (ctx.call && callerPhone && !ctx.call.callerPhone) await prisma.call.update({ where: { id: ctx.call.id }, data: { callerPhone } }).catch(() => {});
-  // TODO(phase3): urgent notification + outbound Twilio call to the manager when `escalate`; normal notification otherwise.
+  if (escalate) await afterEscalation(a, ctx.call, { callerName, callerPhone, message, reason });
+  else await afterMessageTaken(a, ctx.call, { callerName, callerPhone, message, reason });
 
   return {
     success: true,

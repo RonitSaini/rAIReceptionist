@@ -54,16 +54,16 @@ model Account {
   priceRange     String? // "$" | "$$" | "$$$" | "$$$$"
 
   // Integrations (filled in later phases)
-  twilioNumber         String?            @unique
-  twilioNumberSid      String?
-  retellAgentId        String?
-  retellLlmId          String?
-  stripeCustomerId     String?            @unique
-  stripeSubscriptionId String?
-  subscriptionStatus   SubscriptionStatus @default(none)
+  twilioNumber                  String?            @unique
+  twilioNumberSid               String?
+  retellAgentId                 String?
+  retellLlmId                   String?
+  stripeCustomerId              String?            @unique
+  stripeSubscriptionId          String?
+  subscriptionStatus            SubscriptionStatus @default(none)
   // Mirrored from Stripe by the webhook (src/app/api/stripe/webhook) and the explicit "Refresh status" action.
   subscriptionCurrentPeriodEnd  DateTime?
-  subscriptionCancelAtPeriodEnd Boolean   @default(false)
+  subscriptionCancelAtPeriodEnd Boolean            @default(false)
   setupFeePaidAt                DateTime?
 
   // Voice + greeting
@@ -156,6 +156,7 @@ model Notification {
   call           Call?                @relation(fields: [callId], references: [id], onDelete: SetNull)
   readAt         DateTime?
   acknowledgedAt DateTime?
+  followUpSentAt DateTime? // escalation: guest was texted after the acknowledge window lapsed
   createdAt      DateTime             @default(now())
 
   @@index([accountId, readAt])
@@ -239,6 +240,9 @@ model Reservation {
   isWaitlist        Boolean           @default(false)
   source            RecordSource      @default(manual)
   googleEventId     String?
+  smsConfirmedAt    DateTime? // guest confirmation text sent
+  cancelledAt       DateTime?
+  cancelledBy       String? // "guest" (SMS reply) | "staff" | "ai"
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
@@ -272,6 +276,9 @@ model TakeoutOrder {
   deliveryAddress String?
   status          TakeoutStatus @default(new)
   source          RecordSource  @default(manual)
+  smsConfirmedAt  DateTime? // guest confirmation text sent
+  cancelledAt     DateTime?
+  cancelledBy     String? // "guest" (SMS reply) | "staff" | "ai"
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -319,6 +326,9 @@ model Call {
   messageText         String? // message left for the restaurant (take_message)
   escalationReason    String? // set when the AI escalated to a manager
   callbackRequested   Boolean            @default(false)
+  notifiedAt          DateTime? // outcome notification created (idempotency for webhook retries)
+  managerCallSid      String? // outbound Twilio call placed to the manager for an escalation
+  managerCalledAt     DateTime?
   reservationId       String?
   reservation         Reservation?       @relation(fields: [reservationId], references: [id], onDelete: SetNull)
   takeoutOrderId      String?

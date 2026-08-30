@@ -1,18 +1,20 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse, after, type NextRequest } from "next/server";
 import type { CallClassification, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { verifyRetellSignature, type RetellWebhookEvent } from "@/lib/retell";
 import { findOrCreateCallFromRetell, transcriptText } from "@/lib/calls";
 import { CLASSIFICATION_CHOICES } from "@/lib/agent-config";
 import { retellConfigured } from "@/lib/env";
+import { afterMissedCall } from "@/lib/outcomes";
+import { sweepEscalations } from "@/lib/escalations";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
 /**
  * Retell call lifecycle webhook: call_started, call_ended, call_analyzed.
- * Saves recording, transcript, summary and classification on the Call row.
- * Phase 3 adds in-app notifications and guest SMS on top of this.
+ * Saves recording, transcript, summary and classification on the Call row, notifies missed calls,
+ * and kicks the escalation follow-up sweep.
  */
 export async function POST(req: NextRequest) {
   if (!retellConfigured()) return NextResponse.json({ error: "Retell not configured" }, { status: 503 });
@@ -79,7 +81,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, ignored: event.event });
   }
 
-  await prisma.call.update({ where: { id: call.id }, data });
-  // TODO(phase3): on call_ended/call_analyzed, create the in-app notification for the outcome and send the guest SMS.
+  const updated = await prisma.call.update({ where: { id: call.id }, data, include: { account: true } });
+
+  // Missed calls get their own notification (bookings, messages and escalations notify from the function handlers).
+  if ((event.event === "call_ended" || event.event === "call_analyzed") && updated.classification === "missed" && !updated.notifiedAt) {
+    await afterMissedCall(updated.account, updated);
+  }
+  // Escalations whose acknowledge window lapsed: text the guest. Runs after the response so Retell is never kept waiting.
+  after(() => sweepEscalations().catch((e) => console.error("[escalations] sweep failed", e)));
   return NextResponse.json({ ok: true });
 }

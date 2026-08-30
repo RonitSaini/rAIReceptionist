@@ -36,8 +36,9 @@ function TranscriptLines({ text, hostName }: { text: string; hostName: string })
 export default async function CallDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const { account } = await requireAccount();
-  const call = await prisma.call.findFirst({ where: { id, accountId: account.id }, include: { reservation: true, takeoutOrder: true } });
+  const call = await prisma.call.findFirst({ where: { id, accountId: account.id }, include: { reservation: true, takeoutOrder: true, notifications: { where: { type: "escalation" }, take: 1 } } });
   if (!call) notFound();
+  const escalation = call.notifications[0] ?? null;
   const live = isCallLive(call);
 
   return (
@@ -72,6 +73,20 @@ export default async function CallDetailPage({ params }: { params: Promise<{ id:
         <Card title={call.escalationReason ? "Escalated to manager" : "Message"} className={call.escalationReason ? "border-red-200" : undefined}>
           {call.escalationReason ? <Badge tone="red" className="mb-2">{humanize(call.escalationReason)}</Badge> : null}
           <p className="whitespace-pre-line text-sm text-gray-800">{call.messageText}</p>
+          {call.escalationReason ? (
+            <ul className="mt-3 space-y-1 text-xs text-gray-500">
+              <li>{call.managerCalledAt ? `📞 Manager's cell rang ${formatDateTime(call.managerCalledAt, account.timeZone)}` : "📞 Manager's cell was not rung (outside manager hours or phone not connected)"}</li>
+              {escalation ? (
+                <li>
+                  {escalation.acknowledgedAt
+                    ? `✅ Acknowledged ${formatDateTime(escalation.acknowledgedAt, account.timeZone)}`
+                    : escalation.followUpSentAt
+                      ? `💬 Not acknowledged in time — guest was texted ${formatDateTime(escalation.followUpSentAt, account.timeZone)}`
+                      : "⏳ Waiting for a manager to acknowledge (guest is texted if the window lapses)"}
+                </li>
+              ) : null}
+            </ul>
+          ) : null}
         </Card>
       ) : null}
 

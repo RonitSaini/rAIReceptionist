@@ -12,7 +12,7 @@ Phase 1 is complete and needs **no API keys** — only a Postgres database.
 | --- | --- | --- |
 | 1 | Scaffold, schema, auth, onboarding 1–6, settings, reservation book, reservations/takeout CRUD, notifications, dashboard | ✅ Done |
 | 2 | Twilio number provisioning, Retell agent + prompt generation, call webhooks, calls page | ✅ Done |
-| 3 | Call outcomes → notifications, manager escalation (outbound call + acknowledge), guest SMS with reply-to-cancel | ⏳ |
+| 3 | Call outcomes → notifications, manager escalation (outbound call + acknowledge), guest SMS with reply-to-cancel | ✅ Done |
 | 4 | Stripe setup fee + subscription, billing webhooks, subscription gating | ✅ Done |
 | 5 | Google Calendar OAuth + sync | ⏳ |
 
@@ -201,6 +201,23 @@ Set `BILLING_REQUIRED="true"` in production to make the AI host stop answering c
 ### Tax and Managed Payments — decision pending
 
 New Stripe accounts have **Managed Payments** on by default: Stripe (via Link) is merchant of record, collects and remits sales tax, handles disputes and refunds, and charges **3.5% on top of** processing fees. It only covers fully automated digital products with an eligible product tax code, so it is a fit for the AI subscription only if onboarding is self-serve; a human-delivered setup fee is not eligible. The alternative is to turn Managed Payments off (Dashboard → Settings → Managed Payments), keep the tax codes, and enable **Stripe Tax** plus a registration in each state where nexus requires it — without a registration Stripe silently collects nothing. See [Managed Payments eligibility](https://docs.stripe.com/payments/managed-payments/eligibility) and [Collect taxes for recurring payments](https://docs.stripe.com/billing/taxes/collect-taxes). The app works in either mode.
+
+## Phase 3: what happens after a call
+
+Everything below is wired from the Retell function handlers (`src/lib/call-handlers.ts` → `src/lib/outcomes.ts`) and the call webhook. The restaurant is only ever notified **in-app**; guests are the only people who get texts.
+
+| Event | In-app | Guest SMS | Manager |
+| --- | --- | --- | --- |
+| Reservation / waitlist booked | Notification (links to the booking) | "You're booked… Reply CANCEL" | — |
+| Takeout / delivery order | Notification | "Order received… Reply CANCEL" | — |
+| Message taken | Notification | — | — |
+| Escalation (large party, private event, complaint…) | **Urgent** notification with an **Acknowledge** button | If nobody acknowledges within `ESCALATION_ACK_TIMEOUT_MINUTES` (10): "the manager will call you when we next open (tomorrow at 11:30 AM)" | Outbound call to the owner's cell during manager hours: reads the details, **press 1 to acknowledge** from the phone |
+| Missed call | Notification | — | — |
+| Guest texts CANCEL | Notification "Cancelled by guest" | Confirmation of the cancellation | — |
+
+- **Acknowledge window sweep:** `GET /api/cron/escalations` (Bearer `CRON_SECRET`), scheduled every 5 minutes in `vercel.json`, and also run after every Retell webhook so it's frequent during service. Note: Vercel's Hobby plan only allows daily crons — the post-webhook sweep covers busy periods regardless; upgrade to Pro (or ping the route from any scheduler) for exact 10-minute timing when the line is quiet.
+- **SMS requirements:** texts go from the restaurant's Twilio number (or `TWILIO_MESSAGING_SERVICE_SID`). Twilio trial accounts can only text verified numbers, and US application-to-person SMS from local numbers needs **A2P 10DLC** registration in the Twilio Console. Failed sends never break a call — they're logged and noted on the record.
+- **Inbound texts:** `POST /api/twilio/sms` cancels the guest's next upcoming reservation or order on CANCEL; any other text is saved as a message notification with a polite auto-reply.
 
 ## Project layout
 
