@@ -215,7 +215,7 @@ Everything below is wired from the Retell function handlers (`src/lib/call-handl
 | Missed call | Notification | — | — |
 | Guest texts CANCEL | Notification "Cancelled by guest" | Confirmation of the cancellation | — |
 
-- **Acknowledge window sweep:** `GET /api/cron/escalations` (Bearer `CRON_SECRET`), scheduled every 5 minutes in `vercel.json`, and also run after every Retell webhook so it's frequent during service. Note: Vercel's Hobby plan only allows daily crons — the post-webhook sweep covers busy periods regardless; upgrade to Pro (or ping the route from any scheduler) for exact 10-minute timing when the line is quiet.
+- **Acknowledge window sweep:** `GET /api/cron/escalations` (Bearer `CRON_SECRET`), run after every Retell webhook (so during service it fires within minutes) plus a daily safety-net cron in `vercel.json` (`0 13 * * *`, 9 AM ET — Vercel's Hobby plan rejects anything more frequent). For exact 10-minute timing when the line is quiet, change the schedule to `*/5 * * * *` on Vercel Pro, or hit the route from any external scheduler with the Bearer secret.
 - **SMS requirements:** texts go from the restaurant's Twilio number (or `TWILIO_MESSAGING_SERVICE_SID`). Twilio trial accounts can only text verified numbers, and US application-to-person SMS from local numbers needs **A2P 10DLC** registration in the Twilio Console. Failed sends never break a call — they're logged and noted on the record.
 - **Inbound texts:** `POST /api/twilio/sms` cancels the guest's next upcoming reservation or order on CANCEL; any other text is saved as a message notification with a polite auto-reply.
 
