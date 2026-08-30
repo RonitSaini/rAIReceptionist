@@ -1,18 +1,20 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { ArrowRightIcon } from "@/components/icons";
 import { requireAccount } from "@/lib/current-account";
-import { countUnread } from "@/lib/notifications";
+import { countUnread, recentNotifications } from "@/lib/notifications";
 import { ONBOARDING_DONE } from "@/lib/constants";
 import { AppNav } from "@/components/app-nav";
 import { NotificationBell } from "@/components/notification-bell";
 import { SignOutButton } from "@/components/sign-out-button";
 import { Logo } from "@/components/logo";
 import { SidebarPanel } from "@/components/sidebar-panel";
+import { SidebarPanelSkeleton } from "@/components/sidebar-panel-skeleton";
 import { AnimatedThemeToggle } from "@/components/ui/animated-theme-toggle";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { account } = await requireAccount();
-  const unread = await countUnread(account.id);
+  const [unread, recent] = await Promise.all([countUnread(account.id), recentNotifications(account.id)]);
   const setupIncomplete = account.onboardingStep < ONBOARDING_DONE;
 
   return (
@@ -24,7 +26,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
         <AppNav variant="sidebar" />
         <div className="min-h-0 flex-1 overflow-hidden pb-2">
-          <SidebarPanel account={account} />
+          {/* Streams: the shell (nav, header, page skeleton) paints while the panel's queries run. */}
+          <Suspense fallback={<SidebarPanelSkeleton />}>
+            <SidebarPanel account={account} />
+          </Suspense>
         </div>
         <div className="shrink-0 border-t border-gray-100 p-4 short:px-4 short:py-2.5">
           <p className="truncate text-sm font-semibold">{account.restaurantName}</p>
@@ -42,7 +47,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <span className="hidden text-sm text-gray-500 md:block">{account.restaurantName}</span>
             <div className="flex items-center gap-1">
               <AnimatedThemeToggle />
-              <NotificationBell initialCount={unread} />
+              <NotificationBell initialCount={unread} initialItems={recent} />
             </div>
           </div>
         </header>

@@ -1,5 +1,6 @@
 import type { Notification, NotificationPriority, NotificationType } from "@prisma/client";
 import { prisma } from "./prisma";
+import type { BellNotification } from "./notification-ui";
 
 export type CreateNotificationInput = {
   accountId: string;
@@ -40,22 +41,17 @@ export function notificationHref(n: Pick<Notification, "reservationId" | "takeou
   return "/notifications";
 }
 
-export const NOTIFICATION_TYPE_LABEL: Record<NotificationType, string> = {
-  reservation: "Reservation",
-  takeout: "Takeout",
-  waitlist: "Waitlist",
-  message: "Message",
-  escalation: "Escalation",
-  missed_call: "Missed call",
-  system: "System",
-};
+// Labels/icons live in a client-safe module (no prisma import) so the bell popover can use them.
+export { NOTIFICATION_TYPE_LABEL, NOTIFICATION_TYPE_ICON } from "./notification-ui";
+export type { BellNotification } from "./notification-ui";
 
-export const NOTIFICATION_TYPE_ICON: Record<NotificationType, string> = {
-  reservation: "📅",
-  takeout: "🥡",
-  waitlist: "⏳",
-  message: "💬",
-  escalation: "🚨",
-  missed_call: "📵",
-  system: "⚙️",
-};
+/** Compact, serializable shape for the bell popover. */
+export function toBellNotification(n: Notification): BellNotification {
+  return { id: n.id, type: n.type, priority: n.priority, title: n.title, body: n.body, createdAt: n.createdAt.toISOString(), readAt: n.readAt ? n.readAt.toISOString() : null };
+}
+
+/** The most recent notifications for the bell popover (read and unread, newest first). */
+export async function recentNotifications(accountId: string, take = 8): Promise<BellNotification[]> {
+  const rows = await prisma.notification.findMany({ where: { accountId }, orderBy: { createdAt: "desc" }, take });
+  return rows.map(toBellNotification);
+}
