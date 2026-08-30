@@ -25,13 +25,15 @@ export function AddressFields({ initial, country }: { initial: AddressValue; cou
   const [busy, setBusy] = useState(false);
   const sessionRef = useRef<string | null>(null);
   const skipNextFetch = useRef(false);
+  const typed = useRef(false); // suggestions only after the owner types — never for the saved address on load
+  const inputRef = useRef<HTMLInputElement>(null);
   const listId = useId();
 
   const set = (patch: Partial<AddressValue>, keepPin = false) => setV((p) => ({ ...p, ...patch, ...(keepPin ? {} : { latitude: null, longitude: null }) }));
 
   // Debounced suggestions while typing in the street field.
   useEffect(() => {
-    if (!available || skipNextFetch.current) {
+    if (!available || !typed.current || skipNextFetch.current) {
       skipNextFetch.current = false;
       return;
     }
@@ -48,7 +50,7 @@ export function AddressFields({ initial, country }: { initial: AddressValue; cou
         if (!res.ok) return;
         const data = (await res.json()) as { suggestions: Suggestion[] };
         setItems(data.suggestions);
-        setOpen(data.suggestions.length > 0);
+        setOpen(data.suggestions.length > 0 && document.activeElement === inputRef.current);
         setActive(-1);
       } catch {
         /* aborted or offline — keep whatever is showing */
@@ -100,9 +102,11 @@ export function AddressFields({ initial, country }: { initial: AddressValue; cou
       <legend className="text-sm font-semibold text-gray-800">Restaurant address <span className="font-normal text-gray-500">({country === "CA" ? "Canada" : "United States"})</span></legend>
       <div className="relative">
         <Input
+          ref={inputRef}
           name="addressLine1"
           value={query}
           onChange={(e) => {
+            typed.current = true;
             setQuery(e.target.value);
             set({ addressLine1: e.target.value });
             if (e.target.value.trim().length < 3) {
