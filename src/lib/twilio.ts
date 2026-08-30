@@ -49,15 +49,15 @@ async function request<T>(method: "GET" | "POST" | "DELETE", path: string, param
 
 export type AvailableNumber = { phoneNumber: string; friendlyName: string; locality?: string; region?: string };
 
-/** Find purchasable US local numbers, optionally in an area code. Falls back to any US number. */
-export async function searchAvailableNumbers(areaCode?: string, limit = 5): Promise<AvailableNumber[]> {
+/** Find purchasable local numbers in the restaurant's country (US or CA), optionally in an area code. */
+export async function searchAvailableNumbers(areaCode?: string, limit = 5, country: "US" | "CA" = "US"): Promise<AvailableNumber[]> {
   type Row = { phone_number: string; friendly_name: string; locality?: string; region?: string };
   const params: Record<string, string> = { VoiceEnabled: "true", SmsEnabled: "true", PageSize: String(limit) };
   if (areaCode && /^\d{3}$/.test(areaCode)) params.AreaCode = areaCode;
-  let data = await request<{ available_phone_numbers: Row[] }>("GET", "/AvailablePhoneNumbers/US/Local.json", params);
+  let data = await request<{ available_phone_numbers: Row[] }>("GET", `/AvailablePhoneNumbers/${country}/Local.json`, params);
   if (data.available_phone_numbers.length === 0 && params.AreaCode) {
     delete params.AreaCode;
-    data = await request<{ available_phone_numbers: Row[] }>("GET", "/AvailablePhoneNumbers/US/Local.json", params);
+    data = await request<{ available_phone_numbers: Row[] }>("GET", `/AvailablePhoneNumbers/${country}/Local.json`, params);
   }
   return data.available_phone_numbers.map((n) => ({ phoneNumber: n.phone_number, friendlyName: n.friendly_name, locality: n.locality, region: n.region }));
 }

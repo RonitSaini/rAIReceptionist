@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { saveBusinessBasics } from "@/actions/onboarding";
 import type { AccountView } from "@/lib/serialize";
-import { CUISINE_TYPES, PRICE_RANGES, US_TIME_ZONES } from "@/lib/constants";
+import { CUISINE_TYPES, PRICE_RANGES, TIME_ZONE_GROUPS } from "@/lib/constants";
 import { formatUsPhone } from "@/lib/form";
 import { Field, Input, Select } from "@/components/ui";
 import { FormFooter, type FormMode } from "@/components/form-footer";
@@ -28,10 +28,14 @@ export function BusinessBasicsForm({ account, mode }: { account: AccountView; mo
 
       <Field label="Time zone" htmlFor="timeZone" hint="All times in the app are shown in this time zone.">
         <Select id="timeZone" name="timeZone" defaultValue={account.timeZone} required>
-          {US_TIME_ZONES.map((tz) => (
-            <option key={tz.id} value={tz.id}>
-              {tz.label}
-            </option>
+          {TIME_ZONE_GROUPS.map((g) => (
+            <optgroup key={g.label} label={g.label}>
+              {g.zones.map((tz) => (
+                <option key={tz.id} value={tz.id}>
+                  {tz.label}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </Select>
       </Field>

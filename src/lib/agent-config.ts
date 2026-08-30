@@ -1,6 +1,7 @@
 import type { Account, BusinessHours, ManagerAvailability, MenuItem } from "@prisma/client";
 import type { AgentRequest, CustomTool, EndCallTool, PostCallAnalysisField, RetellLlmRequest } from "./retell";
 import { functionSecret } from "./retell";
+import { countryOf, formatDistance, postalLabel, unitWord } from "./locale";
 import { DAYS_OF_WEEK, ESCALATION_TYPES } from "./constants";
 import { formatClock } from "./time";
 import { formatUsd } from "./form";
@@ -99,7 +100,7 @@ function takeoutSection(a: Account): string {
   ];
   if (a.offersDelivery) {
     lines.push(
-      `DELIVERY: Offered within ${a.deliveryRadiusMiles != null ? Number(a.deliveryRadiusMiles) : "a few"} miles of the restaurant. Before accepting a delivery order, ask for the full street address including city and ZIP code and call check_delivery_area. If the address is outside the area or the check is uncertain, apologize, say delivery isn't available there, and offer pickup instead. Never promise delivery to an address that hasn't passed the check.`,
+      `DELIVERY: Offered within ${a.deliveryRadiusMiles != null ? formatDistance(Number(a.deliveryRadiusMiles), countryOf(a.state)) : `a few ${unitWord(countryOf(a.state))}`} of the restaurant. Before accepting a delivery order, ask for the full street address including city and ${postalLabel(countryOf(a.state))} and call check_delivery_area. If the address is outside the area or the check is uncertain, apologize, say delivery isn't available there, and offer pickup instead. Never promise delivery to an address that hasn't passed the check.`,
     );
   } else {
     lines.push("DELIVERY: Not offered. If asked, politely say you don't deliver and offer pickup instead.");
@@ -142,7 +143,7 @@ export function buildGeneralPrompt(src: AgentSource): string {
     "",
     "HARD RULES:",
     "- Never invent a menu item, a price, a policy, hours, or anything not written here. If the answer isn't here, say you're not sure and offer to take a message with take_message so the restaurant can call back.",
-    "- Phone numbers must be 10-digit US numbers. Read numbers back digit by digit to confirm.",
+    "- Phone numbers must be 10-digit US or Canadian numbers. Read numbers back digit by digit to confirm.",
     "- Dietary questions: you may share the dietary tags and descriptions listed. For allergy questions you cannot answer from the menu, do not guess — take a message with reason \"allergy\".",
     "- If you get confused, the caller is frustrated, or you are going in circles: apologize, collect their name and phone number, promise a call back, and call take_message with reason \"callback_request\".",
     "- NEVER hang up on a caller. Only use end_call after the caller confirms they're done and you've said goodbye.",
@@ -169,7 +170,7 @@ function tool(name: FunctionName, description: string, properties: Record<string
   };
 }
 
-const PHONE = { type: "string", description: "10-digit US phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it." };
+const PHONE = { type: "string", description: "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it." };
 const DATE = { type: "string", description: "Date in YYYY-MM-DD format, resolved using today's date." };
 const TIME = { type: "string", description: "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM." };
 
@@ -235,7 +236,7 @@ export function buildTools(src: AgentSource): (CustomTool | EndCallTool)[] {
           pickup_time: { ...TIME, description: "Requested pickup or delivery time, HH:MM 24-hour." },
           notes: { type: "string", description: "Optional notes." },
           is_delivery: { type: "boolean", description: "true for delivery, false for pickup." },
-          delivery_address: { type: "string", description: "Full street address including city and ZIP, required for delivery." },
+          delivery_address: { type: "string", description: "Full street address including city and ZIP or postal code, required for delivery." },
         },
         ["guest_name", "guest_phone", "items", "pickup_time"],
         u,
@@ -246,7 +247,7 @@ export function buildTools(src: AgentSource): (CustomTool | EndCallTool)[] {
         tool(
           "check_delivery_area",
           "Check whether a full street address is inside the delivery area. Always call before accepting a delivery order.",
-          { address: { type: "string", description: "Full street address including city, state and ZIP code." } },
+          { address: { type: "string", description: "Full street address including city, state or province, and ZIP or postal code." } },
           ["address"],
           u,
           { execution_message_description: "Say 'Let me check if we deliver there.'" },

@@ -24,6 +24,23 @@ export const US_TIME_ZONES: { id: string; label: string }[] = [
   { id: "Pacific/Honolulu", label: "Hawaii (Honolulu)" },
 ];
 
+export const CA_TIME_ZONES: { id: string; label: string }[] = [
+  { id: "America/St_Johns", label: "Newfoundland (St. John's)" },
+  { id: "America/Halifax", label: "Atlantic (Halifax)" },
+  { id: "America/Toronto", label: "Eastern (Toronto, Montréal)" },
+  { id: "America/Winnipeg", label: "Central (Winnipeg)" },
+  { id: "America/Regina", label: "Saskatchewan (Regina, no DST)" },
+  { id: "America/Edmonton", label: "Mountain (Edmonton, Calgary)" },
+  { id: "America/Vancouver", label: "Pacific (Vancouver)" },
+];
+
+/** Every zone the app accepts, grouped for the time-zone picker. */
+export const TIME_ZONE_GROUPS: { label: string; zones: { id: string; label: string }[] }[] = [
+  { label: "United States", zones: US_TIME_ZONES },
+  { label: "Canada", zones: CA_TIME_ZONES },
+];
+export const ALL_TIME_ZONES = [...US_TIME_ZONES, ...CA_TIME_ZONES];
+
 export const US_STATES = [
   "AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY",
 ];

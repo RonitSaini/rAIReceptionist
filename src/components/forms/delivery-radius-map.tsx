@@ -74,7 +74,7 @@ export function deliveryMapAvailable(): boolean {
  * The restaurant pinned on a Google map with the delivery radius drawn as a circle. Redraws live as the
  * radius field changes; re-created when the theme flips so the map matches light/dark.
  */
-export function DeliveryRadiusMap({ center, radiusMiles, label }: { center: LatLngLiteral; radiusMiles: number; label: string }) {
+export function DeliveryRadiusMap({ center, radiusMiles, radiusLabel, label }: { center: LatLngLiteral; radiusMiles: number; radiusLabel?: string; label: string }) {
   const elRef = useRef<HTMLDivElement>(null);
   const circleRef = useRef<GCircle | null>(null);
   const mapRef = useRef<GMap | null>(null);
@@ -144,5 +144,5 @@ export function DeliveryRadiusMap({ center, radiusMiles, label }: { center: LatL
   }, [radiusMiles]);
 
   if (error) return <p className="text-xs text-red-600">{error}</p>;
-  return <div ref={elRef} role="img" aria-label={`Map of the ${radiusMiles}-mile delivery area around ${label}`} className="h-64 w-full overflow-hidden rounded-xl border border-gray-200 bg-gray-100 sm:h-80" />;
+  return <div ref={elRef} role="img" aria-label={`Map of the ${radiusLabel ?? `${radiusMiles}-mile`} delivery area around ${label}`} className="h-64 w-full overflow-hidden rounded-xl border border-gray-200 bg-gray-100 sm:h-80" />;
 }

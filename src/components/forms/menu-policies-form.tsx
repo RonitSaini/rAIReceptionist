@@ -7,6 +7,7 @@ import { DIETARY_TAGS, MENU_CATEGORIES } from "@/lib/constants";
 import { Button, Field, Input, Toggle, inputClass } from "@/components/ui";
 import { FormFooter, type FormMode } from "@/components/form-footer";
 import { DeliveryRadiusMap, deliveryMapAvailable } from "@/components/forms/delivery-radius-map";
+import { countryOf, displayDistance, postalLabel, toMiles, unitWord } from "@/lib/locale";
 
 type Row = Omit<MenuItemView, "id" | "price"> & { key: number; price: string };
 
@@ -20,8 +21,11 @@ export function MenuPoliciesForm({ account, menu, mode }: { account: AccountView
   const [rows, setRows] = useState<Row[]>(() => (menu.length ? menu.map((m) => newRow({ ...m, price: m.price == null ? "" : m.price.toFixed(2) })) : [newRow()]));
   const [expanded, setExpanded] = useState<number | null>(null);
   const [offersDelivery, setOffersDelivery] = useState(account.offersDelivery);
-  const [radius, setRadius] = useState(account.deliveryRadiusMiles == null ? "" : String(account.deliveryRadiusMiles));
+  const country = countryOf(account.state);
+  const unit = country === "CA" ? "km" : "mi";
+  const [radius, setRadius] = useState(account.deliveryRadiusMiles == null ? "" : String(displayDistance(account.deliveryRadiusMiles, country)));
   const radiusNum = Number.parseFloat(radius);
+  const radiusMiles = Number.isFinite(radiusNum) ? toMiles(radiusNum, unit) : NaN;
   const pinned = account.latitude != null && account.longitude != null;
 
   function update(key: number, patch: Partial<Row>) {
@@ -109,15 +113,16 @@ export function MenuPoliciesForm({ account, menu, mode }: { account: AccountView
         {offersDelivery ? (
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Radius (miles)" htmlFor="deliveryRadiusMiles" hint="Measured from your restaurant address.">
+              <Field label={`Radius (${unit === "km" ? "km" : "miles"})`} htmlFor="deliveryRadiusMiles" hint="Measured from your restaurant address.">
                 <Input id="deliveryRadiusMiles" name="deliveryRadiusMiles" inputMode="decimal" placeholder="5" value={radius} onChange={(e) => setRadius(e.target.value)} />
+                <input type="hidden" name="radiusUnit" value={unit} />
               </Field>
-              <Field label="Delivery from ZIP" htmlFor="deliveryZip" hint="Fallback when an address can't be located.">
-                <Input id="deliveryZip" name="deliveryZip" inputMode="numeric" placeholder="10001" defaultValue={account.deliveryZip ?? ""} />
+              <Field label={`Delivery from ${postalLabel(country)}`} htmlFor="deliveryZip" hint="Fallback when an address can't be located.">
+                <Input id="deliveryZip" name="deliveryZip" inputMode={country === "CA" ? "text" : "numeric"} placeholder={country === "CA" ? "M5V 3L9" : "10001"} defaultValue={account.deliveryZip ?? ""} />
               </Field>
             </div>
-            {pinned && deliveryMapAvailable() && Number.isFinite(radiusNum) && radiusNum > 0 ? (
-              <DeliveryRadiusMap center={{ lat: account.latitude as number, lng: account.longitude as number }} radiusMiles={radiusNum} label={account.restaurantName} />
+            {pinned && deliveryMapAvailable() && Number.isFinite(radiusMiles) && radiusMiles > 0 ? (
+              <DeliveryRadiusMap center={{ lat: account.latitude as number, lng: account.longitude as number }} radiusMiles={radiusMiles} radiusLabel={`${radiusNum} ${unitWord(country, radiusNum)}`} label={account.restaurantName} />
             ) : !pinned ? (
               <p className="text-xs text-gray-500">Save your restaurant address (Business step) to see the delivery area on a map. Callers&apos; addresses are checked against this radius.</p>
             ) : null}

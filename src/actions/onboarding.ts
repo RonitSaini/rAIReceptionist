@@ -1,6 +1,7 @@
 "use server";
 
 import { formatRestaurantAddress, geocodeAddress } from "@/lib/geo";
+import { countryOf, isPostalCode, normalizePostalCode, toMiles } from "@/lib/locale";
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -10,9 +11,9 @@ import { syncRetellAgentQuietly } from "@/lib/agent-sync";
 import { listVoices } from "@/lib/retell";
 import { retellConfigured } from "@/lib/env";
 import { requireAccount } from "@/lib/current-account";
-import { bool, int, isZip, json, list, normalizeUsPhone, optDecimal, optInt, optStr, str, type ActionState } from "@/lib/form";
+import { bool, int, json, list, normalizeUsPhone, optDecimal, optInt, optStr, str, type ActionState } from "@/lib/form";
 import { greetingHasDisclosure } from "@/lib/greeting";
-import { DIETARY_TAGS, ESCALATION_TYPES, ONBOARDING_DONE, US_TIME_ZONES, VOICES } from "@/lib/constants";
+import { ALL_TIME_ZONES, DIETARY_TAGS, ESCALATION_TYPES, ONBOARDING_DONE, VOICES } from "@/lib/constants";
 import { isValidTimeString, timeToMinutes } from "@/lib/time";
 
 type Mode = "onboarding" | "settings";
@@ -44,12 +45,12 @@ export async function saveBusinessBasics(_prev: ActionState, fd: FormData): Prom
   const ownerName = optStr(fd, "ownerName");
   const cellRaw = str(fd, "cellPhone");
   const cellPhone = cellRaw ? normalizeUsPhone(cellRaw) : null;
-  const zip = str(fd, "zip");
+  const zip = normalizePostalCode(str(fd, "zip"));
   const timeZone = str(fd, "timeZone");
 
   if (cellRaw && !cellPhone) return { ok: false, error: "Enter a valid 10-digit US cell number." };
-  if (zip && !isZip(zip)) return { ok: false, error: "Enter a valid 5-digit ZIP code." };
-  if (!US_TIME_ZONES.some((t) => t.id === timeZone)) return { ok: false, error: "Choose a time zone." };
+  if (zip && !isPostalCode(zip)) return { ok: false, error: "Enter a valid ZIP code (12345) or Canadian postal code (A1A 1A1)." };
+  if (!ALL_TIME_ZONES.some((t) => t.id === timeZone)) return { ok: false, error: "Choose a time zone." };
 
   const address = { addressLine1: optStr(fd, "addressLine1"), addressLine2: optStr(fd, "addressLine2"), city: optStr(fd, "city"), state: optStr(fd, "state"), zip: zip || null };
   // Coordinates: the pin from a picked Google suggestion wins; otherwise re-geocode whenever the address
@@ -133,14 +134,17 @@ export async function saveMenuPolicies(_prev: ActionState, fd: FormData): Promis
   const { account } = await requireAccount();
   const menu = json<MenuRow[]>(fd, "menu", []);
   const offersDelivery = bool(fd, "offersDelivery");
-  const deliveryZip = optStr(fd, "deliveryZip");
-  const deliveryRadiusMiles = optDecimal(fd, "deliveryRadiusMiles");
+  const deliveryZip = optStr(fd, "deliveryZip") ? normalizePostalCode(str(fd, "deliveryZip")) : null;
+  // The owner types the radius in their own unit (km for Canadian provinces); miles are what we store.
+  const radiusUnit = str(fd, "radiusUnit") === "km" || countryOf(account.state) === "CA" ? "km" : "mi";
+  const radiusTyped = optDecimal(fd, "deliveryRadiusMiles");
+  const deliveryRadiusMiles = radiusTyped == null ? null : (Math.round(toMiles(Number(radiusTyped), radiusUnit) * 10) / 10).toFixed(1);
   const largePartyThreshold = int(fd, "largePartyThreshold", 8);
 
   if (largePartyThreshold < 2 || largePartyThreshold > 100) return { ok: false, error: "Large-party threshold must be between 2 and 100." };
   if (offersDelivery) {
-    if (!deliveryZip || !isZip(deliveryZip)) return { ok: false, error: "Delivery needs a valid 5-digit ZIP code." };
-    if (!deliveryRadiusMiles || Number(deliveryRadiusMiles) <= 0) return { ok: false, error: "Delivery needs a radius in miles." };
+    if (!deliveryZip || !isPostalCode(deliveryZip)) return { ok: false, error: "Delivery needs a valid ZIP or postal code." };
+    if (!deliveryRadiusMiles || Number(deliveryRadiusMiles) <= 0) return { ok: false, error: `Delivery needs a radius in ${radiusUnit === "km" ? "kilometres" : "miles"}.` };
   }
 
   const tagSet = new Set(DIETARY_TAGS);

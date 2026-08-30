@@ -1,7 +1,7 @@
 /**
  * Address geocoding + distance for delivery-area checks.
  * Google Geocoding when GOOGLE_MAPS_API_KEY is set (tolerant of spoken addresses), otherwise — or if Google
- * finds nothing — the free US Census Bureau geocoder (no key). US addresses only.
+ * finds nothing — the free US Census Bureau geocoder (no key; US addresses only, Canadian ones rely on Google).
  */
 
 import { googleGeocode, placesGeocode } from "./places";
@@ -43,10 +43,7 @@ export function distanceMiles(a: LatLng, b: LatLng): number {
   return 2 * R * Math.asin(Math.sqrt(s));
 }
 
-export function extractZip(address: string): string | null {
-  const m = /\b(\d{5})(?:-\d{4})?\b/.exec(address);
-  return m ? m[1] : null;
-}
+export { extractPostalCode as extractZip } from "./locale";
 
 export function formatRestaurantAddress(a: { addressLine1?: string | null; addressLine2?: string | null; city?: string | null; state?: string | null; zip?: string | null }): string | null {
   const parts = [a.addressLine1, a.addressLine2, [a.city, a.state].filter(Boolean).join(", "), a.zip].filter((p) => p && String(p).trim());

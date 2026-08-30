@@ -33,7 +33,7 @@ async function withTimeout<T>(fn: (signal: AbortSignal) => Promise<T>, ms: numbe
   }
 }
 
-/** US address suggestions as the owner types. `sessionToken` groups keystrokes + the final details call for billing. */
+/** US + Canadian address suggestions as the owner types. `sessionToken` groups keystrokes + the final details call for billing. */
 export async function autocompleteAddresses(input: string, sessionToken?: string): Promise<AddressSuggestion[]> {
   if (!key() || input.trim().length < 3) return [];
   const data = await withTimeout(async (signal) => {
@@ -41,7 +41,7 @@ export async function autocompleteAddresses(input: string, sessionToken?: string
       method: "POST",
       signal,
       headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key() },
-      body: JSON.stringify({ input: input.trim(), sessionToken, includedRegionCodes: ["us"], languageCode: "en-US" }),
+      body: JSON.stringify({ input: input.trim(), sessionToken, includedRegionCodes: ["us", "ca"], languageCode: "en-US" }),
     });
     if (!res.ok) return null;
     return (await res.json()) as {
@@ -87,12 +87,12 @@ export async function placeAddress(placeId: string, sessionToken?: string): Prom
   };
 }
 
-/** Geocode a free-text US address (what a caller says on the phone). Null when Google can't pin it to a street/area. */
+/** Geocode a free-text US or Canadian address (what a caller says on the phone). Null when Google can't pin it to a street/area. */
 export async function googleGeocode(address: string): Promise<LatLng | null> {
   if (!key() || !address.trim()) return null;
   const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
   url.searchParams.set("address", address.trim());
-  url.searchParams.set("components", "country:US");
+  url.searchParams.set("components", "country:US|country:CA");
   url.searchParams.set("key", key());
   const data = await withTimeout(async (signal) => {
     const res = await fetch(url, { signal });

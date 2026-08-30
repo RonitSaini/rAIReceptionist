@@ -1,5 +1,7 @@
 "use server";
 
+import { countryOf } from "@/lib/locale";
+
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAccount } from "@/lib/current-account";
@@ -48,7 +50,7 @@ export async function provisionPhoneNumber(_prev: ActionState, fd: FormData): Pr
     }
 
     // 2) Otherwise buy a new local number.
-    const candidates = await searchAvailableNumbers(areaCode, 5);
+    const candidates = await searchAvailableNumbers(areaCode, 5, countryOf(account.state));
     if (candidates.length === 0) return { ok: false, error: "No numbers are available right now. Try a different area code." };
 
     let purchased: { sid: string; phoneNumber: string } | null = null;

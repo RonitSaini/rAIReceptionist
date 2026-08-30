@@ -2,6 +2,7 @@ import type { Account, Call, CallClassification } from "@prisma/client";
 import { prisma } from "./prisma";
 import { getAvailableTimes, nearestAlternatives, periodsForDay } from "./availability";
 import { distanceMiles, extractZip, formatRestaurantAddress, geocodeAddress } from "./geo";
+import { countryOf, formatDistance, KM_PER_MILE, postalLabel } from "./locale";
 import { dayOfWeekOf, formatDateString, formatClock, isValidDateString, timeToMinutes, todayString, zonedToUtc, formatDateTime } from "./time";
 import { formatUsPhone, normalizeUsPhone } from "./form";
 import { MESSAGE_REASONS, type FunctionName } from "./agent-config";
@@ -178,16 +179,20 @@ export async function checkDeliveryArea(a: Account, address: string): Promise<{ 
   const radius = a.deliveryRadiusMiles != null ? Number(a.deliveryRadiusMiles) : null;
   if (!address.trim()) return { deliverable: false, uncertain: true, reason: "No address given." };
 
+  const country = countryOf(a.state);
   const [origin, target] = await Promise.all([restaurantLocation(a), geocodeAddress(address)]);
   if (origin && target && radius != null) {
     const d = distanceMiles(origin, target);
+    // Spoken in the restaurant's unit (km for Canada); stored and compared in miles.
+    const away = formatDistance(d, country);
+    const area = formatDistance(radius, country).replace(" ", "-");
     return d <= radius
-      ? { deliverable: true, distanceMiles: Math.round(d * 10) / 10, reason: `About ${Math.round(d * 10) / 10} miles away, within the ${radius}-mile delivery area.` }
-      : { deliverable: false, distanceMiles: Math.round(d * 10) / 10, reason: `About ${Math.round(d * 10) / 10} miles away, outside the ${radius}-mile delivery area.` };
+      ? { deliverable: true, distanceMiles: Math.round(d * 10) / 10, reason: `About ${away} away, within the ${area} delivery area.` }
+      : { deliverable: false, distanceMiles: Math.round(d * 10) / 10, reason: `About ${away} away, outside the ${area} delivery area.` };
   }
-  // Geocoding unavailable — fall back to ZIP match.
+  // Geocoding unavailable — fall back to a ZIP / postal-code match.
   const zip = extractZip(address);
-  if (zip && a.deliveryZip && zip === a.deliveryZip) return { deliverable: true, uncertain: true, reason: "Same ZIP code as the restaurant's delivery ZIP." };
+  if (zip && a.deliveryZip && zip.toUpperCase() === a.deliveryZip.toUpperCase()) return { deliverable: true, uncertain: true, reason: `Same ${postalLabel(country)} as the restaurant's delivery area.` };
   return { deliverable: false, uncertain: true, reason: "Could not verify the address is inside the delivery area." };
 }
 
@@ -198,6 +203,7 @@ export async function checkDeliveryAreaHandler(ctx: HandlerContext, args: Args):
     success: true,
     deliverable: r.deliverable,
     distance_miles: r.distanceMiles,
+    distance_km: r.distanceMiles == null ? undefined : Math.round(r.distanceMiles * KM_PER_MILE * 10) / 10,
     message: r.deliverable ? `Yes, delivery is available to that address. ${r.reason}` : `Delivery is not available there (${r.reason}). Apologize and offer pickup instead.`,
   };
 }

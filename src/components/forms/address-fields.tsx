@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { US_STATES } from "@/lib/constants";
+import { CA_PROVINCES, countryOf } from "@/lib/locale";
 import { Input, Select } from "@/components/ui";
 
 type Suggestion = { placeId: string; main: string; secondary: string; text: string };
@@ -92,6 +93,7 @@ export function AddressFields({ initial }: { initial: AddressValue }) {
   }
 
   const pinned = v.latitude != null && v.longitude != null;
+  const country = countryOf(v.state);
 
   return (
     <fieldset className="space-y-3">
@@ -144,15 +146,24 @@ export function AddressFields({ initial }: { initial: AddressValue }) {
       <Input name="addressLine2" value={v.addressLine2} onChange={(e) => set({ addressLine2: e.target.value }, true)} placeholder="Suite, floor (optional)" autoComplete="address-line2" aria-label="Address line 2" />
       <div className="grid grid-cols-6 gap-2">
         <Input name="city" value={v.city} onChange={(e) => set({ city: e.target.value })} placeholder="City" autoComplete="address-level2" aria-label="City" className="col-span-3" />
-        <Select name="state" value={v.state} onChange={(e) => set({ state: e.target.value })} aria-label="State" className="col-span-1 px-2">
+        <Select name="state" value={v.state} onChange={(e) => set({ state: e.target.value })} aria-label="State or province" className="col-span-1 px-2">
           <option value="">ST</option>
-          {US_STATES.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
+          <optgroup label="United States">
+            {US_STATES.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="Canada">
+            {CA_PROVINCES.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </optgroup>
         </Select>
-        <Input name="zip" value={v.zip} onChange={(e) => set({ zip: e.target.value })} placeholder="ZIP" inputMode="numeric" autoComplete="postal-code" aria-label="ZIP code" className="col-span-2" />
+        <Input name="zip" value={v.zip} onChange={(e) => set({ zip: e.target.value })} placeholder={country === "CA" ? "Postal code" : "ZIP"} inputMode={country === "CA" ? "text" : "numeric"} autoComplete="postal-code" aria-label="ZIP or postal code" className="col-span-2" />
       </div>
       <input type="hidden" name="latitude" value={pinned ? String(v.latitude) : ""} />
       <input type="hidden" name="longitude" value={pinned ? String(v.longitude) : ""} />
