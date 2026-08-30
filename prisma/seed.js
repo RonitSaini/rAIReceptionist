@@ -40,18 +40,19 @@ async function main() {
   if (existing) {
     // Re-runnable top-up: keep at least one unread notification so the bell ring, badge pop and
     // mark-read → count refresh paths stay demoable after everything has been read.
+    const title = "New reservation: Sam Rivera, party of 4";
+    // Never stack copies: keep exactly one of our own demo notification, deleting any earlier extras.
+    const mine = await prisma.notification.findMany({ where: { accountId: existing.accountId, title }, orderBy: { createdAt: "desc" }, select: { id: true } });
+    if (mine.length > 1) {
+      await prisma.notification.deleteMany({ where: { id: { in: mine.slice(1).map((n) => n.id) } } });
+      console.log(`Removed ${mine.length - 1} duplicate demo notification(s).`);
+    }
     const unread = await prisma.notification.count({ where: { accountId: existing.accountId, readAt: null } });
     if (unread === 0) {
-      await prisma.notification.create({
-        data: {
-          accountId: existing.accountId,
-          type: "reservation",
-          title: "New reservation: Sam Rivera, party of 4",
-          body: "Tonight 7:30 PM · Window table if possible · Celebrating a birthday",
-          createdAt: minutesAgo(3),
-        },
-      });
-      console.log("Demo user already exists — added one unread notification so the bell has something to ring about.");
+      const data = { type: "reservation", title, body: "Tonight 7:30 PM · Window table if possible · Celebrating a birthday", readAt: null, createdAt: new Date() };
+      if (mine[0]) await prisma.notification.update({ where: { id: mine[0].id }, data });
+      else await prisma.notification.create({ data: { accountId: existing.accountId, ...data } });
+      console.log(`Demo user already exists — ${mine[0] ? "re-armed" : "added"} one unread notification so the bell has something to ring about.`);
     } else {
       console.log(`Demo user already exists — skipping seed (${unread} unread notification(s) present). Delete the user to re-seed.`);
     }

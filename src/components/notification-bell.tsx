@@ -6,7 +6,7 @@ import { useCallback, useEffect, useId, useRef, useState, type ToggleEvent } fro
 import { NOTIFICATION_POLL_MS } from "@/lib/constants";
 import { NOTIFICATION_TYPE_ICON, type BellNotification } from "@/lib/notification-ui";
 import { timeAgo } from "@/lib/time";
-import { markAllNotificationsRead, markNotificationRead } from "@/actions/notifications";
+import { markAllNotificationsRead, markNotificationRead, openNotification } from "@/actions/notifications";
 import { DrawIcon } from "@/components/draw-icon";
 import { StatusDot } from "@/components/ui";
 
@@ -173,14 +173,18 @@ export function NotificationBell({ initialCount, initialItems }: { initialCount:
                 return (
                   <li key={n.id} className={`group flex gap-3 border-b border-gray-100 px-4 py-3 transition-colors last:border-0 hover:bg-gray-50 ${unread ? "bg-brand-50/40" : ""}`}>
                     <DrawIcon name={NOTIFICATION_TYPE_ICON[n.type]} size={18} draw={false} className={`mt-0.5 shrink-0 ${urgent ? "text-red-600" : "text-gray-400"}`} />
-                    <Link href={`/notifications/open/${n.id}`} onClick={close} className="min-w-0 flex-1">
+                    {/* Opening marks it read → POST via server action, never a prefetchable GET. */}
+                    <form action={openNotification} onSubmit={close} className="min-w-0 flex-1">
+                      <input type="hidden" name="id" value={n.id} />
+                      <button type="submit" className="block w-full text-left">
                       <span className="flex items-center gap-2">
                         <span className={`truncate text-sm ${unread ? "font-bold" : "font-semibold"}`}>{n.title}</span>
                         {unread ? <StatusDot className="text-brand-600" label="Unread" /> : null}
                       </span>
-                      {n.body ? <span className="line-clamp-1 text-xs text-gray-600">{n.body}</span> : null}
-                      <span className="text-[11px] text-gray-500">{timeAgo(new Date(n.createdAt), now)}</span>
-                    </Link>
+                      {n.body ? <span className="block line-clamp-1 text-xs text-gray-600">{n.body}</span> : null}
+                      <span className="block text-[11px] text-gray-500">{timeAgo(new Date(n.createdAt), now)}</span>
+                      </button>
+                    </form>
                     {unread ? (
                       <form action={markRead} className="shrink-0 self-center">
                         <input type="hidden" name="id" value={n.id} />

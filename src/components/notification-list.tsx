@@ -1,8 +1,7 @@
-import Link from "next/link";
 import { ArrowRightIcon } from "@/components/icons";
 import { DrawIcon } from "@/components/draw-icon";
 import type { Notification } from "@prisma/client";
-import { acknowledgeNotification, markNotificationRead } from "@/actions/notifications";
+import { acknowledgeNotification, markNotificationRead, openNotification } from "@/actions/notifications";
 import { NOTIFICATION_TYPE_ICON, NOTIFICATION_TYPE_LABEL, notificationHref } from "@/lib/notifications";
 import { timeAgo } from "@/lib/time";
 import { Badge, StatusDot, notificationTone } from "@/components/ui";
@@ -26,15 +25,22 @@ export function NotificationList({ items, compact = false, grid = false }: { ite
                 {unread ? <StatusDot className="text-brand-600" label="Unread" /> : null}
                 <span className="ml-auto text-xs text-gray-500">{timeAgo(n.createdAt, now)}</span>
               </div>
-              <Link href={`/notifications/open/${n.id}`} className="mt-1 block">
-                <p className={`text-sm ${unread ? "font-bold" : "font-semibold"}`}>{n.title}</p>
-                {!compact || n.body ? <p className="mt-0.5 line-clamp-2 text-sm text-gray-600">{n.body}</p> : null}
-              </Link>
+              {/* Opening marks it read, so it's a POST (server action), never a prefetchable GET. */}
+              <form action={openNotification} className="mt-1">
+                <input type="hidden" name="id" value={n.id} />
+                <button type="submit" className="block w-full text-left">
+                  <span className={`block text-sm ${unread ? "font-bold" : "font-semibold"}`}>{n.title}</span>
+                  {!compact || n.body ? <span className="mt-0.5 block line-clamp-2 text-sm text-gray-600">{n.body}</span> : null}
+                </button>
+              </form>
               <div className="mt-2 flex flex-wrap gap-2">
                 {href !== "/notifications" ? (
-                  <Link href={`/notifications/open/${n.id}`} className="inline-flex items-center gap-1 text-sm font-semibold text-brand-700">
-                    Open <ArrowRightIcon size={16} />
-                  </Link>
+                  <form action={openNotification}>
+                    <input type="hidden" name="id" value={n.id} />
+                    <button type="submit" className="inline-flex items-center gap-1 text-sm font-semibold text-brand-700">
+                      Open <ArrowRightIcon size={16} />
+                    </button>
+                  </form>
                 ) : null}
                 {needsAck ? (
                   <form action={acknowledgeNotification}>
