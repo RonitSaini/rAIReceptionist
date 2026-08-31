@@ -1,16 +1,15 @@
 "use server";
 
-import type { Account, JobStatus } from "@prisma/client";
+import type { JobStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAccount } from "@/lib/current-account";
 import { bool, int, json, list, normalizeUsPhone, optDecimal, optStr, str, type ActionState } from "@/lib/form";
 import { isPostalCodeFor, normalizePostalCode, accountCountry, toMiles } from "@/lib/locale";
 import { formatRestaurantAddress, geocodeAddress } from "@/lib/geo";
-import { syncRetellAgentQuietly } from "@/lib/agent-sync";
 import { jobWindow } from "@/lib/field-service-handlers";
-import { onboardingDoneStep, onboardingStepsFor, verticalFor } from "@/verticals";
+import { verticalFor } from "@/verticals";
+import { finish, modeOf } from "@/lib/onboarding-flow";
 
 /**
  * Server actions for the field_service archetype: the three onboarding steps it adds, plus CRUD for
@@ -21,26 +20,6 @@ import { onboardingDoneStep, onboardingStepsFor, verticalFor } from "@/verticals
  * every vertical adding its steps there would turn it into a switch over professions.
  */
 
-type Mode = "onboarding" | "settings";
-const modeOf = (fd: FormData): Mode => (str(fd, "mode") === "settings" ? "settings" : "onboarding");
-
-/** Same advancement rule as the restaurant steps: position in this vertical's list is the number. */
-async function finish(account: Pick<Account, "id" | "vertical" | "onboardingStep">, completedStepId: string, mode: Mode): Promise<ActionState> {
-  const steps = onboardingStepsFor(account);
-  const index = steps.findIndex((s) => s.id === completedStepId);
-  if (index < 0) throw new Error(`Step "${completedStepId}" is not part of the ${account.vertical} onboarding flow.`);
-  const nextStep = index + 2;
-  if (account.onboardingStep < nextStep) {
-    await prisma.account.update({ where: { id: account.id }, data: { onboardingStep: nextStep } });
-  }
-  after(() => syncRetellAgentQuietly(account.id));
-  revalidatePath("/", "layout");
-  if (mode === "onboarding") {
-    const { redirect } = await import("next/navigation");
-    redirect(nextStep >= onboardingDoneStep(account) ? "/dashboard" : `/onboarding/${nextStep}`);
-  }
-  return { ok: true, message: "Saved." };
-}
 
 // ---------- Step: service area ----------
 
