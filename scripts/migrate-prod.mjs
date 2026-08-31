@@ -38,20 +38,35 @@ if (/Database schema is up to date/i.test(status.stdout)) {
   process.exit(0);
 }
 
-if (!process.stdin.isTTY) {
-  console.error("REFUSING: no terminal attached, so the confirmation cannot be typed.");
-  console.error("Run this yourself in a terminal; it is not for scripts or CI.");
-  process.exit(1);
-}
+/**
+ * The confirmation, one of two ways.
+ *
+ * Normally it is typed at a prompt. But a deploy is sometimes driven from something with no
+ * terminal, and the point of the confirmation is that the migration cannot happen by accident, not
+ * that a human's fingers must be on the keys. So `--confirm production` is accepted instead: it has
+ * to be written into the command, naming the target, which no CI job or stray script does by
+ * mistake. There is still no ambient path — no environment variable, no default, no bare --yes.
+ */
+const flagIndex = process.argv.indexOf("--confirm");
+const flagged = flagIndex !== -1 ? process.argv[flagIndex + 1] : null;
 
-const rl = createInterface({ input: process.stdin, output: process.stdout });
-const answer = (await rl.question(`Apply these migrations to PRODUCTION? Type "${CONFIRM}" to continue: `)).trim();
-rl.close();
+let answer = flagged;
+if (answer === null) {
+  if (!process.stdin.isTTY) {
+    console.error("REFUSING: no terminal attached, so the confirmation cannot be typed.");
+    console.error(`If this is a deliberate, authorized deploy, re-run with: --confirm ${CONFIRM}`);
+    process.exit(1);
+  }
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  answer = (await rl.question(`Apply these migrations to PRODUCTION? Type "${CONFIRM}" to continue: `)).trim();
+  rl.close();
+}
 
 if (answer !== CONFIRM) {
   console.log("Cancelled. Nothing was applied.");
   process.exit(1);
 }
+console.log(flagged !== null ? `Confirmed on the command line (--confirm ${CONFIRM}).` : "Confirmed.");
 
 const result = await runSafe("npx.cmd", ["prisma", "migrate", "deploy"], { env: childEnv, cwd: REPO_ROOT });
 console.log(result.stdout.trim() || result.stderr.trim());
