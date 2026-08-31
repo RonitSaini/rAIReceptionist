@@ -16,6 +16,8 @@
  *      it can reach a log, a console or a transcript.
  */
 import { spawn } from "node:child_process";
+import { readFileSync, existsSync } from "node:fs";
+import { basename, dirname, resolve as resolvePath } from "node:path";
 
 /** Patterns for things that must never be echoed. Ordered most specific first. */
 const PATTERNS = [
@@ -48,6 +50,42 @@ export function redactWith(text, secrets = []) {
 }
 
 /**
+ * Windows .cmd/.bat shims cannot be spawned directly on Node 24 — it raises EINVAL — and the usual
+ * fix, `shell: true`, hands the whole argument vector to cmd.exe to re-parse. That is the one thing
+ * this module exists to avoid: cmd.exe applies its own quoting and %VAR% expansion, so an argument
+ * can reach the program as something other than what was written here.
+ *
+ * An npm shim is a thin wrapper that ends up running `node <something>.js`, and it always names that
+ * file relative to `%~dp0` (its own directory). Recover that path and spawn node on it directly:
+ * no shell, argv passed through untouched. Anything unrecognised falls back to `shell: true`, which
+ * is still safe because runSafe refuses credential-shaped argv before it gets here.
+ */
+function resolveWindowsShim(file, args) {
+  if (process.platform !== "win32" || !/\.(cmd|bat)$/i.test(file)) return { file, args };
+
+  let shimPath = file;
+  if (!existsSync(shimPath)) {
+    const dirs = (process.env.PATH ?? "").split(";").filter(Boolean);
+    shimPath = dirs.map((d) => resolvePath(d, file)).find(existsSync) ?? "";
+    if (!shimPath) return { file, args, shell: true };
+  }
+
+  const shim = readFileSync(shimPath, "utf8");
+  const candidates = [...shim.matchAll(/%~dp0[\\/]*([^"\s%]*\.js)/gi)].map((m) => m[1]);
+  if (!candidates.length) return { file, args, shell: true };
+
+  // npx.cmd names npm-cli.js before npx-cli.js, so "the first .js" is the wrong answer there.
+  // Prefer the one whose filename matches the shim's own name; otherwise the first is correct
+  // (a local .bin shim names exactly one target, e.g. ..\prisma\build\index.js).
+  const stem = basename(shimPath).replace(/\.(cmd|bat)$/i, "").toLowerCase();
+  const chosen = candidates.find((c) => basename(c).toLowerCase().startsWith(stem)) ?? candidates[0];
+
+  const target = resolvePath(dirname(shimPath), chosen);
+  if (!existsSync(target)) return { file, args, shell: true };
+  return { file: process.execPath, args: [target, ...args] };
+}
+
+/**
  * Run a command, returning scrubbed output and never throwing an un-scrubbed error.
  *
  * @param {string} file            executable
@@ -65,7 +103,8 @@ export function runSafe(file, args = [], opts = {}) {
   }
 
   return new Promise((resolve) => {
-    const child = spawn(file, args, { env, cwd, shell, stdio: ["pipe", "pipe", "pipe"] });
+    const r = shell ? { file, args, shell: true } : resolveWindowsShim(file, args);
+    const child = spawn(r.file, r.args, { env, cwd, shell: r.shell ?? false, stdio: ["pipe", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
     const timer = setTimeout(() => child.kill("SIGKILL"), timeoutMs);
