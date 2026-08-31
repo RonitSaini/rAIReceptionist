@@ -107,9 +107,12 @@ export async function SidebarPanel({ account }: { account: Account }) {
     nextUp = upcomingJobs.flatMap((j) =>
       j.scheduledStart ? [{ id: j.id, href: `/jobs/${j.id}`, time: j.scheduledStart, who: j.customerName, trailing: j.isEmergency ? "!" : undefined }] : [],
     );
-    nextUpHref = "/schedule";
+    // A trade that books nothing has no diary; its "next up" and its day count both belong to the
+    // live queue instead.
+    const queue = verticalFor(account).dispatchFirst && !account.takesScheduledWork ? "/dispatch" : "/schedule";
+    nextUpHref = queue;
     stats.push(
-      { label: words.booking.Many, value: todayJobs, href: "/schedule" },
+      { label: words.booking.Many, value: todayJobs, href: queue },
       { label: "Emergencies", value: emergencies, href: "/jobs", dot: emergencies > 0 },
     );
     quickActions = [

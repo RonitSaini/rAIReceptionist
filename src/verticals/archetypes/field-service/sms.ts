@@ -48,6 +48,10 @@ export function fieldServiceSmsTemplates(w: TradeWords): SmsTemplates {
       return `${account.businessName}: Thanks for calling. We could not reach a ${w.staff} right away - someone will call you${when}.${phone}`;
     },
 
+    unacknowledged: w.unacknowledged
+      ? (account) => `${account.businessName}: ${w.unacknowledged}`
+      : undefined,
+
     cancellationReply(account: SmsAccount, kind: CancellationKind, when: Date) {
       const at = formatDateTime(when, account.timeZone);
       if (kind === "job") return `${account.businessName}: Your ${w.visit} on ${at} is cancelled. Call us any time if you still need a ${w.staff}.`;

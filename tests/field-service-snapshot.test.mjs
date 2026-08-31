@@ -102,6 +102,43 @@ const VERTICALS = [
     safety: { line: "onto the roof", must: [/NEVER tell a caller to go onto the roof/, /up a ladder/] },
     alsoInPrompt: ["NEVER diagnose a roof over the phone", "Never promise that someone will come out during a storm"],
   },
+  {
+    slug: "locksmith",
+    title: "Locksmith",
+    usName: "Ridgeway Locks",
+    caName: "Northside Locks",
+    technician: "Nita",
+    emergencyTypes: ["child_inside", "pet_inside", "unsafe_location", "break_in"],
+    services: [
+      ["Lockout entry", "Lockouts", 89_000_000n, true],
+      ["Lock change", "Locks", 149_000_000n, true],
+      ["Safe opening", "Specialist", null, false],
+      ["Discontinued service", null, null, true],
+    ],
+    slotMinutes: 60,
+    dispatchFirst: true,
+    safety: { line: "government-issued photo ID", must: [/proof that they live at or own the property/, /before any lock is opened or changed/] },
+    alsoInPrompt: ["You do NOT verify identity", "Never explain how to pick, force, bypass, shim", "GETTING SOMEONE TO THEM"],
+  },
+  {
+    slug: "towing",
+    title: "Towing",
+    usName: "Ridgeway Towing",
+    caName: "Northside Towing",
+    technician: "Vic",
+    emergencyTypes: ["accident", "blocking_traffic", "child_in_vehicle", "dangerous_position"],
+    services: [
+      ["Local tow", "Towing", 95_000_000n, true],
+      ["Winch-out", "Recovery", 150_000_000n, true],
+      ["Long-distance tow", "Towing", null, false],
+      ["Discontinued service", null, null, true],
+    ],
+    slotMinutes: 60,
+    dispatchFirst: true,
+    // The opening instruction, not the hard rule: this is the first thing the model reads.
+    safety: { line: "FIRST THING, BEFORE ANY OTHER QUESTION", must: [/somewhere safe and off the road/, /hang up and call 911 now/, /Do not ask for a name, a vehicle or a location until you have done this/] },
+    alsoInPrompt: ["FIRST, BEFORE ANYTHING ELSE", "hang up and call 911 immediately", "Never promise an arrival time", "GETTING SOMEONE TO THEM"],
+  },
 ];
 
 function account(v, overrides = {}) {
@@ -151,6 +188,11 @@ function account(v, overrides = {}) {
     calloutFeeMicros: 89_000_000n,
     jobSlotMinutes: v.slotMinutes,
     maxJobsPerDay: 6,
+    takesScheduledWork: !v.dispatchFirst,
+    responseTimeMinMinutes: v.dispatchFirst ? 30 : null,
+    responseTimeMaxMinutes: v.dispatchFirst ? 60 : null,
+    escalationAckMinutes: null,
+    unacknowledgedMessage: null,
     latitude: 40.7357,
     longitude: -74.1724,
     agentSyncedAt: null,
@@ -212,6 +254,9 @@ function variantsFor(v) {
           escalationTypes: [],
           serviceAreaRadiusMiles: 30,
           maxJobsPerDay: null,
+          takesScheduledWork: true,
+          responseTimeMinMinutes: null,
+          responseTimeMaxMinutes: null,
         }),
         hours: [],
         managerHours: [],
@@ -261,6 +306,7 @@ async function buildSnapshot(v) {
           `escalation (none): ${definition.smsTemplates.escalationFollowUp(a, null)}`,
           `cancel job:        ${definition.smsTemplates.cancellationReply(a, "job", BOOKED.when)}`,
           `cancel other:      ${definition.smsTemplates.cancellationReply(a, "reservation", BOOKED.when)}`,
+          ...(definition.smsTemplates.unacknowledged ? [`no acknowledgement: ${definition.smsTemplates.unacknowledged(a)}`] : []),
         ].join("\n"),
       ),
     );
@@ -279,6 +325,7 @@ async function buildSnapshot(v) {
         dashboardModules: definition.dashboardModules,
         agentFunctions: definition.agentFunctions,
         guardrails: definition.guardrails,
+        ...(definition.dispatchFirst ? { dispatchFirst: true, ackMinutes: definition.ackMinutes } : {}),
         defaults: definition.defaults,
       }),
     ),
@@ -315,11 +362,16 @@ for (const v of VERTICALS) {
       .filter((t) => t.type === "custom")
       .map((t) => t.name);
 
-    assert.deepEqual(names, ["check_service_area", "get_available_slots", "book_service_call", "dispatch_emergency", "take_message"]);
+    const expected = v.dispatchFirst
+      ? ["check_service_area", "request_immediate_dispatch", "dispatch_emergency", "take_message"]
+      : ["check_service_area", "get_available_slots", "book_service_call", "dispatch_emergency", "take_message"];
+    assert.deepEqual(names, expected);
     for (const restaurantOnly of ["book_reservation", "join_waitlist", "take_takeout_order", "check_delivery_area", "get_available_times"]) {
       assert.ok(!names.includes(restaurantOnly), `${restaurantOnly} must not be offered to a ${v.slug} account`);
     }
-    assert.deepEqual([...verticalFor(v.slug).agentFunctions], names);
+    // agentFunctions is the superset the vertical may use; every offered tool must be in it.
+    const allowed = new Set(verticalFor(v.slug).agentFunctions);
+    for (const n of names) assert.ok(allowed.has(n), `${n} is offered but not in agentFunctions`);
   });
 
   test(`${v.slug}: the life-safety instruction survives`, async () => {

@@ -6,7 +6,7 @@ import { formatUsPhone } from "@/lib/form";
 import { humanize } from "@/lib/constants";
 import { loadDashboard } from "@/lib/dashboard";
 import { loadJobDashboard } from "@/lib/job-dashboard";
-import { vocabularyFor } from "@/verticals";
+import { verticalFor, vocabularyFor } from "@/verticals";
 import { setJobStatus } from "@/actions/field-service";
 import { Badge, Card, LinkButton, PageHeader } from "@/components/ui";
 import { StatusButtons } from "@/components/status-buttons";
@@ -29,6 +29,10 @@ export async function FieldServiceHome({ account, previousSeenAt, changed }: { a
   const tz = account.timeZone;
   const now = nowUtc();
   const words = vocabularyFor(account);
+  // A trade that books nothing has no diary. Its today-list and its queue link go to Dispatch.
+  const definition = verticalFor(account);
+  const queueHref = definition.dispatchFirst && !account.takesScheduledWork ? "/dispatch" : "/schedule";
+  const queueLabel = queueHref === "/dispatch" ? "Dispatch" : "Schedule";
 
   const [sinceItems, unacknowledged, dash, jobs] = await Promise.all([
     prisma.notification.findMany({
@@ -56,7 +60,7 @@ export async function FieldServiceHome({ account, previousSeenAt, changed }: { a
       {/* KPI row */}
       <Reveal index={0} className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatTile label="Calls today" value={t.callsToday} icon="phone" live href="/calls" delta={{ value: t.callsDelta, label: "vs yesterday" }} note={t.liveCalls > 0 ? `${t.liveCalls} live now` : undefined} />
-        <StatTile label={`${words.booking.Many} today`} value={j.jobsToday} icon="wrench" href="/schedule" delta={{ value: j.jobsDelta, label: "vs yesterday" }} />
+        <StatTile label={`${words.booking.Many} today`} value={j.jobsToday} icon="wrench" href={queueHref} delta={{ value: j.jobsDelta, label: "vs yesterday" }} />
         <StatTile label="Emergencies" value={j.openEmergencies} icon="siren" href="/jobs?status=emergency" note={j.openEmergencies === 0 ? "None open" : undefined} />
         <StatTile label="Unread" value={t.unread} icon="bell" live href="/notifications" note={t.unread === 0 ? "All caught up" : undefined} />
       </Reveal>
@@ -73,7 +77,7 @@ export async function FieldServiceHome({ account, previousSeenAt, changed }: { a
                 Today&apos;s {words.booking.many} · <CountUp to={j.jobsToday} />
               </>
             }
-            action={<CardLink href="/schedule">Schedule</CardLink>}
+            action={<CardLink href={queueHref}>{queueLabel}</CardLink>}
           >
             {jobs.todaysJobs.length === 0 ? (
               <Quiet>

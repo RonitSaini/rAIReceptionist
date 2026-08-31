@@ -7,7 +7,7 @@ import { formatUsPhone } from "./form";
 import { addDays, dayOfWeekOf, formatClock, formatDateString, formatDateTime, getParts, timeToMinutes, toDateString } from "./time";
 import { periodsForDay } from "./availability";
 import { verticalFor, vocabularyFor } from "@/verticals";
-import { escalationFollowUpText, markConfirmationSent, reservationConfirmationText, sendGuestSms, takeoutConfirmationText } from "./sms";
+import { markConfirmationSent, reservationConfirmationText, sendGuestSms, takeoutConfirmationText, unacknowledgedText } from "./sms";
 
 /**
  * Phase 3: what happens after the AI does something on a call.
@@ -156,20 +156,38 @@ export function escalationTimeoutMinutes(): number {
   return Number.isFinite(n) && n > 0 ? n : 10;
 }
 
+/**
+ * How long this account's owner has to acknowledge before the caller is told the truth.
+ *
+ * Ten minutes is a reasonable wait for a quote. It is a long time to sit in a locked car, so a
+ * dispatch-first vertical defaults to five, and any account can set its own.
+ */
+export function ackMinutesFor(account: Account): number {
+  if (account.escalationAckMinutes != null && account.escalationAckMinutes > 0) return account.escalationAckMinutes;
+  return verticalFor(account).ackMinutes ?? escalationTimeoutMinutes();
+}
+
 /** Text the guest that the manager will call when the restaurant next opens. Returns what was sent. */
 export async function followUpUnacknowledgedEscalation(n: Notification & { call: Call | null; account: Account }): Promise<{ sent: boolean; reason: string }> {
   const hours = await prisma.businessHours.findMany({ where: { accountId: n.accountId } });
   const nextOpen = nextOpeningLabel(hours, n.account.timeZone);
   const to = n.call?.callerPhone ?? null;
-  const sms = await sendGuestSms(n.account, to, escalationFollowUpText(n.account, nextOpen), {
-    purpose: "escalation_followup",
+
+  // Tie the text to the job it is about, so a failure can be shown on the queue beside the person
+  // still waiting rather than only in a log nobody reads at 2am. The notification carries the jobId
+  // for a dispatch; for anything else there is none and the link is simply null.
+  const jobId = n.jobId ?? (n.callId ? ((await prisma.call.findUnique({ where: { id: n.callId }, select: { jobId: true } }))?.jobId ?? null) : null);
+
+  const sms = await sendGuestSms(n.account, to, unacknowledgedText(n.account, nextOpen), {
+    purpose: "unacknowledged",
     callId: n.callId,
+    jobId,
   });
   await prisma.notification.update({
     where: { id: n.id },
     data: {
       followUpSentAt: new Date(),
-      body: sms.ok ? `${n.body} · Guest texted: manager will call back ${nextOpen ?? "when we open"}.` : `${n.body} · Follow-up text not sent (${sms.error}).`,
+      body: sms.ok ? `${n.body} · Guest texted: manager will call back ${nextOpen ?? "when we open"}.` : `${n.body} · CALLER NOT NOTIFIED (${sms.error}).`,
     },
   });
   return { sent: sms.ok, reason: sms.ok ? "sent" : sms.error };

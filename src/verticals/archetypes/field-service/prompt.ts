@@ -100,6 +100,36 @@ function bookingSection(a: Account, cfg: FieldServiceConfig): string {
   ].join("\n");
 }
 
+/**
+ * What a dispatch-first caller is actually told.
+ *
+ * The range is an estimate and the prompt says so twice, because this is the single sentence most
+ * likely to be repeated back to a company later: "you said forty minutes". A tow at 2am depends on
+ * where the truck already is, and a promise the driver cannot keep is worse than a wide range.
+ */
+function responseSection(a: Account, cfg: FieldServiceConfig): string {
+  const min = a.responseTimeMinMinutes ?? cfg.defaultResponseMinutes?.[0] ?? null;
+  const max = a.responseTimeMaxMinutes ?? cfg.defaultResponseMinutes?.[1] ?? null;
+  const range = min != null && max != null ? `${min} to ${max} minutes` : null;
+
+  const lines = [
+    "GETTING SOMEONE TO THEM: this is the whole call. Find out where they are, what has happened, and get the request logged. Do not try to schedule a day.",
+    "Collect: exactly where they are, what has happened, their name, and a phone number (offer to use the number they are calling from). Then call request_immediate_dispatch.",
+  ];
+  if (range) {
+    lines.push(
+      `Typical response is ${range}. You may give that as an ESTIMATE and only as a range. Say "usually" or "typically". Never promise a time, never give a single number, and never say anyone is on their way until dispatch has confirmed it.`,
+    );
+  } else {
+    lines.push("Do not quote any arrival time. Say the office will call straight back to confirm how long it will be.");
+  }
+  lines.push(`Once logged, tell them someone will call to confirm an ETA within ${cfg.ackMinutes ?? 5} minutes.`);
+  if (!a.takesScheduledWork) {
+    lines.push("This business does not book appointments. If someone asks for a scheduled day, explain that work is taken as it comes in and offer to take a message.");
+  }
+  return lines.join("\n");
+}
+
 export function buildFieldServicePrompt(cfg: FieldServiceConfig, src: AgentSource): string {
   const a = src.account;
   const address = formatRestaurantAddress(a);
@@ -110,9 +140,11 @@ export function buildFieldServicePrompt(cfg: FieldServiceConfig, src: AgentSourc
     "",
     "Right now it is {{current_time}} on {{current_date}} (local time, {{timezone}}). The caller is calling from {{caller_phone}}. Use today's date to resolve words like 'today', 'tomorrow' or 'Friday' into a YYYY-MM-DD date before calling any function.",
     "",
-    "FIRST THING: find out whether this is an emergency. Ask what is happening. If it matches the emergency list below, handle it as an emergency and do not try to schedule a normal visit.",
+    cfg.firstThing ?? "FIRST THING: find out whether this is an emergency. Ask what is happening. If it matches the emergency list below, handle it as an emergency and do not try to schedule a normal visit.",
     "",
-    `WHAT YOU CAN DO: (1) book ${withArticle(cfg.vocabulary.booking.one)}, (2) handle an emergency, (3) answer questions using only the information below, (4) take a message.`,
+    cfg.dispatchFirst
+      ? `WHAT YOU CAN DO: (1) get someone sent out to them, (2) handle an emergency, (3) answer questions using only the information below, (4) take a message.`
+      : `WHAT YOU CAN DO: (1) book ${withArticle(cfg.vocabulary.booking.one)}, (2) handle an emergency, (3) answer questions using only the information below, (4) take a message.`,
     "",
     "WORKING HOURS:",
     hoursSection(src.hours),
@@ -122,7 +154,8 @@ export function buildFieldServicePrompt(cfg: FieldServiceConfig, src: AgentSourc
     "",
     serviceAreaSection(a),
     "",
-    bookingSection(a, cfg),
+    cfg.dispatchFirst ? responseSection(a, cfg) : bookingSection(a, cfg),
+    ...(cfg.dispatchFirst && a.takesScheduledWork ? ["", bookingSection(a, cfg)] : []),
     "",
     emergencySection(a, src.managerHours, cfg),
     "",

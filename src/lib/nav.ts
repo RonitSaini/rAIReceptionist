@@ -32,15 +32,20 @@ const MODULE_NAV: Record<DashboardModule, { href: string; icon: IconName; label:
   jobs: { href: "/jobs", icon: "clipboard", label: (v) => v.booking.Many },
   customers: { href: "/customers", icon: "users", label: (v) => v.customer.Many },
   services: { href: "/services", icon: "wrench", label: () => "Services" },
+  dispatch: { href: "/dispatch", icon: "siren", label: () => "Dispatch" },
 };
 
 /**
  * `sidebar` shows every module; `tabs` drops Notifications, which lives in the header bell on
  * mobile. Order follows the vertical's own module list.
  */
-export function navItemsFor(source: Vertical | { vertical: Vertical }, variant: "sidebar" | "tabs"): NavItem[] {
+export function navItemsFor(source: Vertical | { vertical: Vertical; takesScheduledWork?: boolean }, variant: "sidebar" | "tabs"): NavItem[] {
   const definition = verticalFor(source);
+  // A dispatch-first account that books nothing has no diary to show. The module list is the
+  // superset the vertical CAN offer; whether this account offers it is a setting on the account.
+  const schedules = typeof source === "object" && "takesScheduledWork" in source ? source.takesScheduledWork !== false : true;
   return definition.dashboardModules
+    .filter((m) => m !== "schedule" || schedules)
     .filter((m) => variant === "sidebar" || m !== "notifications")
     .map((m) => {
       const nav = MODULE_NAV[m];

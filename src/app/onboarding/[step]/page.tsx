@@ -17,6 +17,7 @@ import { PaymentStep, parseCheckoutResult } from "@/components/forms/payment-ste
 import { ServiceAreaForm } from "@/components/forms/service-area-form";
 import { ServicesForm } from "@/components/forms/services-form";
 import { EmergenciesForm } from "@/components/forms/emergencies-form";
+import { DispatchForm } from "@/components/forms/dispatch-form";
 
 export const metadata = { title: "Setup" };
 
@@ -101,6 +102,19 @@ export default async function OnboardingStepPage({ params, searchParams }: { par
         </div>
       );
     }
+    case "dispatch":
+      return (
+        <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
+          {progress}
+          <DispatchForm
+            account={view}
+            defaultResponse={null}
+            defaultAckMinutes={verticalFor(account).ackMinutes ?? 5}
+            defaultUnacknowledged={verticalFor(account).smsTemplates.unacknowledged?.(account).replace(`${account.businessName}: `, "") ?? ""}
+            mode="onboarding"
+          />
+        </div>
+      );
     case "emergencies":
       return (
         <div className="mx-auto max-w-2xl 2xl:max-w-3xl">

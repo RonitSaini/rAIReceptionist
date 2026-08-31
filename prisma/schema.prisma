@@ -140,6 +140,24 @@ model Account {
   /// Cap on bookable jobs in a day, so a two-van shop is not sold twelve calls.
   maxJobsPerDay    Int?
 
+  // Dispatch-first (locksmith, towing). A mode of field_service, not a separate archetype: the
+  // caller's question is "how fast can you get here", not "which day suits you".
+  //
+  /// Whether this business books scheduled work at all. A tow truck usually does not; a locksmith
+  /// often does both. False removes the scheduling tools from the agent entirely.
+  takesScheduledWork     Boolean @default(true)
+  /// The response window the agent may quote, in minutes. Quoted as a range and as an estimate,
+  /// never as a promise — see the guardrails. Null means the agent quotes no time at all.
+  responseTimeMinMinutes Int?
+  responseTimeMaxMinutes Int?
+  /// How long the owner has to acknowledge an urgent escalation before the caller is texted.
+  /// Null falls back to the vertical's default (5 minutes dispatch-first, 10 otherwise).
+  escalationAckMinutes   Int?
+  /// What the caller is told when nobody acknowledged in time. Null uses the vertical's default.
+  /// Editable because the honest sentence differs by trade, and because someone stranded at the
+  /// roadside deserves a real answer rather than silence.
+  unacknowledgedMessage  String?
+
   // Geocoded business location (delivery radius / service area)
   latitude       Float?
   longitude      Float?
@@ -593,6 +611,11 @@ model SmsMessage {
   account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   /// Twilio Message SID (SM...). The join key for billing reconciliation.
+  ///
+  /// A send that never reached Twilio has no SID, so a failure is stored under a synthetic
+  /// `failed:<uuid>` key with numSegments 0. Billing sums segments, so those rows cost nothing and
+  /// are still there to be read — a message we failed to send is a fact about the account, not an
+  /// absence.
   messageSid String  @unique
   direction  String // "outbound" | "inbound"
   toNumber   String
@@ -608,12 +631,17 @@ model SmsMessage {
   /// "escalation_followup" | "cancellation_reply" | "inbound_reply"
   purpose String?
 
+  /// Why a send failed, verbatim from Twilio. Null for anything that actually went out.
+  error String?
+
   /// Loose links: no FK, so a deleted booking never blocks the cost record.
   callId        String?
   reservationId String?
+  jobId         String?
 
   createdAt DateTime @default(now())
 
   @@index([accountId, createdAt])
   @@index([messageSid])
+  @@index([jobId])
 }

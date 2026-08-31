@@ -136,6 +136,47 @@ export async function saveEmergencies(_prev: ActionState, fd: FormData): Promise
   return finish(account, "emergencies", modeOf(fd));
 }
 
+// ---------- Dispatch ----------
+
+/**
+ * Response times, the acknowledgement window, and what a caller is told when nobody answers.
+ *
+ * The last of those is validated rather than merely stored: an empty string would mean the caller
+ * gets nothing at all, which is the exact failure this whole path exists to prevent. Blanking it
+ * falls back to the vertical's own wording; it never falls back to silence.
+ */
+export async function saveDispatch(_prev: ActionState, fd: FormData): Promise<ActionState> {
+  const { account } = await requireAccount();
+  const definition = verticalFor(account);
+
+  const takesScheduledWork = bool(fd, "takesScheduledWork");
+  const minRaw = str(fd, "responseTimeMinMinutes");
+  const maxRaw = str(fd, "responseTimeMaxMinutes");
+  const ackRaw = str(fd, "escalationAckMinutes");
+  const unacknowledgedMessage = optStr(fd, "unacknowledgedMessage");
+
+  const num = (raw: string) => (raw ? Number.parseInt(raw, 10) : null);
+  const responseTimeMinMinutes = num(minRaw);
+  const responseTimeMaxMinutes = num(maxRaw);
+  const escalationAckMinutes = num(ackRaw);
+
+  for (const [label, v] of [["Response times", responseTimeMinMinutes], ["Response times", responseTimeMaxMinutes], ["The call-back window", escalationAckMinutes]] as const) {
+    if (v != null && (!Number.isInteger(v) || v < 1 || v > 24 * 60)) return { ok: false, error: `${label} must be a whole number of minutes, or left blank.` };
+  }
+  if ((responseTimeMinMinutes == null) !== (responseTimeMaxMinutes == null)) {
+    return { ok: false, error: "Give both ends of the response range, or leave both blank." };
+  }
+  if (responseTimeMinMinutes != null && responseTimeMaxMinutes != null && responseTimeMinMinutes > responseTimeMaxMinutes) {
+    return { ok: false, error: "The response range starts after it ends." };
+  }
+
+  await prisma.account.update({
+    where: { id: account.id },
+    data: { takesScheduledWork, responseTimeMinMinutes, responseTimeMaxMinutes, escalationAckMinutes, unacknowledgedMessage },
+  });
+  return finish(account, definition.dispatchFirst ? "dispatch" : "emergencies", modeOf(fd));
+}
+
 // ---------- Jobs ----------
 
 export async function createJob(_prev: ActionState, fd: FormData): Promise<ActionState> {

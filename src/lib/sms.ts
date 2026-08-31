@@ -1,4 +1,5 @@
 import type { Account } from "@prisma/client";
+import { randomUUID } from "node:crypto";
 import { prisma } from "./prisma";
 import { sendSms } from "./twilio";
 import { twilioConfigured } from "./env";
@@ -18,13 +19,13 @@ function sender(account: Pick<Account, "twilioNumber">): string | undefined {
 }
 
 /** What a guest message was for. Stored so cost reporting can break SMS spend down by cause. */
-export type SmsPurpose = "reservation_confirmation" | "takeout_confirmation" | "escalation_followup" | "cancellation_reply" | "inbound_reply";
+export type SmsPurpose = "reservation_confirmation" | "takeout_confirmation" | "escalation_followup" | "cancellation_reply" | "inbound_reply" | "unacknowledged";
 
 export async function sendGuestSms(
   account: Pick<Account, "id" | "twilioNumber" | "businessName">,
   to: string | null | undefined,
   body: string,
-  meta?: { purpose?: SmsPurpose; callId?: string | null; reservationId?: string | null },
+  meta?: { purpose?: SmsPurpose; callId?: string | null; reservationId?: string | null; jobId?: string | null },
 ): Promise<SmsResult> {
   if (!to) return { ok: false, error: "no phone number", skipped: true };
   if (!twilioConfigured()) return { ok: false, error: "Twilio not configured", skipped: true };
@@ -44,11 +45,29 @@ export async function sendGuestSms(
       purpose: meta?.purpose ?? null,
       callId: meta?.callId ?? null,
       reservationId: meta?.reservationId ?? null,
+      jobId: meta?.jobId ?? null,
     });
     return { ok: true, sid: sent.sid };
   } catch (e) {
     const error = e instanceof Error ? e.message : String(e);
     console.warn(`[sms] to ${to} failed: ${error}`);
+    // Record the failure rather than only logging it. A text we could not send is a fact about the
+    // account - especially this one, where the caller is waiting on a roadside for a reply that
+    // never arrived - and the Dispatch queue reads these rows to say so out loud.
+    await recordSms({
+      accountId: account.id,
+      messageSid: `failed:${randomUUID()}`,
+      direction: "outbound",
+      toNumber: to,
+      fromNumber: from ?? null,
+      numSegments: 0,
+      status: "failed",
+      error,
+      purpose: meta?.purpose ?? null,
+      callId: meta?.callId ?? null,
+      reservationId: meta?.reservationId ?? null,
+      jobId: meta?.jobId ?? null,
+    });
     return { ok: false, error };
   }
 }
@@ -68,9 +87,11 @@ export async function recordSms(row: {
   numSegments: number;
   encoding?: string | null;
   status?: string | null;
+  error?: string | null;
   purpose?: SmsPurpose | null;
   callId?: string | null;
   reservationId?: string | null;
+  jobId?: string | null;
 }): Promise<void> {
   try {
     await prisma.smsMessage.upsert({
@@ -85,9 +106,11 @@ export async function recordSms(row: {
         numSegments: row.numSegments,
         encoding: row.encoding ?? null,
         status: row.status ?? null,
+        error: row.error ?? null,
         purpose: row.purpose ?? null,
         callId: row.callId ?? null,
         reservationId: row.reservationId ?? null,
+        jobId: row.jobId ?? null,
       },
     });
   } catch (e) {
@@ -124,6 +147,19 @@ export function takeoutConfirmationText(account: TemplateAccount, o: { guestName
 
 export function escalationFollowUpText(account: TemplateAccount, nextOpen: string | null): string {
   return verticalFor(account).smsTemplates.escalationFollowUp(account, nextOpen);
+}
+
+/**
+ * What to text a caller nobody got back to in time.
+ *
+ * Order of preference: whatever the owner wrote in Settings, then the vertical's own honest line,
+ * then the ordinary "we will call you when we open". The first two only exist for trades where
+ * silence is the harmful answer.
+ */
+export function unacknowledgedText(account: TemplateAccount & { unacknowledgedMessage?: string | null }, nextOpen: string | null): string {
+  if (account.unacknowledgedMessage?.trim()) return `${account.businessName}: ${account.unacknowledgedMessage.trim()}`;
+  const own = verticalFor(account).smsTemplates.unacknowledged;
+  return own ? own(account) : escalationFollowUpText(account, nextOpen);
 }
 
 export function cancellationReplyText(account: TemplateAccount, kind: CancellationKind, when: Date): string {

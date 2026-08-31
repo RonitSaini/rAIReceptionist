@@ -5,7 +5,7 @@ import { FUNCTION_SECRET_HEADER, LEGACY_FUNCTION_SECRET_HEADER, functionSecretCa
 import { FUNCTION_NAMES, type FunctionName } from "@/lib/agent-config";
 import { HANDLERS, type HandlerContext } from "@/lib/call-handlers";
 import { findOrCreateCallFromRetell } from "@/lib/calls";
-import { verticalFor } from "@/verticals";
+import { agentFunctionsFor } from "@/verticals";
 import { retellConfigured } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
@@ -52,8 +52,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ nam
   // Being in the global registry only means the function exists somewhere in the product; it does
   // not mean this account may call it. Without this, a stale agent configuration left over from a
   // vertical change could still reach take_takeout_order on a plumbing account and get restaurant
-  // wording back. The agent is only ever offered its own vertical's tools, so this is the backstop.
-  if (!(verticalFor(account).agentFunctions as readonly string[]).includes(name)) {
+  // wording back, and a tow company that books nothing could still be sold a Tuesday slot. The
+  // agent is only ever offered what it should have; this is the backstop.
+  if (!agentFunctionsFor(account).includes(name)) {
     return NextResponse.json({ success: false, message: `That is not something this business does. Take a message instead.` }, { status: 404 });
   }
 

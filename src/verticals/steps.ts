@@ -25,6 +25,7 @@ export const FIELD_SERVICE_STEP = {
   serviceArea: { id: "service-area", title: "Service area", short: "Area" },
   services: { id: "services", title: "Services & pricing", short: "Services" },
   emergencies: { id: "emergencies", title: "Emergencies & technician", short: "Urgent" },
+  dispatch: { id: "dispatch", title: "Dispatch & response", short: "Dispatch" },
 } as const satisfies Record<string, OnboardingStep>;
 
 /** Restaurant-only steps. They live here beside the shared set so every step id is greppable in one file. */

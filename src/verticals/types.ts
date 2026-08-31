@@ -95,7 +95,7 @@ export type AgentSource = {
  * Custom functions the agent may call, across every archetype implemented so far. A name here
  * without a handler behind it is a runtime failure — the endpoint 401s or 404s and the caller
  * hears the model improvise — so a function joins this union only in the phase that builds it.
- * Still to come: request_immediate_dispatch (dispatch-first), book_appointment (shop), and
+ * Still to come: book_appointment (shop) and
  * lookup_tenant / create_work_order / request_showing (property management).
  */
 export const AGENT_FUNCTIONS = [
@@ -110,6 +110,8 @@ export const AGENT_FUNCTIONS = [
   "get_available_slots",
   "book_service_call",
   "dispatch_emergency",
+  // field_service, dispatch-first (locksmith, towing)
+  "request_immediate_dispatch",
   // every archetype
   "take_message",
 ] as const;
@@ -159,6 +161,8 @@ export const DASHBOARD_MODULES = [
   "jobs",
   "customers",
   "services",
+  // field_service, dispatch-first: a live queue rather than a calendar
+  "dispatch",
 ] as const;
 export type DashboardModule = (typeof DASHBOARD_MODULES)[number];
 
@@ -175,6 +179,16 @@ export type SmsTemplates = {
   bookingConfirmation(account: SmsAccount, booking: BookingSummary): string;
   /** Sent when a manager could not be reached inside the acknowledgement window. */
   escalationFollowUp(account: SmsAccount, nextOpen: string | null): string;
+
+  /**
+   * Sent when nobody acknowledged an urgent escalation in time.
+   *
+   * Separate from escalationFollowUp because "the manager will call when we next open" is a fine
+   * thing to tell someone waiting on a quote and a cruel thing to tell someone on a hard shoulder
+   * at 2am. A dispatch-first trade tells the truth instead: we could not confirm anyone, try
+   * someone else. Optional, so verticals that have no such situation are unaffected.
+   */
+  unacknowledged?(account: SmsAccount): string;
   /** Reply to an inbound CANCEL text. */
   cancellationReply(account: SmsAccount, kind: CancellationKind, when: Date): string;
 };
@@ -260,6 +274,24 @@ export type VerticalDefinition = {
    * service calls. Left unset by restaurants, which have no Jobs.
    */
   bookingKind?: JobKind;
+
+  /**
+   * Dispatch-first: the caller's question is "how fast can you get here", not "which day suits
+   * you". A mode of field_service rather than an archetype of its own — the service area, the
+   * customers, the jobs and the emergency path are all the same; what changes is that scheduling
+   * may be absent entirely, that a response window is quoted instead of a slot, and that every
+   * request wakes a human immediately.
+   */
+  dispatchFirst?: boolean;
+
+  /**
+   * How long the owner has to acknowledge an urgent escalation before the caller is told the truth.
+   * Dispatch-first trades use five minutes; everyone else ten. An account may override it.
+   */
+  ackMinutes?: number;
+
+  /** What the caller is texted when nobody acknowledged in time. An account may override it. */
+  unacknowledgedMessage?: string;
 
   defaults: VerticalDefaults;
 };

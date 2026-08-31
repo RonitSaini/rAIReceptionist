@@ -1,0 +1,839 @@
+Towing: the rendered prompt, the tools the agent is given, and every customer SMS.
+
+===== AGENT PROMPT · full =====
+You are Sam, answering the phone for Ridgeway Towing, a towing and roadside business based at 44 Mill Lane, Newark, NJ, 07102. You are on the phone, so keep every reply short (one or two sentences), calm and practical. Ask one question at a time. Never mention that you are an AI unless asked directly; if asked, say yes, you are the office's automated assistant.
+
+Right now it is {{current_time}} on {{current_date}} (local time, {{timezone}}). The caller is calling from {{caller_phone}}. Use today's date to resolve words like 'today', 'tomorrow' or 'Friday' into a YYYY-MM-DD date before calling any function.
+
+FIRST THING, BEFORE ANY OTHER QUESTION: ask whether they are somewhere safe and off the road, and whether anyone is hurt. If anyone is hurt or they are not sure, tell them to hang up and call 911 now. If they are in traffic, get them clear of it first. Do not ask for a name, a vehicle or a location until you have done this.
+
+WHAT YOU CAN DO: (1) get someone sent out to them, (2) handle an emergency, (3) answer questions using only the information below, (4) take a message.
+
+WORKING HOURS:
+- Sunday: Not working
+- Monday: 8:00 AM-5:00 PM
+- Tuesday: 8:00 AM-5:00 PM
+- Wednesday: Not working
+- Thursday: Not working
+- Friday: Not working
+- Saturday: 9:00 AM-1:00 PM
+
+SERVICES:
+Towing:
+- Local tow - from $95
+- Long-distance tow
+Recovery:
+- Winch-out - from $150
+
+SERVICE AREA: About 25 miles around the business. ALWAYS call check_service_area with the full street address before offering any time or booking anything.
+If the address is outside the area, say politely that you do not cover it, do not book a visit, and offer to take a message. Do not suggest another company.
+Ask for the full street address including the ZIP code.
+
+GETTING SOMEONE TO THEM: this is the whole call. Find out where they are, what has happened, and get the request logged. Do not try to schedule a day.
+Collect: exactly where they are, what has happened, their name, and a phone number (offer to use the number they are calling from). Then call request_immediate_dispatch.
+Typical response is 30 to 60 minutes. You may give that as an ESTIMATE and only as a range. Say "usually" or "typically". Never promise a time, never give a single number, and never say anyone is on their way until dispatch has confirmed it.
+Once logged, tell them someone will call to confirm an ETA within 5 minutes.
+This business does not book appointments. If someone asks for a scheduled day, explain that work is taken as it comes in and offer to take a message.
+
+EMERGENCIES: These are not booked into a normal slot. Confirm the address and a callback number, then call dispatch_emergency.
+Treat as an emergency: accident; on a highway or blocking traffic; child in the vehicle; vehicle in a dangerous position.
+Tell the caller Vic will call them back within 15 minutes. Never promise an arrival time yourself.
+Owner reachable hours:
+- Monday: 7:00 AM-8:00 PM
+- Tuesday: 7:00 AM-8:00 PM
+
+HARD RULES:
+- FIRST, BEFORE ANYTHING ELSE - before their name, before the vehicle, before the location: ask whether they are somewhere safe and off the road. If they are in a live lane, on a shoulder with traffic passing, or standing outside the vehicle on a highway, tell them to get behind a barrier or well clear of the road, or to stay belted inside with the hazards on if that is safer, and to do it now. Only then carry on.
+- If anyone is injured, or the caller is unsure whether anyone is injured: STOP. Tell them to hang up and call 911 immediately, and to call back afterwards. Do not take any details first. Do not keep them on the line.
+- Never tell a caller to push, steer, free, jump-start or move a vehicle themselves, and never suggest they walk along a highway. If the vehicle is blocking traffic, that is a reason to treat it as an emergency, not a reason to ask them to shift it.
+- Never promise an arrival time. You may give the usual response range as an estimate, in the words above, and nothing more precise. A driver's arrival depends on where the truck already is.
+- Never quote a price unless a hookup fee and a per-mile rate are both written above and prices are switched on. Otherwise say the driver will confirm pricing before any work starts.
+- Never advise on whether a vehicle is safe to drive, and never say what is wrong with it. If they ask, say the driver will look when they arrive.
+- Phone numbers must be 10-digit US or Canadian numbers. Read numbers back digit by digit to confirm.
+- If a function call fails, times out, or comes back with an error: never invent an answer, never guess what it would have said, and never tell the caller something was done when it was not. Apologize, collect their name and phone number, promise a call back, and call take_message with reason "callback_request".
+
+
+===== AGENT TOOLS · full =====
+[
+  {
+    "type": "custom",
+    "name": "check_service_area",
+    "description": "Check whether an address is inside the service area. Always call this before offering a time or booking a visit.",
+    "url": "https://example.test/api/retell/functions/check_service_area",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "description": "Full street address of the property, including city and ZIP or postal code."
+        }
+      },
+      "required": [
+        "address"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say 'Let me check if we cover that area.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "request_immediate_dispatch",
+    "description": "Log a tow request and alert dispatch now. Call it once you have confirmed the caller is safe, and have where they are, what happened, their name and a phone number.",
+    "url": "https://example.test/api/retell/functions/request_immediate_dispatch",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "location": {
+          "type": "string",
+          "description": "Exactly where they are, in their own words. Cross streets, highway and direction, mile marker, or a full street address."
+        },
+        "details": {
+          "type": "string",
+          "description": "What has happened and anything the driver needs to know before setting off."
+        },
+        "customer_name": {
+          "type": "string",
+          "description": "Who is waiting."
+        },
+        "customer_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "caller_is_safe": {
+          "type": "boolean",
+          "description": "Whether the caller confirmed they are somewhere safe and off the road. Ask this first, always."
+        },
+        "vehicle_year": {
+          "type": "string",
+          "description": "Year of the vehicle, if they know it."
+        },
+        "vehicle_make": {
+          "type": "string",
+          "description": "Make of the vehicle."
+        },
+        "vehicle_model": {
+          "type": "string",
+          "description": "Model of the vehicle."
+        },
+        "drivable": {
+          "type": "boolean",
+          "description": "Whether the vehicle can be driven at all. Ask; do not infer."
+        },
+        "accident_involved": {
+          "type": "boolean",
+          "description": "Whether this was an accident."
+        },
+        "destination": {
+          "type": "string",
+          "description": "Where they want the vehicle taken, if they know."
+        }
+      },
+      "required": [
+        "location",
+        "details",
+        "customer_name",
+        "customer_phone"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say 'Let me get this to our dispatcher now.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "dispatch_emergency",
+    "description": "Log an emergency and alert the business immediately. Use instead of booking when the situation matches the emergency list.",
+    "url": "https://example.test/api/retell/functions/dispatch_emergency",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "customer_name": {
+          "type": "string"
+        },
+        "customer_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "address": {
+          "type": "string",
+          "description": "Full street address of the property, including city and ZIP or postal code."
+        },
+        "emergency_type": {
+          "type": "string",
+          "enum": [
+            "accident",
+            "blocking_traffic",
+            "child_in_vehicle",
+            "dangerous_position"
+          ],
+          "description": "Which emergency this is."
+        },
+        "description": {
+          "type": "string",
+          "description": "What the caller said is happening."
+        },
+        "caller_is_safe": {
+          "type": "boolean",
+          "description": "Whether the caller confirmed they are somewhere safe and off the road. Ask this first, always."
+        },
+        "accident_involved": {
+          "type": "boolean",
+          "description": "Whether this was an accident."
+        }
+      },
+      "required": [
+        "customer_name",
+        "customer_phone",
+        "address",
+        "emergency_type"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say 'Let me get someone on this right now.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "take_message",
+    "description": "Record a message or escalate to the owner. Use when you cannot book, cannot answer, or the caller wants a quote for something unusual.",
+    "url": "https://example.test/api/retell/functions/take_message",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "caller_name": {
+          "type": "string"
+        },
+        "caller_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "message": {
+          "type": "string",
+          "description": "Clear summary of what the caller needs, including the address if they gave one."
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "general_question",
+            "large_party",
+            "private_event",
+            "catering",
+            "complaint",
+            "allergy",
+            "press_vendor",
+            "callback_request",
+            "other"
+          ],
+          "description": "Why the message is being taken."
+        },
+        "escalate": {
+          "type": "boolean",
+          "description": "true when the owner must call back urgently; false for a normal message."
+        }
+      },
+      "required": [
+        "caller_name",
+        "caller_phone",
+        "message",
+        "reason",
+        "escalate"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "end_call",
+    "name": "end_call",
+    "description": "End the call. Only use after the caller confirms they are finished and you have said goodbye."
+  }
+]
+
+
+===== CUSTOMER SMS · full =====
+booked:            Ridgeway Towing: Booked! Mike is coming Wed, Sep 2, 10:00 AM to 12 Oak Street. Reply CANCEL if your plans change. Questions? Call (212) 555-0111.
+emergency:         Ridgeway Towing: We have your emergency at 12 Oak Street. Mike will call you within 15 minutes. Questions? Call (212) 555-0111.
+no time yet:       Ridgeway Towing: Thanks Elena Rossi, we have your request for 12 Oak Street. We will call to confirm a time. Reply CANCEL to cancel. Questions? Call (212) 555-0111.
+escalation (open): Ridgeway Towing: Thanks for calling. We could not reach a driver right away - someone will call you when we next open (Monday 8:00 AM). You can also call us at (212) 555-0111.
+escalation (none): Ridgeway Towing: Thanks for calling. We could not reach a driver right away - someone will call you as soon as we can. You can also call us at (212) 555-0111.
+cancel job:        Ridgeway Towing: Your tow on Wed, Sep 2, 10:00 AM is cancelled. Call us any time if you still need a driver.
+cancel other:      Ridgeway Towing: That booking for Wed, Sep 2, 10:00 AM is cancelled. Call us any time if you still need a driver.
+no acknowledgement: Ridgeway Towing: We haven't been able to confirm someone yet. If you need help right away, please try another provider. We'll call as soon as we're available.
+
+
+===== AGENT PROMPT · bare-canada =====
+You are Sam, answering the phone for Northside Towing, a towing and roadside business based at 44 Mill Lane, Toronto, ON, M5V 2T6. You are on the phone, so keep every reply short (one or two sentences), calm and practical. Ask one question at a time. Never mention that you are an AI unless asked directly; if asked, say yes, you are the office's automated assistant.
+
+Right now it is {{current_time}} on {{current_date}} (local time, {{timezone}}). The caller is calling from {{caller_phone}}. Use today's date to resolve words like 'today', 'tomorrow' or 'Friday' into a YYYY-MM-DD date before calling any function.
+
+FIRST THING, BEFORE ANY OTHER QUESTION: ask whether they are somewhere safe and off the road, and whether anyone is hurt. If anyone is hurt or they are not sure, tell them to hang up and call 911 now. If they are in traffic, get them clear of it first. Do not ask for a name, a vehicle or a location until you have done this.
+
+WHAT YOU CAN DO: (1) get someone sent out to them, (2) handle an emergency, (3) answer questions using only the information below, (4) take a message.
+
+WORKING HOURS:
+Working every day 11:00 AM to 9:00 PM.
+
+SERVICES:
+No service list has been provided. Describe what the caller needs in their own words and book a visit; never invent a service or a price.
+
+SERVICE AREA: About 48.3 kilometres around the business. ALWAYS call check_service_area with the full street address before offering any time or booking anything.
+If the address is outside the area, say politely that you do not cover it, do not book a visit, and offer to take a message. Do not suggest another company.
+Ask for the full street address including the postal code.
+
+GETTING SOMEONE TO THEM: this is the whole call. Find out where they are, what has happened, and get the request logged. Do not try to schedule a day.
+Collect: exactly where they are, what has happened, their name, and a phone number (offer to use the number they are calling from). Then call request_immediate_dispatch.
+Typical response is 30 to 60 minutes. You may give that as an ESTIMATE and only as a range. Say "usually" or "typically". Never promise a time, never give a single number, and never say anyone is on their way until dispatch has confirmed it.
+Once logged, tell them someone will call to confirm an ETA within 5 minutes.
+
+BOOKING A VISIT: Call get_available_slots before offering any time - never guess. Collect: the full street address, what is wrong in their own words, their name, and a phone number (offer to use the number they are calling from).
+Visits are 60 minutes long.
+Read the address and the time back and get a yes before calling book_service_call.
+NO SLOTS LEFT: if there is nothing free on the days they can do, do not invent a time and do not promise a call-out. Take a message with take_message so the office can call them back.
+
+EMERGENCIES: These are not booked into a normal slot. Confirm the address and a callback number, then call dispatch_emergency.
+Treat as an emergency: accident; on a highway or blocking traffic; child in the vehicle; vehicle in a dangerous position.
+Tell the caller the driver will call them back within 15 minutes. Never promise an arrival time yourself.
+Owner reachable hours:
+The owner can usually be reached during working hours.
+
+HARD RULES:
+- FIRST, BEFORE ANYTHING ELSE - before their name, before the vehicle, before the location: ask whether they are somewhere safe and off the road. If they are in a live lane, on a shoulder with traffic passing, or standing outside the vehicle on a highway, tell them to get behind a barrier or well clear of the road, or to stay belted inside with the hazards on if that is safer, and to do it now. Only then carry on.
+- If anyone is injured, or the caller is unsure whether anyone is injured: STOP. Tell them to hang up and call 911 immediately, and to call back afterwards. Do not take any details first. Do not keep them on the line.
+- Never tell a caller to push, steer, free, jump-start or move a vehicle themselves, and never suggest they walk along a highway. If the vehicle is blocking traffic, that is a reason to treat it as an emergency, not a reason to ask them to shift it.
+- Never promise an arrival time. You may give the usual response range as an estimate, in the words above, and nothing more precise. A driver's arrival depends on where the truck already is.
+- Never quote a price unless a hookup fee and a per-mile rate are both written above and prices are switched on. Otherwise say the driver will confirm pricing before any work starts.
+- Never advise on whether a vehicle is safe to drive, and never say what is wrong with it. If they ask, say the driver will look when they arrive.
+- Phone numbers must be 10-digit US or Canadian numbers. Read numbers back digit by digit to confirm.
+- If a function call fails, times out, or comes back with an error: never invent an answer, never guess what it would have said, and never tell the caller something was done when it was not. Apologize, collect their name and phone number, promise a call back, and call take_message with reason "callback_request".
+
+
+===== AGENT TOOLS · bare-canada =====
+[
+  {
+    "type": "custom",
+    "name": "check_service_area",
+    "description": "Check whether an address is inside the service area. Always call this before offering a time or booking a visit.",
+    "url": "https://example.test/api/retell/functions/check_service_area",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "description": "Full street address of the property, including city and ZIP or postal code."
+        }
+      },
+      "required": [
+        "address"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say 'Let me check if we cover that area.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "request_immediate_dispatch",
+    "description": "Log a tow request and alert dispatch now. Call it once you have confirmed the caller is safe, and have where they are, what happened, their name and a phone number.",
+    "url": "https://example.test/api/retell/functions/request_immediate_dispatch",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "location": {
+          "type": "string",
+          "description": "Exactly where they are, in their own words. Cross streets, highway and direction, mile marker, or a full street address."
+        },
+        "details": {
+          "type": "string",
+          "description": "What has happened and anything the driver needs to know before setting off."
+        },
+        "customer_name": {
+          "type": "string",
+          "description": "Who is waiting."
+        },
+        "customer_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "caller_is_safe": {
+          "type": "boolean",
+          "description": "Whether the caller confirmed they are somewhere safe and off the road. Ask this first, always."
+        },
+        "vehicle_year": {
+          "type": "string",
+          "description": "Year of the vehicle, if they know it."
+        },
+        "vehicle_make": {
+          "type": "string",
+          "description": "Make of the vehicle."
+        },
+        "vehicle_model": {
+          "type": "string",
+          "description": "Model of the vehicle."
+        },
+        "drivable": {
+          "type": "boolean",
+          "description": "Whether the vehicle can be driven at all. Ask; do not infer."
+        },
+        "accident_involved": {
+          "type": "boolean",
+          "description": "Whether this was an accident."
+        },
+        "destination": {
+          "type": "string",
+          "description": "Where they want the vehicle taken, if they know."
+        }
+      },
+      "required": [
+        "location",
+        "details",
+        "customer_name",
+        "customer_phone"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say 'Let me get this to our dispatcher now.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "get_available_slots",
+    "description": "Find the free visit windows on a day. Call before offering any time. For an emergency this returns no times and tells you to dispatch instead.",
+    "url": "https://example.test/api/retell/functions/get_available_slots",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Date in YYYY-MM-DD format, resolved using today's date."
+        },
+        "is_emergency": {
+          "type": "boolean",
+          "description": "true when the caller's situation matches the emergency list."
+        }
+      },
+      "required": [
+        "date"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say something like 'Let me look at the diary.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "book_service_call",
+    "description": "Book a scheduled transport after the caller has confirmed the address and the time. Only call with a window get_available_slots reported as free.",
+    "url": "https://example.test/api/retell/functions/book_service_call",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "customer_name": {
+          "type": "string",
+          "description": "Who the visit is for."
+        },
+        "customer_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "address": {
+          "type": "string",
+          "description": "Full street address of the property, including city and ZIP or postal code."
+        },
+        "description": {
+          "type": "string",
+          "description": "What is wrong, in the caller's own words. Do not diagnose."
+        },
+        "date": {
+          "type": "string",
+          "description": "Date in YYYY-MM-DD format, resolved using today's date."
+        },
+        "time": {
+          "type": "string",
+          "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM."
+        },
+        "caller_is_safe": {
+          "type": "boolean",
+          "description": "Whether the caller confirmed they are somewhere safe and off the road. Ask this first, always."
+        },
+        "vehicle_year": {
+          "type": "string",
+          "description": "Year of the vehicle, if they know it."
+        },
+        "vehicle_make": {
+          "type": "string",
+          "description": "Make of the vehicle."
+        },
+        "vehicle_model": {
+          "type": "string",
+          "description": "Model of the vehicle."
+        },
+        "drivable": {
+          "type": "boolean",
+          "description": "Whether the vehicle can be driven at all. Ask; do not infer."
+        },
+        "accident_involved": {
+          "type": "boolean",
+          "description": "Whether this was an accident."
+        },
+        "destination": {
+          "type": "string",
+          "description": "Where they want the vehicle taken, if they know."
+        }
+      },
+      "required": [
+        "customer_name",
+        "customer_phone",
+        "address",
+        "description",
+        "date",
+        "time"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "dispatch_emergency",
+    "description": "Log an emergency and alert the business immediately. Use instead of booking when the situation matches the emergency list.",
+    "url": "https://example.test/api/retell/functions/dispatch_emergency",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "customer_name": {
+          "type": "string"
+        },
+        "customer_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "address": {
+          "type": "string",
+          "description": "Full street address of the property, including city and ZIP or postal code."
+        },
+        "emergency_type": {
+          "type": "string",
+          "enum": [
+            "accident",
+            "blocking_traffic",
+            "child_in_vehicle",
+            "dangerous_position"
+          ],
+          "description": "Which emergency this is."
+        },
+        "description": {
+          "type": "string",
+          "description": "What the caller said is happening."
+        },
+        "caller_is_safe": {
+          "type": "boolean",
+          "description": "Whether the caller confirmed they are somewhere safe and off the road. Ask this first, always."
+        },
+        "accident_involved": {
+          "type": "boolean",
+          "description": "Whether this was an accident."
+        }
+      },
+      "required": [
+        "customer_name",
+        "customer_phone",
+        "address",
+        "emergency_type"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say 'Let me get someone on this right now.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "take_message",
+    "description": "Record a message or escalate to the owner. Use when you cannot book, cannot answer, or the caller wants a quote for something unusual.",
+    "url": "https://example.test/api/retell/functions/take_message",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "caller_name": {
+          "type": "string"
+        },
+        "caller_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "message": {
+          "type": "string",
+          "description": "Clear summary of what the caller needs, including the address if they gave one."
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "general_question",
+            "large_party",
+            "private_event",
+            "catering",
+            "complaint",
+            "allergy",
+            "press_vendor",
+            "callback_request",
+            "other"
+          ],
+          "description": "Why the message is being taken."
+        },
+        "escalate": {
+          "type": "boolean",
+          "description": "true when the owner must call back urgently; false for a normal message."
+        }
+      },
+      "required": [
+        "caller_name",
+        "caller_phone",
+        "message",
+        "reason",
+        "escalate"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "end_call",
+    "name": "end_call",
+    "description": "End the call. Only use after the caller confirms they are finished and you have said goodbye."
+  }
+]
+
+
+===== CUSTOMER SMS · bare-canada =====
+booked:            Northside Towing: Booked! Mike is coming Wed, Sep 2, 10:00 AM to 12 Oak Street. Reply CANCEL if your plans change.
+emergency:         Northside Towing: We have your emergency at 12 Oak Street. Mike will call you within 15 minutes.
+no time yet:       Northside Towing: Thanks Elena Rossi, we have your request for 12 Oak Street. We will call to confirm a time. Reply CANCEL to cancel.
+escalation (open): Northside Towing: Thanks for calling. We could not reach a driver right away - someone will call you when we next open (Monday 8:00 AM).
+escalation (none): Northside Towing: Thanks for calling. We could not reach a driver right away - someone will call you as soon as we can.
+cancel job:        Northside Towing: Your tow on Wed, Sep 2, 10:00 AM is cancelled. Call us any time if you still need a driver.
+cancel other:      Northside Towing: That booking for Wed, Sep 2, 10:00 AM is cancelled. Call us any time if you still need a driver.
+no acknowledgement: Northside Towing: We haven't been able to confirm someone yet. If you need help right away, please try another provider. We'll call as soon as we're available.
+
+
+===== DEFINITION =====
+{
+  "slug": "towing",
+  "archetype": "field_service",
+  "vocabulary": {
+    "booking": {
+      "one": "tow",
+      "many": "tows",
+      "One": "Tow",
+      "Many": "Tows"
+    },
+    "customer": {
+      "one": "customer",
+      "many": "customers",
+      "One": "Customer",
+      "Many": "Customers"
+    },
+    "staff": {
+      "one": "driver",
+      "many": "drivers",
+      "One": "Driver",
+      "Many": "Drivers"
+    },
+    "business": {
+      "one": "business",
+      "many": "businesses",
+      "One": "Business",
+      "Many": "Businesses"
+    }
+  },
+  "onboardingSteps": [
+    {
+      "step": 1,
+      "id": "account",
+      "title": "Create your account",
+      "short": "Sign up"
+    },
+    {
+      "step": 2,
+      "id": "business-basics",
+      "title": "Business basics",
+      "short": "Basics"
+    },
+    {
+      "step": 3,
+      "id": "hours",
+      "title": "Hours & escalation",
+      "short": "Hours"
+    },
+    {
+      "step": 4,
+      "id": "service-area",
+      "title": "Service area",
+      "short": "Area"
+    },
+    {
+      "step": 5,
+      "id": "dispatch",
+      "title": "Dispatch & response",
+      "short": "Dispatch"
+    },
+    {
+      "step": 6,
+      "id": "services",
+      "title": "Services & pricing",
+      "short": "Services"
+    },
+    {
+      "step": 7,
+      "id": "emergencies",
+      "title": "Emergencies & technician",
+      "short": "Urgent"
+    },
+    {
+      "step": 8,
+      "id": "voice",
+      "title": "Voice & greeting",
+      "short": "Voice"
+    },
+    {
+      "step": 9,
+      "id": "phone",
+      "title": "Phone number",
+      "short": "Phone"
+    },
+    {
+      "step": 10,
+      "id": "payment",
+      "title": "Payment",
+      "short": "Pay"
+    }
+  ],
+  "emergencyTypes": [
+    {
+      "key": "accident",
+      "label": "Accident"
+    },
+    {
+      "key": "blocking_traffic",
+      "label": "On a highway or blocking traffic"
+    },
+    {
+      "key": "child_in_vehicle",
+      "label": "Child in the vehicle"
+    },
+    {
+      "key": "dangerous_position",
+      "label": "Vehicle in a dangerous position"
+    }
+  ],
+  "escalationTriggers": [
+    {
+      "key": "quote_request",
+      "label": "Quote for a long-distance or specialist tow"
+    },
+    {
+      "key": "complaint",
+      "label": "Complaint about a previous tow"
+    },
+    {
+      "key": "insurance",
+      "label": "Insurance or roadside-assistance claim"
+    },
+    {
+      "key": "commercial",
+      "label": "Commercial or fleet enquiry"
+    },
+    {
+      "key": "press_vendor",
+      "label": "Press or vendor"
+    }
+  ],
+  "dashboardModules": [
+    "home",
+    "notifications",
+    "dispatch",
+    "schedule",
+    "jobs",
+    "customers",
+    "services",
+    "calls",
+    "settings"
+  ],
+  "agentFunctions": [
+    "check_service_area",
+    "request_immediate_dispatch",
+    "get_available_slots",
+    "book_service_call",
+    "dispatch_emergency",
+    "take_message"
+  ],
+  "guardrails": [
+    "FIRST, BEFORE ANYTHING ELSE - before their name, before the vehicle, before the location: ask whether they are somewhere safe and off the road. If they are in a live lane, on a shoulder with traffic passing, or standing outside the vehicle on a highway, tell them to get behind a barrier or well clear of the road, or to stay belted inside with the hazards on if that is safer, and to do it now. Only then carry on.",
+    "If anyone is injured, or the caller is unsure whether anyone is injured: STOP. Tell them to hang up and call 911 immediately, and to call back afterwards. Do not take any details first. Do not keep them on the line.",
+    "Never tell a caller to push, steer, free, jump-start or move a vehicle themselves, and never suggest they walk along a highway. If the vehicle is blocking traffic, that is a reason to treat it as an emergency, not a reason to ask them to shift it.",
+    "Never promise an arrival time. You may give the usual response range as an estimate, in the words above, and nothing more precise. A driver's arrival depends on where the truck already is.",
+    "Never quote a price unless a hookup fee and a per-mile rate are both written above and prices are switched on. Otherwise say the driver will confirm pricing before any work starts.",
+    "Never advise on whether a vehicle is safe to drive, and never say what is wrong with it. If they ask, say the driver will look when they arrive.",
+    "Phone numbers must be 10-digit US or Canadian numbers. Read numbers back digit by digit to confirm.",
+    "If a function call fails, times out, or comes back with an error: never invent an answer, never guess what it would have said, and never tell the caller something was done when it was not. Apologize, collect their name and phone number, promise a call back, and call take_message with reason \"callback_request\"."
+  ],
+  "dispatchFirst": true,
+  "ackMinutes": 5,
+  "defaults": {
+    "slotMinutes": 60,
+    "intervalMinutes": 60,
+    "maxPerDay": 12
+  }
+}

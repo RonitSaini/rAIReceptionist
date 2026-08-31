@@ -196,7 +196,7 @@ export async function bookServiceCallHandler(ctx: HandlerContext, args: Args): P
  * of "tenant" would take `water_shut_off` down too, and whether the water is off is the one thing
  * the plumber needs to know before setting off. Each field stands or falls on its own.
  */
-function intakeDetails(a: Account, args: Args): Prisma.InputJsonValue | undefined {
+function intakeValues(a: Account, args: Args): Record<string, unknown> {
   const value: Record<string, unknown> = {};
 
   for (const [key, field] of Object.entries(verticalFor(a).intakeSchema.shape)) {
@@ -207,6 +207,12 @@ function intakeDetails(a: Account, args: Args): Prisma.InputJsonValue | undefine
     if (parsed.success && parsed.data !== undefined) value[key] = parsed.data;
   }
 
+  return value;
+}
+
+/** The same answers as something Prisma will accept for a Json column, or nothing if there are none. */
+function intakeDetails(a: Account, args: Args): Prisma.InputJsonValue | undefined {
+  const value = intakeValues(a, args);
   return Object.keys(value).length ? (value as Prisma.InputJsonValue) : undefined;
 }
 
@@ -265,9 +271,74 @@ export function jobWindow(account: Account, date: string, time: string): { start
   return { startUtc, endUtc: new Date(startUtc.getTime() + Math.max(15, account.jobSlotMinutes || 120) * 60_000) };
 }
 
+// ---------- request_immediate_dispatch ----------
+
+/**
+ * Somebody needs help now.
+ *
+ * The important difference from booking a visit is not the shape of the row, it is what happens
+ * next: every one of these wakes a human straight away, on the same path an emergency takes. A
+ * dispatch request that sits unread in an inbox until morning is worse than not answering the
+ * phone, because the caller was told someone would ring them back.
+ *
+ * The service area is checked but never used to refuse. A locksmith whose caller is a little
+ * outside the radius is a judgement call for the office, and a stranded person should not be turned
+ * away by an estimate of distance; the fact is recorded on the job and the owner decides.
+ */
+export async function requestImmediateDispatchHandler(ctx: HandlerContext, args: Args): Promise<HandlerResult> {
+  const a = ctx.account;
+  const definition = verticalFor(a);
+  const words = definition.vocabulary;
+  const customerName = str(args.customer_name) || "Unknown caller";
+  const customerPhone = phoneOrCaller(args.customer_phone, ctx);
+  const location = str(args.location);
+  const details = str(args.details);
+
+  if (!location) return { success: false, message: "Ask exactly where they are before logging anything." };
+  if (!customerPhone) return { success: false, message: "Ask for a callback number - dispatch has to be able to reach them." };
+
+  const area = await checkServiceArea(a, location);
+  const customer = await upsertCustomer(a.id, customerPhone, customerName, location);
+  const job = await prisma.job.create({
+    data: {
+      accountId: a.id,
+      customerId: customer?.id ?? null,
+      kind: "dispatch",
+      customerName,
+      customerPhone,
+      address: location,
+      description: details || "Immediate dispatch requested",
+      isEmergency: false,
+      status: "requested",
+      assignedTo: a.technicianName,
+      source: "ai",
+      details: { ...intakeValues(a, args), outsideServiceArea: !area.covered },
+    },
+  });
+
+  await tagCall(ctx, { classification: "service_call", jobId: job.id, callerName: customerName, callbackRequested: true });
+  await afterJobBooked(a, job, ctx.call);
+  // Every dispatch escalates. Same path as an emergency: the owner's phone rings now.
+  await afterEmergencyDispatched(a, ctx.call, { customerName, customerPhone, address: location, emergencyType: "dispatch_request", description: details });
+
+  const ack = definition.ackMinutes ?? 5;
+  const min = a.responseTimeMinMinutes;
+  const max = a.responseTimeMaxMinutes;
+  const estimate = min != null && max != null ? ` Typical response is ${min} to ${max} minutes, but give that as an estimate only.` : "";
+  const outside = area.covered ? "" : " Note: this is outside the usual service area, so do not imply it is confirmed.";
+
+  return {
+    success: true,
+    job_id: job.id,
+    covered: area.covered,
+    message: `Logged and the ${words.business.one} has been alerted.${estimate} Tell ${customerName} that someone will call them on ${formatUsPhone(customerPhone)} within ${ack} minutes to confirm how long it will be. Never promise an arrival time yourself.${outside}`,
+  };
+}
+
 export const FIELD_SERVICE_HANDLERS = {
   check_service_area: checkServiceAreaHandler,
   get_available_slots: getAvailableSlotsHandler,
   book_service_call: bookServiceCallHandler,
   dispatch_emergency: dispatchEmergencyHandler,
+  request_immediate_dispatch: requestImmediateDispatchHandler,
 } as const;

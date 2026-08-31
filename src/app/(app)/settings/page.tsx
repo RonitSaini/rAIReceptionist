@@ -23,6 +23,7 @@ import { serializeServiceOffering } from "@/lib/serialize";
 import { ServiceAreaForm } from "@/components/forms/service-area-form";
 import { ServicesForm } from "@/components/forms/services-form";
 import { EmergenciesForm } from "@/components/forms/emergencies-form";
+import { DispatchForm } from "@/components/forms/dispatch-form";
 
 export const metadata = { title: "Settings" };
 
@@ -45,6 +46,7 @@ const FIELD_SERVICE_TABS = [
   { key: "business", label: "Business" },
   { key: "hours", label: "Hours" },
   { key: "area", label: "Service area" },
+  { key: "dispatch", label: "Dispatch" },
   { key: "services", label: "Services & pricing" },
   { key: "emergencies", label: "Emergencies" },
   { key: "voice", label: "Voice" },
@@ -57,7 +59,10 @@ type TabKey = (typeof RESTAURANT_TABS)[number]["key"] | (typeof FIELD_SERVICE_TA
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ tab?: string; checkout?: string; google?: string; message?: string }> }) {
   const { account } = await requireAccount();
   const { tab: tabParam, checkout, google: googleStatus, message: googleMessage } = await searchParams;
-  const TABS: readonly { key: TabKey; label: string }[] = verticalFor(account).archetype === "restaurant" ? RESTAURANT_TABS : FIELD_SERVICE_TABS;
+  const definition = verticalFor(account);
+  // Dispatch settings only exist for a trade that dispatches. A plumber's tab list is unchanged.
+  const TABS: readonly { key: TabKey; label: string }[] =
+    definition.archetype === "restaurant" ? RESTAURANT_TABS : FIELD_SERVICE_TABS.filter((t) => t.key !== "dispatch" || definition.dispatchFirst);
   const tab: TabKey = TABS.some((t) => t.key === tabParam) ? (tabParam as TabKey) : "business";
   const view = serializeAccount(account);
 
@@ -99,6 +104,18 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         {tab === "area" ? (
           <Card title="Service area">
             <ServiceAreaForm account={view} mode="settings" />
+          </Card>
+        ) : null}
+
+        {tab === "dispatch" ? (
+          <Card title="Dispatch & response">
+            <DispatchForm
+              account={view}
+              defaultResponse={null}
+              defaultAckMinutes={verticalFor(account).ackMinutes ?? 10}
+              defaultUnacknowledged={verticalFor(account).smsTemplates.unacknowledged?.(account).replace(`${account.businessName}: `, "") ?? ""}
+              mode="settings"
+            />
           </Card>
         ) : null}
 

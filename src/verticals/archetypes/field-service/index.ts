@@ -37,6 +37,13 @@ export type TradeWords = {
   staff: string;
   /** What was booked, from the customer's side: "visit" for most, "estimate" for a roofer. */
   visit: string;
+  /**
+   * What a caller is told when nobody picked their escalation up in time.
+   *
+   * Only dispatch-first trades set it; for the others the situation barely arises, because nobody
+   * is waiting in the road. Prefixed with the business name when sent.
+   */
+  unacknowledged?: string;
 };
 
 export type FieldServiceConfig = {
@@ -67,6 +74,35 @@ export type FieldServiceConfig = {
   /** What a booking IS for this trade. A roofer books estimates; everyone else books service calls. */
   bookingKind: JobKind;
 
+  /**
+   * Dispatch-first. A locksmith and a tow truck answer a different question from a plumber: not
+   * "which day suits you" but "how fast can you get here". Scheduling may be absent entirely, a
+   * response window is quoted instead of a slot, and every request wakes a human immediately.
+   *
+   * A flag rather than a second archetype because everything underneath is the same: the service
+   * area, the customers, the Job rows, the emergency path, the guardrails. Only three things move,
+   * and all three are branches in this directory.
+   */
+  dispatchFirst?: boolean;
+  /** Default response window quoted when the account has not set one, in minutes. */
+  defaultResponseMinutes?: [number, number];
+  /** Acknowledgement window for an urgent escalation. Dispatch-first defaults to 5, others to 10. */
+  ackMinutes?: number;
+  /** What the caller is texted when nobody acknowledged in time. */
+  unacknowledgedMessage?: string;
+  /** Description on the request_immediate_dispatch tool. */
+  dispatchToolDescription?: string;
+
+  /**
+   * Replaces the opening FIRST THING instruction.
+   *
+   * The default is "find out whether this is an emergency", which is right for a trade whose
+   * caller is indoors. It is wrong for a tow: the first words out of the agent's mouth need to be
+   * about getting the caller off the carriageway, and a rule at the bottom of HARD RULES is not
+   * where a model looks for what to say first.
+   */
+  firstThing?: string;
+
   /** Heading and noun for the booking section. A roofer is not booking a "visit" in the same sense. */
   bookingHeading?: string;
   visitNoun?: string;
@@ -86,14 +122,23 @@ export function fieldServiceVertical(cfg: FieldServiceConfig): VerticalDefinitio
 
     vocabulary: cfg.vocabulary,
 
-    onboardingSteps: [STEP.account, STEP.businessBasics, STEP.hours, FIELD_SERVICE_STEP.serviceArea, FIELD_SERVICE_STEP.services, FIELD_SERVICE_STEP.emergencies, STEP.voice, STEP.phone, STEP.payment],
+    onboardingSteps: cfg.dispatchFirst
+      ? [STEP.account, STEP.businessBasics, STEP.hours, FIELD_SERVICE_STEP.serviceArea, FIELD_SERVICE_STEP.dispatch, FIELD_SERVICE_STEP.services, FIELD_SERVICE_STEP.emergencies, STEP.voice, STEP.phone, STEP.payment]
+      : [STEP.account, STEP.businessBasics, STEP.hours, FIELD_SERVICE_STEP.serviceArea, FIELD_SERVICE_STEP.services, FIELD_SERVICE_STEP.emergencies, STEP.voice, STEP.phone, STEP.payment],
 
     intakeSchema: cfg.intakeSchema,
     emergencyTypes: cfg.emergencies,
     escalationTriggers: cfg.escalations,
 
-    dashboardModules: ["home", "notifications", "schedule", "jobs", "customers", "services", "calls", "settings"],
-    agentFunctions: ["check_service_area", "get_available_slots", "book_service_call", "dispatch_emergency", "take_message"],
+    // A dispatch-first trade gets a live queue instead of a calendar: nothing it takes has a day.
+    dashboardModules: cfg.dispatchFirst
+      ? (["home", "notifications", "dispatch", "schedule", "jobs", "customers", "services", "calls", "settings"] as const)
+      : (["home", "notifications", "schedule", "jobs", "customers", "services", "calls", "settings"] as const),
+    // The superset a dispatch-first account MAY use. agentTools() decides what it is actually
+    // offered, because whether it books scheduled work is a setting rather than a profession.
+    agentFunctions: cfg.dispatchFirst
+      ? (["check_service_area", "request_immediate_dispatch", "get_available_slots", "book_service_call", "dispatch_emergency", "take_message"] as const)
+      : (["check_service_area", "get_available_slots", "book_service_call", "dispatch_emergency", "take_message"] as const),
 
     agentPromptTemplate: (src) => buildFieldServicePrompt(cfg, src),
     agentTools: (src) => buildFieldServiceTools(cfg, src),
@@ -102,6 +147,9 @@ export function fieldServiceVertical(cfg: FieldServiceConfig): VerticalDefinitio
     guardrails: [...cfg.guardrails, ...SHARED_GUARDRAILS],
 
     bookingKind: cfg.bookingKind,
+    dispatchFirst: cfg.dispatchFirst,
+    ackMinutes: cfg.ackMinutes ?? (cfg.dispatchFirst ? 5 : 10),
+    unacknowledgedMessage: cfg.unacknowledgedMessage,
     defaults: cfg.defaults,
   };
 }

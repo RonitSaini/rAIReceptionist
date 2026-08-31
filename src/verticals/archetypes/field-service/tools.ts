@@ -15,6 +15,14 @@ const ADDRESS = { type: "string", description: "Full street address of the prope
 
 export function buildFieldServiceTools(cfg: FieldServiceConfig, src: AgentSource): (CustomTool | EndCallTool)[] {
   const u = src.appUrl;
+
+  /**
+   * Scheduling is offered only to an account that actually schedules. A tow truck that books
+   * nothing must not be handed get_available_slots: a model given a tool will find a reason to
+   * use it, and "let me look at the diary" is a strange thing to say to someone on a hard shoulder.
+   */
+  const schedules = !cfg.dispatchFirst || src.account.takesScheduledWork;
+
   const tools: (CustomTool | EndCallTool)[] = [
     customTool(
       "check_service_area",
@@ -24,29 +32,56 @@ export function buildFieldServiceTools(cfg: FieldServiceConfig, src: AgentSource
       u,
       { execution_message_description: "Say 'Let me check if we cover that area.'" },
     ),
-    customTool(
-      "get_available_slots",
-      "Find the free visit windows on a day. Call before offering any time. For an emergency this returns no times and tells you to dispatch instead.",
-      { date: DATE, is_emergency: { type: "boolean", description: "true when the caller's situation matches the emergency list." } },
-      ["date"],
-      u,
-      { execution_message_description: "Say something like 'Let me look at the diary.'" },
-    ),
-    customTool(
-      "book_service_call",
-      cfg.bookingToolDescription,
-      {
-        customer_name: { type: "string", description: "Who the visit is for." },
-        customer_phone: PHONE,
-        address: ADDRESS,
-        description: { type: "string", description: "What is wrong, in the caller's own words. Do not diagnose." },
-        date: DATE,
-        time: TIME,
-        ...(cfg.intakeProperties ?? {}),
-      },
-      ["customer_name", "customer_phone", "address", "description", "date", "time"],
-      u,
-    ),
+  ];
+
+  if (cfg.dispatchFirst) {
+    tools.push(
+      customTool(
+        "request_immediate_dispatch",
+        cfg.dispatchToolDescription ?? "Log a request for someone to come out now. This is the main thing you do. Call it once you have where they are, what has happened, their name and a phone number.",
+        {
+          location: { type: "string", description: "Exactly where they are, in their own words. Cross streets, highway and direction, mile marker, or a full street address." },
+          details: { type: "string", description: "What has happened and anything the driver needs to know before setting off." },
+          customer_name: { type: "string", description: "Who is waiting." },
+          customer_phone: PHONE,
+          ...(cfg.intakeProperties ?? {}),
+        },
+        ["location", "details", "customer_name", "customer_phone"],
+        u,
+        { execution_message_description: "Say 'Let me get this to our dispatcher now.'" },
+      ),
+    );
+  }
+
+  if (schedules) {
+    tools.push(
+      customTool(
+        "get_available_slots",
+        "Find the free visit windows on a day. Call before offering any time. For an emergency this returns no times and tells you to dispatch instead.",
+        { date: DATE, is_emergency: { type: "boolean", description: "true when the caller's situation matches the emergency list." } },
+        ["date"],
+        u,
+        { execution_message_description: "Say something like 'Let me look at the diary.'" },
+      ),
+      customTool(
+        "book_service_call",
+        cfg.bookingToolDescription,
+        {
+          customer_name: { type: "string", description: "Who the visit is for." },
+          customer_phone: PHONE,
+          address: ADDRESS,
+          description: { type: "string", description: "What is wrong, in the caller's own words. Do not diagnose." },
+          date: DATE,
+          time: TIME,
+          ...(cfg.intakeProperties ?? {}),
+        },
+        ["customer_name", "customer_phone", "address", "description", "date", "time"],
+        u,
+      ),
+    );
+  }
+
+  tools.push(
     customTool(
       "dispatch_emergency",
       "Log an emergency and alert the business immediately. Use instead of booking when the situation matches the emergency list.",
@@ -75,7 +110,7 @@ export function buildFieldServiceTools(cfg: FieldServiceConfig, src: AgentSource
       ["caller_name", "caller_phone", "message", "reason", "escalate"],
       u,
     ),
-  ];
-  tools.push(END_CALL_TOOL);
+    END_CALL_TOOL,
+  );
   return tools;
 }

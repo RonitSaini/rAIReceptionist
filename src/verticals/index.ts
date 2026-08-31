@@ -5,6 +5,8 @@ import { plumbing } from "./plumbing";
 import { hvac } from "./hvac";
 import { electrical } from "./electrical";
 import { roofing } from "./roofing";
+import { locksmith } from "./locksmith";
+import { towing } from "./towing";
 
 /**
  * The vertical registry — the only place professions are enumerated.
@@ -24,6 +26,8 @@ const VERTICALS = {
   hvac,
   electrical,
   roofing,
+  locksmith,
+  towing,
 } as const satisfies Partial<Record<Vertical, VerticalDefinition>>;
 
 type CatalogSeed = Omit<VerticalCatalogEntry, "available">;
@@ -34,8 +38,8 @@ const CATALOG_SEED: readonly CatalogSeed[] = [
   { slug: "hvac", label: "HVAC", blurb: "Heating and cooling call-outs, emergencies and a service area.", archetype: "field_service" },
   { slug: "electrical", label: "Electrical", blurb: "Electrical call-outs, emergencies and a service area.", archetype: "field_service" },
   { slug: "roofing", label: "Roofing", blurb: "Estimates, storm damage and a service area.", archetype: "field_service" },
-  { slug: "locksmith", label: "Locksmith", blurb: "Lockouts dispatched to the caller's location.", archetype: "field_service" },
-  { slug: "towing", label: "Towing", blurb: "Tow requests dispatched to a vehicle.", archetype: "field_service" },
+  { slug: "locksmith", label: "Locksmith", blurb: "Lockouts dispatched to the caller, with response times.", archetype: "field_service" },
+  { slug: "towing", label: "Towing", blurb: "Roadside dispatch, response times and a service area.", archetype: "field_service" },
   { slug: "auto_repair", label: "Auto Repair", blurb: "Appointments booked around a vehicle.", archetype: "shop_appointment" },
   { slug: "veterinary", label: "Veterinary", blurb: "Appointments booked around a pet.", archetype: "shop_appointment" },
   { slug: "property_management", label: "Property Management", blurb: "Tenant work orders and leasing enquiries.", archetype: "property_management" },
@@ -48,6 +52,20 @@ export const VERTICAL_CATALOG: readonly VerticalCatalogEntry[] = CATALOG_SEED.ma
 
 /** Slugs an owner may actually pick today. */
 export const AVAILABLE_VERTICALS: readonly Vertical[] = VERTICAL_CATALOG.filter((v) => v.available).map((v) => v.slug);
+
+/**
+ * What THIS account may call, as opposed to what its profession may.
+ *
+ * `agentFunctions` on a definition is the superset a vertical can offer. For a dispatch-first
+ * trade, whether it books scheduled work is a setting on the account, so a tow company that books
+ * nothing must not be able to reach get_available_slots even if something asks for it. The agent is
+ * never offered those tools; this is the backstop for when the configuration is stale or forged.
+ */
+export function agentFunctionsFor(account: { vertical: Vertical; takesScheduledWork?: boolean }): readonly string[] {
+  const definition = verticalFor(account);
+  if (!definition.dispatchFirst || account.takesScheduledWork !== false) return definition.agentFunctions;
+  return definition.agentFunctions.filter((f) => f !== "get_available_slots" && f !== "book_service_call");
+}
 
 export function catalogEntry(slug: Vertical): VerticalCatalogEntry | undefined {
   return VERTICAL_CATALOG.find((v) => v.slug === slug);
