@@ -1,6 +1,7 @@
 import type { AgentRequest, CustomTool, EndCallTool, PostCallAnalysisField, RetellLlmRequest } from "./retell";
 import { generateGreeting } from "./greeting";
 import { verticalFor } from "@/verticals";
+import { UNKNOWN_CALLER } from "./caller-context";
 import { AGENT_FUNCTIONS, CLASSIFICATION_CHOICES, MESSAGE_REASONS, classificationChoicesFor, type AgentFunctionName, type AgentSource } from "@/verticals/types";
 
 /**
@@ -57,6 +58,9 @@ export function buildLlmConfig(src: AgentSource): RetellLlmRequest {
       current_date: "today",
       current_time: "now",
       caller_phone: "an unknown number",
+      // Only the shop prompt references these, and only shop accounts get them, so no other
+      // vertical's synced config moves. The real values are filled per call in /api/twilio/voice.
+      ...(verticalFor(a).archetype === "shop_appointment" ? UNKNOWN_CALLER : {}),
     },
   };
 }

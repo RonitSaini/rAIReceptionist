@@ -8,6 +8,7 @@ import { formatUsPhone } from "./form";
 import { MESSAGE_REASONS, type FunctionName } from "./agent-config";
 import { vocabularyFor } from "@/verticals";
 import { FIELD_SERVICE_HANDLERS } from "./field-service-handlers";
+import { SHOP_HANDLERS } from "./shop-handlers";
 import { int, normalizeTime, phoneOrCaller, str, tagCall, type Args, type HandlerContext, type HandlerResult } from "./handler-utils";
 import { afterEscalation, afterMessageTaken, afterReservationBooked, afterTakeoutOrdered } from "./outcomes";
 import { syncReservationToGoogle } from "./google-calendar";
@@ -283,4 +284,5 @@ export const HANDLERS: Record<FunctionName, (ctx: HandlerContext, args: Args) =>
   check_delivery_area: checkDeliveryAreaHandler,
   take_message: takeMessageHandler,
   ...FIELD_SERVICE_HANDLERS,
+  ...SHOP_HANDLERS,
 };

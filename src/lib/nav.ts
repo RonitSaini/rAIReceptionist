@@ -28,11 +28,13 @@ const MODULE_NAV: Record<DashboardModule, { href: string; icon: IconName; label:
   takeout: { href: "/takeout", icon: "bag", label: () => "Takeout" },
   // field service — these DO read the vocabulary, which is the point of the label being a function:
   // a plumber sees "Jobs", a roofer will see "Estimates", a property manager "Work orders".
-  schedule: { href: "/schedule", icon: "calendar", label: () => "Schedule" },
+  schedule: { href: "/schedule", icon: "calendar", label: (v) => (v.subject ? v.booking.Many : "Schedule") },
   jobs: { href: "/jobs", icon: "clipboard", label: (v) => v.booking.Many },
   customers: { href: "/customers", icon: "users", label: (v) => v.customer.Many },
   services: { href: "/services", icon: "wrench", label: () => "Services" },
   dispatch: { href: "/dispatch", icon: "siren", label: () => "Dispatch" },
+  // shop_appointment: a vet sees "Patients", a garage "Vehicles" — the noun is the point.
+  subjects: { href: "/subjects", icon: "clipboard", label: (v) => v.subject?.Many ?? "Records" },
 };
 
 /**

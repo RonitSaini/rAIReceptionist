@@ -28,6 +28,12 @@ export const FIELD_SERVICE_STEP = {
   dispatch: { id: "dispatch", title: "Dispatch & response", short: "Dispatch" },
 } as const satisfies Record<string, OnboardingStep>;
 
+/** Shop steps: how long a visit takes, and where you send people you cannot help yourself. */
+export const SHOP_STEP = {
+  appointments: { id: "appointments", title: "Appointments", short: "Slots" },
+  handoffs: { id: "handoffs", title: "Urgent cases & referrals", short: "Urgent" },
+} as const satisfies Record<string, OnboardingStep>;
+
 /** Restaurant-only steps. They live here beside the shared set so every step id is greppable in one file. */
 export const RESTAURANT_STEP = {
   menuPolicies: { id: "menu-policies", title: "Menu & policies", short: "Menu" },

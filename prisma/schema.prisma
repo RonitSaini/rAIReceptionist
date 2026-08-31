@@ -158,6 +158,17 @@ model Account {
   /// roadside deserves a real answer rather than silence.
   unacknowledgedMessage  String?
 
+  // Shop appointment (auto repair, veterinary). The customer comes to the business, so there is no
+  // service area and nothing is dispatched; what there is instead is somewhere else to send people.
+  //
+  /// Who to point a caller at when their vehicle cannot be driven in. Optional: a shop without a
+  /// towing partner says so rather than inventing one.
+  towingPartnerName  String?
+  towingPartnerPhone String?
+  /// Where to send an animal in trouble when the clinic is shut. Required for a veterinary account
+  /// in onboarding, because the alternative to having it is dead air on the worst call of the day.
+  emergencyReferralPhone String?
+
   // Geocoded business location (delivery radius / service area)
   latitude       Float?
   longitude      Float?

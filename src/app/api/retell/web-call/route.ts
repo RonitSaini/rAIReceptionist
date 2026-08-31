@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createWebCall } from "@/lib/retell";
 import { syncRetellAgent } from "@/lib/agent-sync";
+import { UNKNOWN_CALLER } from "@/lib/caller-context";
 import { retellConfigured } from "@/lib/env";
 import { formatDateString, formatTime, todayString } from "@/lib/time";
 
@@ -33,6 +34,7 @@ export async function POST() {
       agent_id: account.retellAgentId!,
       metadata: { accountId: account.id, test: true, web: true },
       retell_llm_dynamic_variables: {
+        ...UNKNOWN_CALLER,
         restaurant_name: account.businessName,
         host_name: account.hostName,
         timezone: account.timeZone,

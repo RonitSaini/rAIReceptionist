@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { callerContextFor } from "@/lib/caller-context";
 import { parseTwilioForm, publicRequestUrl, twimlDialSip, twimlSay, validateTwilioSignature } from "@/lib/twilio";
 import { registerPhoneCall, sipUriForCall, RetellError } from "@/lib/retell";
 import { appUrl, retellConfigured, twilioConfigured } from "@/lib/env";
@@ -51,6 +52,8 @@ export async function POST(req: NextRequest) {
 
   const callerPhone = isTest ? to : from;
   const now = new Date();
+  // Who is ringing, if we have met them before. Neutral values for every other archetype.
+  const known = await callerContextFor(account, callerPhone);
   try {
     const rc = await registerPhoneCall({
       agent_id: account.retellAgentId,
@@ -66,6 +69,7 @@ export async function POST(req: NextRequest) {
         current_date: formatDateString(todayString(account.timeZone), { weekday: "long", month: "long", day: "numeric", year: "numeric" }),
         current_time: formatTime(now, account.timeZone),
         caller_phone: callerPhone ? formatUsPhone(callerPhone) : "an unknown number",
+        ...known,
       },
     });
 

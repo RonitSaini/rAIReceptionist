@@ -18,6 +18,7 @@ import { ServiceAreaForm } from "@/components/forms/service-area-form";
 import { ServicesForm } from "@/components/forms/services-form";
 import { EmergenciesForm } from "@/components/forms/emergencies-form";
 import { DispatchForm } from "@/components/forms/dispatch-form";
+import { ShopHandoffForm } from "@/components/forms/shop-handoff-form";
 
 export const metadata = { title: "Setup" };
 
@@ -102,6 +103,28 @@ export default async function OnboardingStepPage({ params, searchParams }: { par
         </div>
       );
     }
+    case "appointments": {
+      const services = await prisma.serviceOffering.findMany({ where: { accountId: account.id }, orderBy: { sortOrder: "asc" } });
+      return (
+        <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
+          {progress}
+          <ServicesForm account={view} services={services.map(serializeServiceOffering)} mode="onboarding" />
+        </div>
+      );
+    }
+    case "handoffs":
+      return (
+        <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
+          {progress}
+          <ShopHandoffForm
+            account={view}
+            emergencyTypes={verticalFor(account).emergencyTypes}
+            referral={verticalFor(account).referral!}
+            defaultSlotMinutes={verticalFor(account).defaults.slotMinutes}
+            mode="onboarding"
+          />
+        </div>
+      );
     case "dispatch":
       return (
         <div className="mx-auto max-w-2xl 2xl:max-w-3xl">

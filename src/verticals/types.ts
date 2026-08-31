@@ -63,6 +63,14 @@ export type Vocabulary = {
   staff: Noun;
   /** The account itself: restaurant / business / shop / clinic / property. */
   business: Noun;
+  /**
+   * What the booking is ABOUT, where that is a thing rather than a place: a vehicle, a pet.
+   *
+   * Optional, and set only by shop_appointment, because a plumber's service call is about a house
+   * that is already the address and a restaurant's reservation is about nobody. Leaving it undefined
+   * keeps it out of the serialized definition entirely, so no existing golden moves.
+   */
+  subject?: Noun;
 };
 
 // ---------- Onboarding ----------
@@ -110,6 +118,8 @@ export const AGENT_FUNCTIONS = [
   "get_available_slots",
   "book_service_call",
   "dispatch_emergency",
+  // shop_appointment (auto repair, veterinary)
+  "book_appointment",
   // field_service, dispatch-first (locksmith, towing)
   "request_immediate_dispatch",
   // every archetype
@@ -136,8 +146,13 @@ export const CLASSIFICATION_CHOICES = ["reservation", "takeout", "question", "wa
 
 export const FIELD_SERVICE_CLASSIFICATION_CHOICES = ["service_call", "estimate", "emergency", "question", "message", "escalation", "other"] as const;
 
+/** A shop books appointments and takes messages; nothing is dispatched anywhere. */
+export const SHOP_CLASSIFICATION_CHOICES = ["service_call", "emergency", "question", "message", "escalation", "other"] as const;
+
 export function classificationChoicesFor(archetype: Archetype): readonly string[] {
-  return archetype === "restaurant" ? CLASSIFICATION_CHOICES : FIELD_SERVICE_CLASSIFICATION_CHOICES;
+  if (archetype === "restaurant") return CLASSIFICATION_CHOICES;
+  if (archetype === "shop_appointment") return SHOP_CLASSIFICATION_CHOICES;
+  return FIELD_SERVICE_CLASSIFICATION_CHOICES;
 }
 
 // ---------- Dashboard ----------
@@ -163,6 +178,8 @@ export const DASHBOARD_MODULES = [
   "services",
   // field_service, dispatch-first: a live queue rather than a calendar
   "dispatch",
+  // shop_appointment: the vehicles or pets on file, grouped by who owns them
+  "subjects",
 ] as const;
 export type DashboardModule = (typeof DASHBOARD_MODULES)[number];
 
@@ -292,6 +309,20 @@ export type VerticalDefinition = {
 
   /** What the caller is texted when nobody acknowledged in time. An account may override it. */
   unacknowledgedMessage?: string;
+
+  /**
+   * Where a shop sends a caller it cannot help right now: a towing partner, an emergency animal
+   * hospital. Only shop_appointment sets it; onboarding reads `required` to decide whether the
+   * account may finish without one.
+   */
+  referral?: {
+    field: "towingPartnerPhone" | "emergencyReferralPhone";
+    nameField?: "towingPartnerName";
+    label: string;
+    hint: string;
+    required: boolean;
+    fallback: string;
+  };
 
   defaults: VerticalDefaults;
 };

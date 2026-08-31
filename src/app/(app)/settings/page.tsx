@@ -24,6 +24,7 @@ import { ServiceAreaForm } from "@/components/forms/service-area-form";
 import { ServicesForm } from "@/components/forms/services-form";
 import { EmergenciesForm } from "@/components/forms/emergencies-form";
 import { DispatchForm } from "@/components/forms/dispatch-form";
+import { ShopHandoffForm } from "@/components/forms/shop-handoff-form";
 
 export const metadata = { title: "Settings" };
 
@@ -42,6 +43,16 @@ const RESTAURANT_TABS = [
  * a definition of what counts as an emergency. Same three settings the onboarding steps collect,
  * reachable again afterwards - which is the whole point of Settings.
  */
+const SHOP_TABS = [
+  { key: "business", label: "Business" },
+  { key: "hours", label: "Hours" },
+  { key: "services", label: "Services & pricing" },
+  { key: "handoffs", label: "Urgent & referrals" },
+  { key: "voice", label: "Voice" },
+  { key: "phone", label: "Phone" },
+  { key: "billing", label: "Billing" },
+] as const;
+
 const FIELD_SERVICE_TABS = [
   { key: "business", label: "Business" },
   { key: "hours", label: "Hours" },
@@ -54,7 +65,7 @@ const FIELD_SERVICE_TABS = [
   { key: "billing", label: "Billing" },
 ] as const;
 
-type TabKey = (typeof RESTAURANT_TABS)[number]["key"] | (typeof FIELD_SERVICE_TABS)[number]["key"];
+type TabKey = (typeof RESTAURANT_TABS)[number]["key"] | (typeof FIELD_SERVICE_TABS)[number]["key"] | (typeof SHOP_TABS)[number]["key"];
 
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ tab?: string; checkout?: string; google?: string; message?: string }> }) {
   const { account } = await requireAccount();
@@ -62,7 +73,11 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const definition = verticalFor(account);
   // Dispatch settings only exist for a trade that dispatches. A plumber's tab list is unchanged.
   const TABS: readonly { key: TabKey; label: string }[] =
-    definition.archetype === "restaurant" ? RESTAURANT_TABS : FIELD_SERVICE_TABS.filter((t) => t.key !== "dispatch" || definition.dispatchFirst);
+    definition.archetype === "restaurant"
+      ? RESTAURANT_TABS
+      : definition.archetype === "shop_appointment"
+        ? SHOP_TABS
+        : FIELD_SERVICE_TABS.filter((t) => t.key !== "dispatch" || definition.dispatchFirst);
   const tab: TabKey = TABS.some((t) => t.key === tabParam) ? (tabParam as TabKey) : "business";
   const view = serializeAccount(account);
 
@@ -114,6 +129,18 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               defaultResponse={null}
               defaultAckMinutes={verticalFor(account).ackMinutes ?? 10}
               defaultUnacknowledged={verticalFor(account).smsTemplates.unacknowledged?.(account).replace(`${account.businessName}: `, "") ?? ""}
+              mode="settings"
+            />
+          </Card>
+        ) : null}
+
+        {tab === "handoffs" ? (
+          <Card title="Urgent cases & referrals">
+            <ShopHandoffForm
+              account={view}
+              emergencyTypes={definition.emergencyTypes}
+              referral={definition.referral!}
+              defaultSlotMinutes={definition.defaults.slotMinutes}
               mode="settings"
             />
           </Card>
