@@ -137,6 +137,10 @@ export function listPortalConfigurations(params: { is_default?: boolean; active?
   return stripe().billingPortal.configurations.list(params);
 }
 
+export function createPortalConfiguration(params: Stripe.BillingPortal.ConfigurationCreateParams) {
+  return stripe().billingPortal.configurations.create(params);
+}
+
 // ---------- Webhooks ----------
 
 /**

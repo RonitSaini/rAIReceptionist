@@ -1,9 +1,10 @@
 import type { Account, SubscriptionStatus } from "@prisma/client";
 import { prisma } from "./prisma";
 import { createNotification } from "./notifications";
-import { billingRequired, stripeConfigured } from "./env";
+import { appUrl, billingRequired, stripeConfigured } from "./env";
 import { subscriptionActive } from "./billing-ui";
 import {
+  createPortalConfiguration,
   getPrice,
   getSubscription,
   idOf,
@@ -201,13 +202,35 @@ export async function handleStripeEvent(event: StripeWebhookEvent): Promise<void
 const CACHE_TTL_MS = 5 * 60_000;
 let portalConfigCache: { at: number; id: string | null } | null = null;
 
-/** The portal configuration to open: the Dashboard default if there is one, else the first active one. */
+/** /terms promises that cancelling keeps the service through the paid period. That promise lives
+ *  here, not in the Stripe Dashboard: only a portal configuration that cancels at period end is
+ *  ever offered to a customer. */
+const cancelsAtPeriodEnd = (c: { features?: { subscription_cancel?: { enabled?: boolean; mode?: string } } }) =>
+  c.features?.subscription_cancel?.enabled === true && c.features?.subscription_cancel?.mode === "at_period_end";
+
+/**
+ * The portal configuration to open: the Dashboard default when it already cancels at period end,
+ * else any active configuration that does — and when none does (someone edited the Dashboard, or a
+ * fresh mode has no configuration yet), one of our own is created with the terms pinned into it.
+ */
 export async function resolvePortalConfiguration(): Promise<string | undefined> {
   if (portalConfigCache && Date.now() - portalConfigCache.at < CACHE_TTL_MS) return portalConfigCache.id ?? undefined;
-  let id = (await listPortalConfigurations({ is_default: true, active: true, limit: 1 })).data[0]?.id ?? null;
-  if (!id) id = (await listPortalConfigurations({ active: true, limit: 1 })).data[0]?.id ?? null;
-  portalConfigCache = { at: Date.now(), id };
-  return id ?? undefined;
+  const configs = (await listPortalConfigurations({ active: true, limit: 10 })).data;
+  let chosen = configs.find((c) => c.is_default && cancelsAtPeriodEnd(c)) ?? configs.find(cancelsAtPeriodEnd) ?? null;
+  if (!chosen) {
+    chosen = await createPortalConfiguration({
+      business_profile: { privacy_policy_url: `${appUrl()}/privacy`, terms_of_service_url: `${appUrl()}/terms` },
+      features: {
+        invoice_history: { enabled: true },
+        payment_method_update: { enabled: true },
+        subscription_cancel: { enabled: true, mode: "at_period_end" },
+      },
+      metadata: { frontdesk: "portal-terms-v1" },
+    });
+    console.warn(`[billing] no at-period-end portal configuration existed; created ${chosen.id}`);
+  }
+  portalConfigCache = { at: Date.now(), id: chosen.id };
+  return chosen.id;
 }
 
 // ---------- Plan display ----------

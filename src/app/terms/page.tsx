@@ -82,11 +82,16 @@ export default function TermsPage() {
           </ul>
         </Section>
 
-        <Section title="Billing">
+        <Section title="Billing, cancellation and refunds">
           <p>
-            The service is a paid subscription (plus a one-time setup fee), billed through Stripe. You can cancel any time from the billing portal or by deleting your account; deleting the
-            account cancels the subscription, releases your phone number, and removes your data as described in the Privacy Policy. Fees already charged are not refunded unless the law says
-            otherwise. Prices can change; we&apos;ll tell you before a change affects you.
+            The service is a paid monthly subscription plus a one-time setup fee, billed through Stripe. Subscriptions bill monthly in advance, and once a monthly payment has been charged it is
+            not refundable. You can cancel any time from the billing portal: cancelling stops all future charges, and the service stays active through the end of the period you already paid
+            for. The setup fee is non-refundable once onboarding work has begun.
+          </p>
+          <p>
+            Deleting your account is different from cancelling: deletion takes effect immediately — it ends the service, releases your phone number and removes your data as described in the
+            Privacy Policy — and the remainder of any paid period is forfeited. We may make exceptions to any of the above at our sole discretion, but we are not
+            obliged to. Prices can change; we&apos;ll tell you before a change affects you.
           </p>
         </Section>
 
