@@ -108,7 +108,7 @@ const MENU = [
 
 /** Each variant exercises a different branch of the prompt and tool builders. */
 const VARIANTS = [
-  { name: "full", src: { account: account(), hours: HOURS, managerHours: MANAGER_HOURS, menu: MENU, appUrl: APP_URL } },
+  { name: "full", src: { account: account(), hours: HOURS, managerHours: MANAGER_HOURS, menu: MENU, services: [], appUrl: APP_URL } },
   {
     name: "bare",
     src: {
@@ -132,6 +132,7 @@ const VARIANTS = [
       hours: [],
       managerHours: [],
       menu: [],
+      services: [],
       appUrl: APP_URL,
     },
   },
@@ -142,6 +143,7 @@ const VARIANTS = [
       hours: HOURS,
       managerHours: MANAGER_HOURS,
       menu: MENU,
+      services: [],
       appUrl: APP_URL,
     },
   },
@@ -152,6 +154,7 @@ const VARIANTS = [
       hours: HOURS,
       managerHours: MANAGER_HOURS,
       menu: MENU,
+      services: [],
       appUrl: APP_URL,
     },
   },
@@ -203,10 +206,14 @@ async function buildSnapshot() {
   }
 
   out.push(section("POST-CALL ANALYSIS", json(agentConfig.buildPostCallAnalysis())));
+  // FUNCTION_NAMES is the app-wide registry across every archetype, so it grows whenever a new
+  // vertical lands — which says nothing about restaurants. What a restaurant is actually given is
+  // its own `agentFunctions`, and that is what this asserts.
+  const restaurantDefinition = (await import("../src/verticals/index.ts")).verticalFor("restaurant");
   out.push(
     section(
       "AGENT CONSTANTS",
-      json({ FUNCTION_NAMES: agentConfig.FUNCTION_NAMES, MESSAGE_REASONS: agentConfig.MESSAGE_REASONS, CLASSIFICATION_CHOICES: agentConfig.CLASSIFICATION_CHOICES }),
+      json({ FUNCTION_NAMES: restaurantDefinition.agentFunctions, MESSAGE_REASONS: agentConfig.MESSAGE_REASONS, CLASSIFICATION_CHOICES: agentConfig.CLASSIFICATION_CHOICES }),
     ),
   );
 

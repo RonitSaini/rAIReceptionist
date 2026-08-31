@@ -131,8 +131,10 @@ export function cancellationReplyText(account: TemplateAccount, kind: Cancellati
 }
 
 /** Record that a guest confirmation went out (or why it didn't) on the booking. */
-export async function markConfirmationSent(kind: "reservation" | "order", id: string, result: SmsResult): Promise<void> {
+export async function markConfirmationSent(kind: "reservation" | "order" | "job", id: string, result: SmsResult): Promise<void> {
   if (!result.ok) return;
-  if (kind === "reservation") await prisma.reservation.update({ where: { id }, data: { smsConfirmedAt: new Date() } }).catch(() => {});
-  else await prisma.takeoutOrder.update({ where: { id }, data: { smsConfirmedAt: new Date() } }).catch(() => {});
+  const data = { smsConfirmedAt: new Date() };
+  if (kind === "reservation") await prisma.reservation.update({ where: { id }, data }).catch(() => {});
+  else if (kind === "job") await prisma.job.update({ where: { id }, data }).catch(() => {});
+  else await prisma.takeoutOrder.update({ where: { id }, data }).catch(() => {});
 }

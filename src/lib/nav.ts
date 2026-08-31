@@ -18,12 +18,20 @@ import type { DashboardModule, Vocabulary } from "@/verticals/types";
 export type NavItem = { href: string; label: string; icon: IconName };
 
 const MODULE_NAV: Record<DashboardModule, { href: string; icon: IconName; label: (v: Vocabulary) => string }> = {
+  // shared
   home: { href: "/dashboard", icon: "home", label: () => "Home" },
   notifications: { href: "/notifications", icon: "bell", label: () => "Notifications" },
-  book: { href: "/reservations", icon: "calendar", label: () => "Book" },
-  takeout: { href: "/takeout", icon: "bag", label: () => "Takeout" },
   calls: { href: "/calls", icon: "phone", label: () => "Calls" },
   settings: { href: "/settings", icon: "settings", label: () => "Settings" },
+  // restaurant
+  book: { href: "/reservations", icon: "calendar", label: () => "Book" },
+  takeout: { href: "/takeout", icon: "bag", label: () => "Takeout" },
+  // field service — these DO read the vocabulary, which is the point of the label being a function:
+  // a plumber sees "Jobs", a roofer will see "Estimates", a property manager "Work orders".
+  schedule: { href: "/schedule", icon: "calendar", label: () => "Schedule" },
+  jobs: { href: "/jobs", icon: "clipboard", label: (v) => v.booking.Many },
+  customers: { href: "/customers", icon: "users", label: (v) => v.customer.Many },
+  services: { href: "/services", icon: "wrench", label: () => "Services" },
 };
 
 /**

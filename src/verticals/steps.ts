@@ -20,6 +20,13 @@ export const STEP = {
   payment: { id: "payment", title: "Payment", short: "Pay" },
 } as const satisfies Record<string, OnboardingStep>;
 
+/** Field-service steps: where you will drive, what you sell, and what counts as an emergency. */
+export const FIELD_SERVICE_STEP = {
+  serviceArea: { id: "service-area", title: "Service area", short: "Area" },
+  services: { id: "services", title: "Services & pricing", short: "Services" },
+  emergencies: { id: "emergencies", title: "Emergencies & technician", short: "Urgent" },
+} as const satisfies Record<string, OnboardingStep>;
+
 /** Restaurant-only steps. They live here beside the shared set so every step id is greppable in one file. */
 export const RESTAURANT_STEP = {
   menuPolicies: { id: "menu-policies", title: "Menu & policies", short: "Menu" },

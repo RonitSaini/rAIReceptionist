@@ -1,11 +1,13 @@
-import type { Account, Call, CallClassification } from "@prisma/client";
+import type { Account, CallClassification } from "@prisma/client";
 import { prisma } from "./prisma";
 import { getAvailableTimes, nearestAlternatives, periodsForDay } from "./availability";
 import { distanceMiles, extractZip, formatRestaurantAddress, geocodeAddress } from "./geo";
 import { accountCountry, displayDistance, formatDistance, KM_PER_MILE, postalLabel, unitWord } from "./locale";
 import { dayOfWeekOf, formatDateString, formatClock, isValidDateString, timeToMinutes, todayString, zonedToUtc, formatDateTime } from "./time";
-import { formatUsPhone, normalizeUsPhone } from "./form";
+import { formatUsPhone } from "./form";
 import { MESSAGE_REASONS, type FunctionName } from "./agent-config";
+import { FIELD_SERVICE_HANDLERS } from "./field-service-handlers";
+import { int, normalizeTime, phoneOrCaller, str, tagCall, type Args, type HandlerContext, type HandlerResult } from "./handler-utils";
 import { afterEscalation, afterMessageTaken, afterReservationBooked, afterTakeoutOrdered } from "./outcomes";
 import { syncReservationToGoogle } from "./google-calendar";
 
@@ -16,40 +18,7 @@ import { syncReservationToGoogle } from "./google-calendar";
  * After each outcome, src/lib/outcomes.ts creates the in-app notification, texts the guest, and (for escalations) rings the manager.
  */
 
-export type HandlerContext = { account: Account; call: Call | null; callerPhone: string | null };
-export type Args = Record<string, unknown>;
-export type HandlerResult = Record<string, unknown> & { success: boolean; message: string };
-
-const str = (v: unknown) => (typeof v === "string" ? v.trim() : v == null ? "" : String(v).trim());
-const int = (v: unknown) => {
-  const n = typeof v === "number" ? v : Number.parseInt(String(v ?? ""), 10);
-  return Number.isFinite(n) ? n : NaN;
-};
-
-function phoneOrCaller(v: unknown, ctx: HandlerContext): string | null {
-  const s = str(v);
-  return (s ? normalizeUsPhone(s) : null) ?? ctx.callerPhone;
-}
-
-/** Accept "6:30 PM", "18:30", "6pm" and return HH:MM, or null. */
-function normalizeTime(v: unknown): string | null {
-  const s = str(v).toLowerCase().replace(/\s+/g, " ");
-  if (/^([01]\d|2[0-3]):[0-5]\d$/.test(s)) return s;
-  const m = /^(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)?$/.exec(s);
-  if (!m) return null;
-  let h = Number(m[1]);
-  const min = Number(m[2] ?? "0");
-  const ap = m[3]?.replace(/\./g, "");
-  if (ap === "pm" && h < 12) h += 12;
-  if (ap === "am" && h === 12) h = 0;
-  if (h > 23 || min > 59) return null;
-  return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
-}
-
-async function tagCall(ctx: HandlerContext, data: Partial<Pick<Call, "classification" | "reservationId" | "takeoutOrderId" | "callerName" | "messageText" | "escalationReason" | "callbackRequested">>) {
-  if (!ctx.call) return;
-  await prisma.call.update({ where: { id: ctx.call.id }, data }).catch(() => {});
-}
+export type { HandlerContext, Args, HandlerResult } from "./handler-utils";
 
 // ---------- get_available_times ----------
 
@@ -293,6 +262,13 @@ export async function takeMessageHandler(ctx: HandlerContext, args: Args): Promi
 
 // ---------- dispatch ----------
 
+/**
+ * Every custom function the agent can call, across every archetype.
+ *
+ * A vertical narrows this by declaring `agentFunctions`, which is what decides the tools Retell is
+ * actually given — but the endpoint answers for all of them, so a stale agent configuration calling
+ * a function its vertical no longer lists still gets a sane response rather than a 404.
+ */
 export const HANDLERS: Record<FunctionName, (ctx: HandlerContext, args: Args) => Promise<HandlerResult>> = {
   get_available_times: getAvailableTimesHandler,
   book_reservation: bookReservationHandler,
@@ -300,4 +276,5 @@ export const HANDLERS: Record<FunctionName, (ctx: HandlerContext, args: Args) =>
   take_takeout_order: takeTakeoutOrderHandler,
   check_delivery_area: checkDeliveryAreaHandler,
   take_message: takeMessageHandler,
+  ...FIELD_SERVICE_HANDLERS,
 };

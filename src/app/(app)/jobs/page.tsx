@@ -1,0 +1,84 @@
+import Link from "next/link";
+import type { JobStatus } from "@prisma/client";
+import { requireAccount } from "@/lib/current-account";
+import { prisma } from "@/lib/prisma";
+import { formatDateTime, nowUtc, timeAgo } from "@/lib/time";
+import { formatUsPhone } from "@/lib/form";
+import { humanize } from "@/lib/constants";
+import { vocabularyFor } from "@/verticals";
+import { Badge, EmptyState, LinkButton, PageHeader } from "@/components/ui";
+import { Reveal } from "@/components/reveal";
+import { JOB_STATUS_TONE, JOB_STATUS_ORDER } from "@/lib/jobs-ui";
+
+export const metadata = { title: "Jobs" };
+
+/** Every job, newest first, filterable by status. The schedule shows the diary; this shows the list. */
+export default async function JobsPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+  const { account } = await requireAccount();
+  const { status } = await searchParams;
+  const words = vocabularyFor(account);
+  const now = nowUtc();
+
+  const active = JOB_STATUS_ORDER.includes(status as JobStatus) ? (status as JobStatus) : null;
+  const jobs = await prisma.job.findMany({
+    where: { accountId: account.id, ...(active ? { status: active } : {}) },
+    orderBy: [{ scheduledStart: "desc" }, { createdAt: "desc" }],
+    take: 100,
+  });
+
+  const counts = await prisma.job.groupBy({ by: ["status"], where: { accountId: account.id }, _count: { _all: true } });
+  const countFor = (s: JobStatus) => counts.find((c) => c.status === s)?._count._all ?? 0;
+
+  return (
+    <div className="space-y-4">
+      <PageHeader
+        title={words.booking.Many}
+        action={
+          <LinkButton href="/jobs/new" size="sm">
+            + New
+          </LinkButton>
+        }
+      />
+
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Filters">
+        <Link href="/jobs" className={`rounded-full border px-3 py-1.5 text-sm font-semibold ${!active ? "border-brand-600 bg-brand-600 text-white" : "border-gray-300 bg-surface text-gray-700"}`}>
+          All
+        </Link>
+        {JOB_STATUS_ORDER.map((s) => (
+          <Link key={s} href={`/jobs?status=${s}`} className={`rounded-full border px-3 py-1.5 text-sm font-semibold ${active === s ? "border-brand-600 bg-brand-600 text-white" : "border-gray-300 bg-surface text-gray-700"}`}>
+            {humanize(s)} <span className="text-xs opacity-70">{countFor(s)}</span>
+          </Link>
+        ))}
+      </div>
+
+      {jobs.length === 0 ? (
+        <EmptyState title={`No ${words.booking.many}${active ? ` with status ${humanize(active)}` : ""}`} action={<LinkButton href="/jobs/new">Add one</LinkButton>} />
+      ) : (
+        <ul className="grid gap-3 xl:grid-cols-2">
+          {jobs.map((j, i) => (
+            <Reveal as="li" index={i} key={j.id} className="lift rounded-2xl border border-gray-200 bg-surface p-4">
+              <Link href={`/jobs/${j.id}`} className="flex items-start justify-between gap-3">
+                <span className="min-w-0">
+                  <span className="block font-semibold">
+                    {j.isEmergency ? <span className="mr-1 text-red-600">EMERGENCY</span> : null}
+                    {j.customerName}
+                    {j.customerPhone ? <span className="font-normal text-gray-500"> · {formatUsPhone(j.customerPhone)}</span> : null}
+                  </span>
+                  {j.address ? <span className="block truncate text-sm text-gray-600">{j.address}</span> : null}
+                  {j.description ? <span className="line-clamp-1 block text-sm text-gray-500">{j.description}</span> : null}
+                  <span className="text-xs text-gray-500">
+                    {j.scheduledStart ? formatDateTime(j.scheduledStart, account.timeZone) : `Requested ${timeAgo(j.createdAt, now)}`}
+                    {j.assignedTo ? ` · ${j.assignedTo}` : ""}
+                  </span>
+                </span>
+                <Badge tone={JOB_STATUS_TONE[j.status]} className="shrink-0">
+                  {humanize(j.status)}
+                </Badge>
+              </Link>
+            </Reveal>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}

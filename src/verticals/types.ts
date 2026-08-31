@@ -1,5 +1,5 @@
 import type { ZodType } from "zod";
-import type { Account, BusinessHours, ManagerAvailability, MenuItem, Vertical } from "@prisma/client";
+import type { Account, BusinessHours, ManagerAvailability, MenuItem, ServiceOffering, Vertical } from "@prisma/client";
 import type { CustomTool, EndCallTool } from "@/lib/retell";
 
 /**
@@ -84,18 +84,35 @@ export type AgentSource = {
   account: Account;
   hours: BusinessHours[];
   managerHours: ManagerAvailability[];
+  /** Restaurant only. */
   menu: MenuItem[];
+  /** Trades, shops and clinics. Empty for a restaurant. */
+  services: ServiceOffering[];
   appUrl: string;
 };
 
 /**
- * Custom functions the agent may call. Phase 1 lists exactly the six that are implemented —
- * a name here without a route behind it is a runtime failure, so archetype-specific functions
- * (check_service_area, book_service_call, dispatch_emergency, request_immediate_dispatch,
- * book_appointment, lookup_tenant, create_work_order, request_showing) join this union in the
- * phase that builds their handlers.
+ * Custom functions the agent may call, across every archetype implemented so far. A name here
+ * without a handler behind it is a runtime failure — the endpoint 401s or 404s and the caller
+ * hears the model improvise — so a function joins this union only in the phase that builds it.
+ * Still to come: request_immediate_dispatch (dispatch-first), book_appointment (shop), and
+ * lookup_tenant / create_work_order / request_showing (property management).
  */
-export const AGENT_FUNCTIONS = ["get_available_times", "book_reservation", "join_waitlist", "take_takeout_order", "check_delivery_area", "take_message"] as const;
+export const AGENT_FUNCTIONS = [
+  // restaurant
+  "get_available_times",
+  "book_reservation",
+  "join_waitlist",
+  "take_takeout_order",
+  "check_delivery_area",
+  // field_service
+  "check_service_area",
+  "get_available_slots",
+  "book_service_call",
+  "dispatch_emergency",
+  // every archetype
+  "take_message",
+] as const;
 export type AgentFunctionName = (typeof AGENT_FUNCTIONS)[number];
 
 /**
@@ -116,7 +133,21 @@ export const CLASSIFICATION_CHOICES = ["reservation", "takeout", "question", "wa
  * every vertical and are always rendered; the rest are opt-in. As with functions, only modules
  * that have a page behind them today are listed.
  */
-export const DASHBOARD_MODULES = ["home", "notifications", "book", "takeout", "calls", "settings"] as const;
+export const DASHBOARD_MODULES = [
+  // shared
+  "home",
+  "notifications",
+  "calls",
+  "settings",
+  // restaurant
+  "book",
+  "takeout",
+  // field_service
+  "schedule",
+  "jobs",
+  "customers",
+  "services",
+] as const;
 export type DashboardModule = (typeof DASHBOARD_MODULES)[number];
 
 // ---------- SMS ----------
@@ -138,21 +169,26 @@ export type SmsTemplates = {
 
 export type SmsAccount = Pick<Account, "restaurantName" | "timeZone" | "twilioNumber">;
 
-/** The subset of a booking that guest SMS is allowed to mention. */
+/** The subset of a booking that customer SMS is allowed to mention. */
 export type BookingSummary = {
   customerName: string;
-  when: Date;
+  /** Null for a job that has been requested but not yet given a slot. */
+  when: Date | null;
   /** Restaurant: party size. Other verticals leave it undefined. */
   partySize?: number;
   /** Restaurant takeout: the dictated order. */
   items?: string;
   isWaitlist?: boolean;
   isDelivery?: boolean;
+  /** Field service: where the visit is, who is coming, and whether it is an emergency. */
+  address?: string | null;
+  technician?: string | null;
+  isEmergency?: boolean;
   /** Which template shape to render. */
-  kind: "reservation" | "order";
+  kind: "reservation" | "order" | "job";
 };
 
-export type CancellationKind = "reservation" | "waitlist" | "order";
+export type CancellationKind = "reservation" | "waitlist" | "order" | "job";
 
 // ---------- Escalation and emergencies ----------
 

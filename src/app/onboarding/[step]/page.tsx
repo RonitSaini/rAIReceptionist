@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { requireAccount } from "@/lib/current-account";
-import { serializeAccount, serializeMenuItem } from "@/lib/serialize";
+import { serializeAccount, serializeMenuItem, serializeServiceOffering } from "@/lib/serialize";
 import { MAX_ONBOARDING_STEPS, VERTICAL_CATALOG, onboardingStepsFor, verticalFor } from "@/verticals";
 import { OnboardingProgress } from "@/components/onboarding-progress";
 import { getGoogleCalendarView } from "@/lib/google-calendar-view";
@@ -14,6 +14,9 @@ import { ReservationSettingsForm } from "@/components/forms/reservation-settings
 import { VoiceForm } from "@/components/forms/voice-form";
 import { PhoneStep } from "@/components/forms/phone-step";
 import { PaymentStep, parseCheckoutResult } from "@/components/forms/payment-step";
+import { ServiceAreaForm } from "@/components/forms/service-area-form";
+import { ServicesForm } from "@/components/forms/services-form";
+import { EmergenciesForm } from "@/components/forms/emergencies-form";
 
 export const metadata = { title: "Setup" };
 
@@ -80,6 +83,29 @@ export default async function OnboardingStepPage({ params, searchParams }: { par
         <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
           {progress}
           <ReservationSettingsForm account={view} mode="onboarding" google={await getGoogleCalendarView(account.id)} googleStatus={googleStatus} googleMessage={googleMessage} />
+        </div>
+      );
+    case "service-area":
+      return (
+        <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
+          {progress}
+          <ServiceAreaForm account={view} mode="onboarding" />
+        </div>
+      );
+    case "services": {
+      const services = await prisma.serviceOffering.findMany({ where: { accountId: account.id }, orderBy: { sortOrder: "asc" } });
+      return (
+        <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
+          {progress}
+          <ServicesForm account={view} services={services.map(serializeServiceOffering)} mode="onboarding" />
+        </div>
+      );
+    }
+    case "emergencies":
+      return (
+        <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
+          {progress}
+          <EmergenciesForm account={view} emergencyTypes={verticalFor(account).emergencyTypes} defaultSlotMinutes={verticalFor(account).defaults.slotMinutes} mode="onboarding" />
         </div>
       );
     case "voice":

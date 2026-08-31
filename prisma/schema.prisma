@@ -113,13 +113,35 @@ model Account {
   maxCoversPerSlot           Int?
   seatingCapacity            Int?
 
-  // Takeout + delivery
+  // Takeout + delivery (restaurant), and the SERVICE AREA for field_service verticals.
+  //
+  // `deliveryZip` and `deliveryRadiusMiles` are reused rather than duplicated: "a postcode and a
+  // radius in miles around the business" is the same quantity whether it bounds where a kitchen
+  // delivers or where a plumber will drive, and the distance maths, the Canadian km display and the
+  // geocoding fallbacks already operate on them. Same reasoning as `restaurantName` holding the
+  // business name for every vertical — the column name predates the product, renaming it would be a
+  // destructive migration for no user-visible gain.
   takesTakeoutOrders  Boolean  @default(true)
   offersDelivery      Boolean  @default(false)
   deliveryZip         String?
   deliveryRadiusMiles Decimal? @db.Decimal(5, 1)
 
-  // Geocoded restaurant location (for delivery-radius checks)
+  // Field service
+  /// Who turns up. Spoken by the agent ("Mike will call you within 15 minutes") and the default
+  /// value for Job.assignedTo.
+  technicianName   String?
+  /// Keys from the vertical's `emergencyTypes`, chosen in onboarding. Parallel to escalationTypes.
+  emergencyTypes   String[] @default([])
+  /// Call-out / dispatch fee in micro-units of the account's currency. Micros, not Decimal, because
+  /// money that is only ever added up and displayed is safer as an integer.
+  calloutFeeMicros BigInt?
+  /// How long one job occupies the calendar. Restaurants use tableTurnMinutes; a trade's visit is
+  /// a different shape and a different default (120).
+  jobSlotMinutes   Int      @default(120)
+  /// Cap on bookable jobs in a day, so a two-van shop is not sold twelve calls.
+  maxJobsPerDay    Int?
+
+  // Geocoded business location (delivery radius / service area)
   latitude       Float?
   longitude      Float?
   agentSyncedAt  DateTime?
@@ -142,6 +164,8 @@ model Account {
   googleCalendar      GoogleCalendarConnection?
   smsMessages         SmsMessage[]
   customers           Customer[]
+  jobs                Job[]
+  serviceOfferings    ServiceOffering[]
 }
 
 // ---------- People who call ----------
@@ -173,9 +197,119 @@ model Customer {
 
   reservations  Reservation[]
   takeoutOrders TakeoutOrder[]
+  jobs          Job[]
 
   @@unique([accountId, phone])
   @@index([accountId, name])
+}
+
+// ---------- Work (every non-restaurant vertical) ----------
+
+/// What kind of work a Job is. The archetype decides which kinds it uses:
+/// field_service books `service_call` (and `estimate` for roofing, `dispatch` for locksmith/towing),
+/// shop_appointment books `shop_visit`, property_management raises `work_order`.
+enum JobKind {
+  service_call
+  estimate
+  dispatch
+  shop_visit
+  work_order
+}
+
+/// `requested` is what the AI creates when there is no slot to commit to; everything from
+/// `scheduled` on is a human moving the job along. `dispatched` -> `en_route` -> `in_progress` is
+/// the dispatch-first path, and a scheduled visit can jump straight to `in_progress`.
+enum JobStatus {
+  requested
+  scheduled
+  dispatched
+  en_route
+  in_progress
+  completed
+  cancelled
+}
+
+/// The booking record for every vertical that is not a restaurant.
+///
+/// Reservation and TakeoutOrder are left exactly as they are and keep serving restaurants; this is
+/// the parallel shape for work that happens at an address (or on a vehicle, or in a unit) rather
+/// than at a table. What varies per profession — the system type, the vehicle, the lock, the roof
+/// section — lives in `details`, validated against the vertical's `intakeSchema` before it is
+/// written. Anything queried is a real column; the rest stays JSON.
+model Job {
+  id         String    @id @default(cuid())
+  accountId  String
+  account    Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  kind JobKind @default(service_call)
+
+  /// Denormalised from Customer so a job still reads correctly if the customer row is removed,
+  /// and so the AI can book before a Customer has been resolved.
+  customerName  String
+  customerPhone String?
+  address       String?
+  description   String?
+
+  /// Set by the agent when the caller's situation matches the vertical's emergencyTypes. Drives the
+  /// urgent notification, the outbound call to the owner and the acknowledgement sweep.
+  isEmergency Boolean @default(false)
+
+  scheduledStart DateTime? // UTC; null while status is `requested`
+  scheduledEnd   DateTime? // UTC
+  status         JobStatus    @default(requested)
+  assignedTo     String?
+  source         RecordSource @default(manual)
+
+  details Json?
+
+  /// Property management only; unused by the other archetypes.
+  propertyId String?
+  unitId     String?
+
+  googleEventId  String?
+  smsConfirmedAt DateTime?
+  cancelledAt    DateTime?
+  cancelledBy    String? // "customer" (SMS reply) | "staff" | "ai"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  notifications Notification[]
+  calls         Call[]
+
+  @@index([accountId, scheduledStart])
+  @@index([accountId, status])
+  @@index([customerPhone])
+  @@index([customerId])
+}
+
+/// What a trade, shop or clinic sells, and the equivalent of MenuItem for those verticals.
+///
+/// Deliberately NOT MenuItem: a menu item has a category, dietary tags and a price a caller can be
+/// quoted outright, while a service has a "from" price that may only be an estimate. Sharing one
+/// table would mean one of the two carrying columns that never apply to it.
+model ServiceOffering {
+  id        String  @id @default(cuid())
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  name     String
+  category String?
+  enabled  Boolean @default(true)
+
+  /// Starting price in micro-units. Null means "no published price".
+  priceFromMicros BigInt?
+  /// Whether the agent may say the price out loud, per service. The account-wide switch is
+  /// `canQuotePrices`; this narrows it.
+  canQuote        Boolean @default(false)
+
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([accountId, sortOrder])
 }
 
 // ---------- Stripe webhook idempotency ----------
@@ -215,6 +349,8 @@ model Notification {
   body           String
   reservationId  String?
   reservation    Reservation?         @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  jobId          String?
+  job            Job?                 @relation(fields: [jobId], references: [id], onDelete: SetNull)
   takeoutOrderId String?
   takeoutOrder   TakeoutOrder?        @relation(fields: [takeoutOrderId], references: [id], onDelete: SetNull)
   callId         String?
@@ -404,6 +540,8 @@ model Call {
   managerCalledAt     DateTime?
   reservationId       String?
   reservation         Reservation?       @relation(fields: [reservationId], references: [id], onDelete: SetNull)
+  jobId               String?
+  job                 Job?               @relation(fields: [jobId], references: [id], onDelete: SetNull)
   takeoutOrderId      String?
   takeoutOrder        TakeoutOrder?      @relation(fields: [takeoutOrderId], references: [id], onDelete: SetNull)
   createdAt           DateTime           @default(now())

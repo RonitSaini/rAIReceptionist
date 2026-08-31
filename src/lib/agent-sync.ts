@@ -30,13 +30,16 @@ export async function syncRetellAgent(accountId: string): Promise<SyncResult> {
   const account = await prisma.account.findUnique({ where: { id: accountId } });
   if (!account) return { ok: false, error: "Account not found." };
 
-  const [hours, managerHours, menu] = await Promise.all([
+  // Both catalogues are loaded for every account. They are small, one of them is always empty, and
+  // the alternative is this module knowing which archetype reads which table.
+  const [hours, managerHours, menu, services] = await Promise.all([
     prisma.businessHours.findMany({ where: { accountId }, orderBy: [{ dayOfWeek: "asc" }, { sortOrder: "asc" }] }),
     prisma.managerAvailability.findMany({ where: { accountId } }),
     prisma.menuItem.findMany({ where: { accountId }, orderBy: { sortOrder: "asc" } }),
+    prisma.serviceOffering.findMany({ where: { accountId }, orderBy: { sortOrder: "asc" } }),
   ]);
 
-  const src = { account, hours, managerHours, menu, appUrl: appUrl() };
+  const src = { account, hours, managerHours, menu, services, appUrl: appUrl() };
 
   try {
     const llmConfig = buildLlmConfig(src);

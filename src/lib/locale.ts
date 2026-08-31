@@ -97,3 +97,18 @@ export function isPostalCodeFor(s: string, country: Country): boolean {
   const v = s.trim();
   return country === "CA" ? CA_POSTAL.test(v) : US_ZIP.test(v);
 }
+
+// ---------- Money ----------
+
+/**
+ * Format a price held in micro-units (1,000,000 micros = 1 unit).
+ *
+ * Prices that are only ever summed and displayed are stored as integers so rounding cannot drift.
+ * Both supported countries use dollars, so the symbol is the same; the currency itself is USD
+ * everywhere for now, which is a product decision rather than a locale one.
+ */
+export function formatMoneyMicros(micros: bigint | number | null | undefined): string {
+  if (micros == null) return "";
+  const units = Number(micros) / 1_000_000;
+  return units % 1 === 0 ? `$${units}` : `$${units.toFixed(2)}`;
+}
