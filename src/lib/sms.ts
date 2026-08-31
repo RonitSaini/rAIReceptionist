@@ -1,6 +1,7 @@
 import type { Account } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { prisma } from "./prisma";
+import { formatDateTime } from "./time";
 import { sendSms } from "./twilio";
 import { twilioConfigured } from "./env";
 import { verticalFor } from "@/verticals";
@@ -164,6 +165,31 @@ export function unacknowledgedText(account: TemplateAccount & { unacknowledgedMe
 
 export function cancellationReplyText(account: TemplateAccount, kind: CancellationKind, when: Date): string {
   return verticalFor(account).smsTemplates.cancellationReply(account, kind, when);
+}
+
+/**
+ * Confirmation for a job cancelled by text. Scheduled work hands off to the vertical's own
+ * template; work with no time on it (an active dispatch, an unscheduled work order) cannot,
+ * because every one of those templates names the date.
+ */
+export function jobCancelledText(account: TemplateAccount, job: { scheduledStart: Date | null }): string {
+  if (job.scheduledStart) return cancellationReplyText(account, "job", job.scheduledStart);
+  const w = verticalFor(account).vocabulary;
+  return `${account.businessName}: Your ${w.booking.one} is cancelled. Call us any time if you still need us.`;
+}
+
+/**
+ * The sender has more than one thing that could be cancelled: list them, numbered, and ask.
+ * Stateless on purpose — the reply "1" re-runs the same ordered query, so there is no
+ * conversation state to store or to go stale.
+ */
+export function jobCancelChoiceText(account: TemplateAccount, jobs: { scheduledStart: Date | null; kind: string }[]): string {
+  const w = verticalFor(account).vocabulary;
+  const labels = jobs.map((j, i) => {
+    const label = j.scheduledStart ? formatDateTime(j.scheduledStart, account.timeZone) : j.kind === "dispatch" ? `the ${w.booking.one} in progress` : `the ${w.booking.one} not yet scheduled`;
+    return `${i + 1} for ${label}`;
+  });
+  return `${account.businessName}: You have ${jobs.length} upcoming ${w.booking.many}. Reply ${labels.join(", ")}.`;
 }
 
 /** Record that a guest confirmation went out (or why it didn't) on the booking. */
