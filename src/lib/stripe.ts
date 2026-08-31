@@ -109,6 +109,13 @@ export function createCheckoutSession(input: CheckoutSessionInput) {
     allow_promotion_codes: true,
     billing_address_collection: "auto",
     customer_update: { address: "auto", name: "auto" },
+    // Acceptance is captured a second time at the payment step, in Stripe's own records. Requires
+    // the terms-of-service URL in Dashboard -> Settings -> Public details, or session creation
+    // fails loudly (probed 2026-08-31; Stripe's error names that exact page). custom_text would
+    // have put the cancellation policy inline here, but it is incompatible with Managed Payments,
+    // which this account runs — the policy lives one link away in /terms instead. Do not re-add
+    // custom_text without turning Managed Payments off first.
+    consent_collection: { terms_of_service: "required" },
     integration_identifier: CHECKOUT_INTEGRATION_ID,
   });
 }
