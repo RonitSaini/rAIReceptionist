@@ -111,6 +111,13 @@ export default function TermsPage() {
           </p>
         </Section>
 
+        <Section title="Governing law">
+          <p>
+            These terms are governed by the laws of the Province of Ontario and the federal laws of Canada that apply there, and any dispute between us goes exclusively to the courts of
+            Ontario.
+          </p>
+        </Section>
+
         <Section title="Changes and contact">
           <p>
             If these terms change materially we&apos;ll update the effective date here and let you know. Questions:{" "}
