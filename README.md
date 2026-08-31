@@ -1,4 +1,4 @@
-# CallCover
+# FrontDesk AI
 
 AI phone receptionist for restaurants. The AI answers the restaurant's line, takes reservations and takeout orders, answers common questions, and surfaces everything in this web app.
 
@@ -28,7 +28,7 @@ Step 7 (phone number) is live once the Phase 2 keys are set — see [Phase 2 set
 ### 2. Get a free Postgres database from Neon
 
 1. Go to <https://neon.tech> and sign up (free tier is plenty).
-2. Click **New Project**. Name it `callcover`, pick the region closest to you (e.g. *US East (Ohio)*), and create it.
+2. Click **New Project**. Name it `frontdesk-ai`, pick the region closest to you (e.g. *US East (Ohio)*), and create it.
 3. On the project dashboard click **Connect**. Two connection strings are offered:
    - **Pooled** connection (host contains `-pooler`) — use this for `DATABASE_URL`.
    - **Direct** connection — use this for `DIRECT_URL` (migrations). If you only see one string, use it for both.
@@ -103,7 +103,7 @@ Phase 2 needs three things in `.env`: `RETELL_API_KEY`, `TWILIO_ACCOUNT_SID` + `
 ### 1. Retell AI
 
 1. Sign up at <https://www.retellai.com>, open the dashboard → **API Keys** → create a key → `RETELL_API_KEY`.
-2. Nothing else to configure there: CallCover creates and updates the agent and its prompt for each restaurant through the API, sets the webhook URL on the agent, and verifies webhooks with the same API key.
+2. Nothing else to configure there: FrontDesk AI creates and updates the agent and its prompt for each restaurant through the API, sets the webhook URL on the agent, and verifies webhooks with the same API key.
 
 ### 2. Twilio
 
@@ -113,7 +113,7 @@ Phase 2 needs three things in `.env`: `RETELL_API_KEY`, `TWILIO_ACCOUNT_SID` + `
 
 ### 3. A public URL
 
-- **On Vercel:** set `NEXT_PUBLIC_APP_URL` to your deployment URL (e.g. `https://callcover.vercel.app`).
+- **On Vercel:** set `NEXT_PUBLIC_APP_URL` to your deployment URL (e.g. `https://r-ai-receptionist.vercel.app`).
 - **Local testing:** run a tunnel so Twilio/Retell can reach your machine. With [ngrok](https://ngrok.com/download):
 
   ```powershell
@@ -129,7 +129,7 @@ npm run db:push
 npm run dev
 ```
 
-Then in the app: **Settings → Phone** (or onboarding step 7) → **Get my number**. This creates the Retell LLM + agent from the restaurant's settings, buys a Twilio number in the requested area code, and points its voice/SMS/status webhooks at the app. **Call me to test** rings the owner's cell from the new number. After that, forward the restaurant's real line to the CallCover number (`*72` on most carriers).
+Then in the app: **Settings → Phone** (or onboarding step 7) → **Get my number**. This creates the Retell LLM + agent from the restaurant's settings, buys a Twilio number in the requested area code, and points its voice/SMS/status webhooks at the app. **Call me to test** rings the owner's cell from the new number. After that, forward the business's real line to the FrontDesk AI number (`*72` on most carriers).
 
 If you later change the app URL (e.g. move from ngrok to Vercel), click **Re-link number to this app URL** and **Rebuild AI host** in Settings → Phone.
 

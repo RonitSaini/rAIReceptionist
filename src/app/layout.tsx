@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: { default: "FrontDesk AI", template: "%s · FrontDesk AI" },
-  description: "FrontDesk AI — the AI phone receptionist for restaurants. Answers your line, books reservations, takes takeout orders, and keeps you in the loop.",
+  description: "FrontDesk AI — an AI receptionist that answers your business line, books work, takes orders and messages, and keeps you in the loop.",
   applicationName: "FrontDesk AI",
 };
 

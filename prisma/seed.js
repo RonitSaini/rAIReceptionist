@@ -222,7 +222,7 @@ async function main() {
       { accountId: account.id, type: "message", title: "Message from a caller", body: "Rosa Delgado (212) 555-0190 asked whether you can do a vegan tasting menu for 6 next Saturday. Asked for a call-back.", createdAt: minutesAgo(150) },
       { accountId: account.id, type: "reservation", title: "New reservation: Jordan Kim, party of 6", body: "Tomorrow 6:30 PM · Outdoor / patio", reservationId: reservations[4].id, readAt: minutesAgo(200), createdAt: minutesAgo(240) },
       { accountId: account.id, type: "missed_call", title: "Missed call", body: "(646) 555-0170 hung up before the greeting finished.", readAt: minutesAgo(400), createdAt: minutesAgo(60 * 20) },
-      { accountId: account.id, type: "system", title: "Welcome to CallCover!", body: "Your AI host Sofia is ready. Everything she does shows up here.", readAt: minutesAgo(60 * 30), createdAt: minutesAgo(60 * 48) },
+      { accountId: account.id, type: "system", title: "Welcome to FrontDesk AI!", body: "Your AI host Sofia is ready. Everything she does shows up here.", readAt: minutesAgo(60 * 30), createdAt: minutesAgo(60 * 48) },
     ],
   });
 

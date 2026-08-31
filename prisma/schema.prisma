@@ -1,4 +1,4 @@
-// CallCover — Prisma schema
+// FrontDesk AI — Prisma schema
 // All DateTime columns are stored in UTC. Display in Account.timeZone.
 
 generator client {

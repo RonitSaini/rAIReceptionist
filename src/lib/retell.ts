@@ -204,7 +204,32 @@ export function verifyRetellSignature(rawBody: string, signature: string | null,
   return timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(digest, "hex"));
 }
 
+/**
+ * Header carrying the shared secret on every custom-function tool call.
+ *
+ * Renaming this and the derivation salt below is part of dropping the CallCover name, but both
+ * are wire values: an agent already registered with Retell keeps sending the old header and the
+ * old derived secret until its configuration is re-synced. So we EMIT the new names and ACCEPT
+ * the old ones (see `functionSecretCandidates` and the /api/retell/functions route). Once every
+ * account has re-synced its agent, the legacy fallbacks can be deleted.
+ */
+export const FUNCTION_SECRET_HEADER = "x-frontdesk-secret";
+export const LEGACY_FUNCTION_SECRET_HEADER = "x-callcover-secret";
+
+const SECRET_SALT = "frontdesk-functions";
+const LEGACY_SECRET_SALT = "callcover-functions";
+
 /** Shared secret we place in custom-function tool headers so only Retell can call our function endpoints. */
 export function functionSecret(): string {
-  return process.env.RETELL_FUNCTION_SECRET || createHmac("sha256", apiKey()).update("callcover-functions").digest("hex");
+  return process.env.RETELL_FUNCTION_SECRET || createHmac("sha256", apiKey()).update(SECRET_SALT).digest("hex");
+}
+
+/**
+ * Every secret an inbound function call may legitimately present: the current one first, then the
+ * secret agents synced before the rename are still sending. Compare against all of them.
+ */
+export function functionSecretCandidates(): string[] {
+  if (process.env.RETELL_FUNCTION_SECRET) return [process.env.RETELL_FUNCTION_SECRET];
+  const key = apiKey();
+  return [createHmac("sha256", key).update(SECRET_SALT).digest("hex"), createHmac("sha256", key).update(LEGACY_SECRET_SALT).digest("hex")];
 }

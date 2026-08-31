@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { timingSafeEqual } from "node:crypto";
 import { prisma } from "@/lib/prisma";
-import { functionSecret, type RetellCall } from "@/lib/retell";
+import { FUNCTION_SECRET_HEADER, LEGACY_FUNCTION_SECRET_HEADER, functionSecretCandidates, type RetellCall } from "@/lib/retell";
 import { FUNCTION_NAMES, type FunctionName } from "@/lib/agent-config";
 import { HANDLERS, type HandlerContext } from "@/lib/call-handlers";
 import { findOrCreateCallFromRetell } from "@/lib/calls";
@@ -18,9 +18,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ nam
   const { name } = await params;
   if (!retellConfigured()) return NextResponse.json({ success: false, message: "Retell is not configured." }, { status: 503 });
 
-  const provided = req.headers.get("x-callcover-secret") ?? "";
-  const expected = functionSecret();
-  if (provided.length !== expected.length || !timingSafeEqual(Buffer.from(provided), Buffer.from(expected))) {
+  // Accept the pre-rename header and secret too: agents synced before the CallCover -> FrontDesk AI
+  // rename keep sending the old pair until their configuration is rebuilt, and a live call must
+  // not 401 in the meantime.
+  const provided = req.headers.get(FUNCTION_SECRET_HEADER) ?? req.headers.get(LEGACY_FUNCTION_SECRET_HEADER) ?? "";
+  const authorized = functionSecretCandidates().some((expected) => provided.length === expected.length && timingSafeEqual(Buffer.from(provided), Buffer.from(expected)));
+  if (!authorized) {
     return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
   }
 
