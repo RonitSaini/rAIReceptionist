@@ -27,6 +27,7 @@ export const config = {
   matcher: [
     "/login",
     "/signup",
+    "/accept-terms",
     "/dashboard/:path*",
     "/onboarding/:path*",
     "/notifications/:path*",

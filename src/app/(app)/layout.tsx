@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
 import { ArrowRightIcon } from "@/components/icons";
 import { requireAccount } from "@/lib/current-account";
+import { hasAcceptedCurrentTerms } from "@/lib/terms-acceptance";
 import { countUnread, recentNotifications } from "@/lib/notifications";
 import { onboardingDoneStep } from "@/verticals";
 import { stripeConfigured } from "@/lib/env";
@@ -16,7 +18,10 @@ import { SidebarPanelSkeleton } from "@/components/sidebar-panel-skeleton";
 import { AnimatedThemeToggle } from "@/components/ui/animated-theme-toggle";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const { account } = await requireAccount();
+  const { account, userId } = await requireAccount();
+  // Accounts that predate the current terms version are blocked here, before any page renders,
+  // by the one-time interstitial. Read-only: the acceptance itself is an explicit action there.
+  if (!(await hasAcceptedCurrentTerms(userId))) redirect("/accept-terms");
   const [unread, recent] = await Promise.all([countUnread(account.id), recentNotifications(account.id)]);
   const setupIncomplete = account.onboardingStep < onboardingDoneStep(account);
   // Billing nag only once setup is done and Stripe is actually wired up on this deployment.
