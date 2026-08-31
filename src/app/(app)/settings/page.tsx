@@ -18,6 +18,7 @@ import { InvoicesCard } from "@/components/billing-invoices";
 import { AccountActions } from "@/components/account-actions";
 import { Reveal } from "@/components/reveal";
 import { getGoogleCalendarView } from "@/lib/google-calendar-view";
+import { verticalFor } from "@/verticals";
 
 export const metadata = { title: "Settings" };
 
@@ -89,7 +90,7 @@ async function HoursTab({ accountId, view }: { accountId: string; view: ReturnTy
   ]);
   return (
     <Card title="Hours & escalation">
-      <HoursForm account={view} hours={hours} managerHours={manager} mode="settings" />
+      <HoursForm account={view} hours={hours} managerHours={manager} mode="settings" escalationTypes={verticalFor(view).escalationTriggers} />
     </Card>
   );
 }

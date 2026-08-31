@@ -13,7 +13,7 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
-    "test": "node --test tests/*.test.mjs"
+    "test": "node --import ./tests/ts-hooks.mjs --test tests/*.test.mjs"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
@@ -25,7 +25,8 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "retell-client-js-sdk": "^2.0.8",
-    "stripe": "^22.6.0"
+    "stripe": "^22.6.0",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",

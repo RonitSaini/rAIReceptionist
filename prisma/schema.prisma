@@ -29,7 +29,7 @@ model User {
   @@index([accountId])
 }
 
-// ---------- Restaurant account ----------
+// ---------- Business account ----------
 
 enum SubscriptionStatus {
   none
@@ -39,8 +39,36 @@ enum SubscriptionStatus {
   cancelled
 }
 
+/// The profession an account answers the phone for. Every value maps to exactly one archetype
+/// in src/verticals: restaurant; field_service (plumbing, hvac, electrical, roofing, locksmith,
+/// towing); shop_appointment (auto_repair, veterinary); property_management.
+///
+/// Chosen at sign-up and locked once onboarding step 2 is complete: the data shapes differ per
+/// archetype and switching would orphan an account's bookings. Only an admin path may change it.
+enum Vertical {
+  restaurant
+  plumbing
+  hvac
+  electrical
+  roofing
+  locksmith
+  towing
+  auto_repair
+  veterinary
+  property_management
+}
+
 model Account {
-  id             String  @id @default(cuid())
+  id String @id @default(cuid())
+
+  /// Which profession this account is. Drives vocabulary, onboarding steps, dashboard modules,
+  /// the agent's prompt and functions — see src/verticals. Existing rows were backfilled to
+  /// `restaurant`, which is also the default so a row can never exist without one.
+  vertical Vertical @default(restaurant)
+
+  /// The trading name. Column name predates the move beyond restaurants; it holds the business
+  /// name for every vertical and is deliberately NOT renamed (renaming it would be a destructive
+  /// migration for zero user-visible gain).
   restaurantName String
   ownerName      String?
   cellPhone      String?
@@ -112,6 +140,41 @@ model Account {
   takeoutOrders       TakeoutOrder[]
   calls               Call[]
   googleCalendar      GoogleCalendarConnection?
+  customers           Customer[]
+}
+
+// ---------- People who call ----------
+
+/// One row per caller per account, shared by every vertical.
+///
+/// The point is returning-caller recognition: the agent looks a caller up by the number they are
+/// calling from and already knows their name, their address and what they called about last time.
+/// Restaurants have never had this — Reservation and TakeoutOrder carry a name and phone inline —
+/// so `Reservation.customerId` and `TakeoutOrder.customerId` are nullable and left unfilled here;
+/// linking historic bookings is a data job, not a schema one.
+///
+/// `details` holds whatever the vertical's intakeSchema says belongs to the person rather than the
+/// job: a gate code, a preferred technician, the unit they rent.
+model Customer {
+  id        String  @id @default(cuid())
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  name    String
+  /// E.164. The lookup key, and why (accountId, phone) is unique.
+  phone   String
+  address String?
+  notes   String?
+  details Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  reservations  Reservation[]
+  takeoutOrders TakeoutOrder[]
+
+  @@unique([accountId, phone])
+  @@index([accountId, name])
 }
 
 // ---------- Stripe webhook idempotency ----------
@@ -230,6 +293,9 @@ model Reservation {
   id                String            @id @default(cuid())
   accountId         String
   account           Account           @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  /// Nullable and unfilled for now: existing reservations are not backfilled onto Customer.
+  customerId        String?
+  customer          Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
   guestName         String
   guestPhone        String?
   partySize         Int
@@ -252,6 +318,7 @@ model Reservation {
 
   @@index([accountId, startTime])
   @@index([accountId, status])
+  @@index([customerId])
 }
 
 // ---------- Takeout ----------
@@ -268,6 +335,9 @@ model TakeoutOrder {
   id              String        @id @default(cuid())
   accountId       String
   account         Account       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  /// Nullable and unfilled for now: existing orders are not backfilled onto Customer.
+  customerId      String?
+  customer        Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
   guestName       String
   guestPhone      String?
   items           String // free text, as dictated by the caller
@@ -288,6 +358,7 @@ model TakeoutOrder {
 
   @@index([accountId, pickupTime])
   @@index([accountId, status])
+  @@index([customerId])
 }
 
 // ---------- Calls ----------
@@ -359,3 +430,4 @@ model GoogleCalendarConnection {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 }
+

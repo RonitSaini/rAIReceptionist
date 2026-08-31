@@ -1,18 +1,8 @@
 export const APP_NAME = "FrontDesk AI";
 
-export const ONBOARDING_LAST_STEP = 8;
-export const ONBOARDING_DONE = 9;
-
-export const ONBOARDING_STEPS: { step: number; title: string; short: string }[] = [
-  { step: 1, title: "Create your account", short: "Sign up" },
-  { step: 2, title: "Business basics", short: "Basics" },
-  { step: 3, title: "Hours & escalation", short: "Hours" },
-  { step: 4, title: "Menu & policies", short: "Menu" },
-  { step: 5, title: "Reservations", short: "Book" },
-  { step: 6, title: "Voice & greeting", short: "Voice" },
-  { step: 7, title: "Phone number", short: "Phone" },
-  { step: 8, title: "Payment", short: "Pay" },
-];
+// Onboarding numbering, escalation triggers and the agent vocabulary are per-profession and live
+// in src/verticals. What stays here is genuinely shared (days, time zones, voices) or is content
+// only a restaurant renders (cuisines, menu categories, seating preferences).
 
 export const US_TIME_ZONES: { id: string; label: string }[] = [
   { id: "America/New_York", label: "Eastern (New York)" },
@@ -80,15 +70,6 @@ export const PRICE_RANGES: { value: string; label: string }[] = [
 
 export const DAYS_OF_WEEK = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 export const DAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-export const ESCALATION_TYPES: { key: string; label: string }[] = [
-  { key: "large_party", label: "Party over the large-party threshold" },
-  { key: "private_event", label: "Private event or buyout" },
-  { key: "catering", label: "Catering request" },
-  { key: "complaint", label: "Guest complaint" },
-  { key: "allergy", label: "Allergy question that staff must answer" },
-  { key: "press_vendor", label: "Press or vendor" },
-];
 
 export const DIETARY_TAGS = ["vegetarian", "vegan", "gluten-free", "dairy-free", "nut-free", "spicy", "contains shellfish"];
 

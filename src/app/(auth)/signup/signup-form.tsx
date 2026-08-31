@@ -1,13 +1,16 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { signIn } from "next-auth/react";
 import { signUp } from "@/actions/auth";
 import type { ActionState } from "@/lib/form";
 import { Alert, Button, Field, Input } from "@/components/ui";
 import { GoogleButton } from "@/components/google-button";
+import { VerticalPicker } from "@/components/forms/vertical-picker";
+import type { VerticalCatalogEntry } from "@/verticals/types";
 
-export function SignupForm({ googleEnabled }: { googleEnabled: boolean }) {
+export function SignupForm({ googleEnabled, catalog }: { googleEnabled: boolean; catalog: readonly VerticalCatalogEntry[] }) {
+  const [vertical, setVertical] = useState("");
   // React resets the form once a server action completes, so the credentials must be captured
   // on the way in — reading the fields afterwards yields empty strings and a failed sign-in.
   const credsRef = useRef<{ email: string; password: string } | null>(null);
@@ -28,7 +31,8 @@ export function SignupForm({ googleEnabled }: { googleEnabled: boolean }) {
       <form ref={formRef} action={action} className="space-y-4 rounded-2xl border border-gray-200 bg-surface p-5 shadow-sm">
         {state && !state.ok && state.error ? <Alert>{state.error}</Alert> : null}
         {state?.ok ? <Alert kind="success">Account created — signing you in…</Alert> : null}
-        <Field label="Restaurant name" htmlFor="restaurantName">
+        <VerticalPicker catalog={catalog} value={vertical} onChange={setVertical} />
+        <Field label="Business name" htmlFor="restaurantName">
           <Input id="restaurantName" name="restaurantName" required placeholder="Luigi's Trattoria" autoComplete="organization" />
         </Field>
         <Field label="Email" htmlFor="email">
@@ -37,7 +41,7 @@ export function SignupForm({ googleEnabled }: { googleEnabled: boolean }) {
         <Field label="Password" htmlFor="password" hint="At least 8 characters.">
           <Input id="password" name="password" type="password" required minLength={8} autoComplete="new-password" />
         </Field>
-        <Button type="submit" size="lg" full disabled={pending || !!state?.ok}>
+        <Button type="submit" size="lg" full disabled={pending || !!state?.ok || !vertical}>
           {pending ? "Creating account…" : "Create account"}
         </Button>
       </form>

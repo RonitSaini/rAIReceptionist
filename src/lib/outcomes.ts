@@ -1,4 +1,4 @@
-import type { Account, BusinessHours, Call, ManagerAvailability, Notification, Reservation, TakeoutOrder } from "@prisma/client";
+import type { Account, BusinessHours, Call, ManagerAvailability, Notification, Reservation, TakeoutOrder, Vertical } from "@prisma/client";
 import { prisma } from "./prisma";
 import { createNotification } from "./notifications";
 import { createCall } from "./twilio";
@@ -6,7 +6,7 @@ import { appUrl, twilioConfigured } from "./env";
 import { formatUsPhone } from "./form";
 import { addDays, dayOfWeekOf, formatClock, formatDateString, formatDateTime, getParts, timeToMinutes, toDateString } from "./time";
 import { periodsForDay } from "./availability";
-import { ESCALATION_TYPES } from "./constants";
+import { verticalFor, vocabularyFor } from "@/verticals";
 import { escalationFollowUpText, markConfirmationSent, reservationConfirmationText, sendGuestSms, takeoutConfirmationText } from "./sms";
 
 /**
@@ -15,23 +15,29 @@ import { escalationFollowUpText, markConfirmationSent, reservationConfirmationTe
  * bookings → a guest confirmation SMS; escalations → urgent notification + a call to the manager.
  */
 
-const REASON_LABEL: Record<string, string> = Object.fromEntries(ESCALATION_TYPES.map((t) => [t.key, t.label]));
-REASON_LABEL.general_question = "Question the AI couldn't answer";
-REASON_LABEL.callback_request = "Caller asked for a call back";
-REASON_LABEL.other = "Needs a call back";
+/** Reasons every vertical shares. A vertical's own triggers take precedence over these. */
+const GENERIC_REASON_LABEL: Record<string, string> = {
+  general_question: "Question the AI couldn't answer",
+  callback_request: "Caller asked for a call back",
+  other: "Needs a call back",
+};
 
-export function reasonLabel(reason: string | null | undefined): string {
-  return (reason && REASON_LABEL[reason]) || "Needs a call back";
+/** Human label for a take_message reason, in the words of this account's profession. */
+export function reasonLabel(reason: string | null | undefined, source: { vertical: Vertical }): string {
+  if (!reason) return "Needs a call back";
+  const own = verticalFor(source).escalationTriggers.find((t) => t.key === reason);
+  return own?.label ?? GENERIC_REASON_LABEL[reason] ?? "Needs a call back";
 }
 
 // ---------- Bookings ----------
 
 export async function afterReservationBooked(account: Account, r: Reservation, call: Call | null): Promise<void> {
   const when = formatDateTime(r.startTime, account.timeZone);
+  const words = vocabularyFor(account);
   await createNotification({
     accountId: account.id,
     type: r.isWaitlist ? "waitlist" : "reservation",
-    title: r.isWaitlist ? `Waitlist: ${r.guestName}, party of ${r.partySize}` : `New reservation: ${r.guestName}, party of ${r.partySize}`,
+    title: r.isWaitlist ? `Waitlist: ${r.guestName}, party of ${r.partySize}` : `New ${words.booking.one}: ${r.guestName}, party of ${r.partySize}`,
     body: `${when}${r.guestPhone ? ` · ${formatUsPhone(r.guestPhone)}` : ""}${r.seatingPreference ? ` · ${r.seatingPreference}` : ""}${r.specialRequests ? ` · "${r.specialRequests}"` : ""} · booked by ${account.hostName}`,
     reservationId: r.id,
     callId: call?.id ?? null,
@@ -61,7 +67,7 @@ export async function afterMessageTaken(account: Account, call: Call | null, inp
     accountId: account.id,
     type: "message",
     title: `Message from ${input.callerName}${input.callerPhone ? ` · ${formatUsPhone(input.callerPhone)}` : ""}`,
-    body: `${reasonLabel(input.reason)}: ${input.message}`,
+    body: `${reasonLabel(input.reason, account)}: ${input.message}`,
     callId: call?.id ?? null,
   });
 }
@@ -98,7 +104,7 @@ export async function afterEscalation(account: Account, call: Call | null, input
     accountId: account.id,
     type: "escalation",
     priority: "urgent",
-    title: `Manager needed: ${reasonLabel(input.reason)}`,
+    title: `Manager needed: ${reasonLabel(input.reason, account)}`,
     body: `${input.callerName}${input.callerPhone ? ` · ${formatUsPhone(input.callerPhone)}` : ""} — ${input.message} · ${account.hostName} promised a call back within 15 minutes.${reachable ? "" : " (Outside manager hours — not phoned.)"}`,
     callId: call?.id ?? null,
   });

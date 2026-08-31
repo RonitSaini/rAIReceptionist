@@ -3,6 +3,7 @@
 import { formatRestaurantAddress, geocodeAddress } from "@/lib/geo";
 import { accountCountry, asCountry, CA_PROVINCES, isPostalCodeFor, normalizePostalCode, toMiles } from "@/lib/locale";
 
+import type { Account } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
@@ -13,7 +14,8 @@ import { retellConfigured } from "@/lib/env";
 import { requireAccount } from "@/lib/current-account";
 import { bool, int, json, list, normalizeUsPhone, optDecimal, optInt, optStr, str, type ActionState } from "@/lib/form";
 import { greetingHasDisclosure } from "@/lib/greeting";
-import { DIETARY_TAGS, ESCALATION_TYPES, ONBOARDING_DONE, timeZonesFor, US_STATES, VOICES } from "@/lib/constants";
+import { DIETARY_TAGS, timeZonesFor, US_STATES, VOICES } from "@/lib/constants";
+import { onboardingDoneStep, onboardingStepsFor, verticalFor } from "@/verticals";
 import { isValidTimeString, timeToMinutes } from "@/lib/time";
 
 type Mode = "onboarding" | "settings";
@@ -22,17 +24,27 @@ function modeOf(fd: FormData): Mode {
   return str(fd, "mode") === "settings" ? "settings" : "onboarding";
 }
 
-/** Advance onboarding (never move backwards) and route to the next screen, or stay put in Settings. */
-async function finish(accountId: string, currentStep: number, completedStep: number, mode: Mode): Promise<ActionState> {
-  const nextStep = completedStep + 1;
-  if (currentStep < nextStep) {
+/**
+ * Advance onboarding (never move backwards) and route to the next screen, or stay put in Settings.
+ *
+ * Takes the step's ID rather than its number: the number is only this vertical's position for that
+ * step, so a profession that asks for hours third and a profession that asks for them fifth both
+ * land on the right next screen without either action knowing where it sits.
+ */
+async function finish(account: Pick<Account, "id" | "vertical" | "onboardingStep">, completedStepId: string, mode: Mode): Promise<ActionState> {
+  const steps = onboardingStepsFor(account);
+  const index = steps.findIndex((s) => s.id === completedStepId);
+  if (index < 0) throw new Error(`Step "${completedStepId}" is not part of the ${account.vertical} onboarding flow.`);
+  const accountId = account.id;
+  const nextStep = index + 2;
+  if (account.onboardingStep < nextStep) {
     await prisma.account.update({ where: { id: accountId }, data: { onboardingStep: nextStep } });
   }
   // Keep the Retell agent in step with the settings (no-op until the agent exists). Runs after the response.
   after(() => syncRetellAgentQuietly(accountId));
   revalidatePath("/", "layout");
   if (mode === "onboarding") {
-    redirect(nextStep >= ONBOARDING_DONE ? "/dashboard" : `/onboarding/${nextStep}`);
+    redirect(nextStep >= onboardingDoneStep(account) ? "/dashboard" : `/onboarding/${nextStep}`);
   }
   return { ok: true, message: "Saved." };
 }
@@ -85,7 +97,7 @@ export async function saveBusinessBasics(_prev: ActionState, fd: FormData): Prom
       priceRange: optStr(fd, "priceRange"),
     },
   });
-  return finish(account.id, account.onboardingStep, 2, modeOf(fd));
+  return finish(account, "business-basics", modeOf(fd));
 }
 
 // ---------- Step 3: Hours + escalation ----------
@@ -98,7 +110,7 @@ export async function saveHours(_prev: ActionState, fd: FormData): Promise<Actio
   const rows = json<HoursRow[]>(fd, "hours", []);
   const managerRows = json<ManagerRow[]>(fd, "managerHours", []);
   const escalatesToManager = bool(fd, "escalatesToManager");
-  const allowed = new Set(ESCALATION_TYPES.map((e) => e.key));
+  const allowed = new Set(verticalFor(account).escalationTriggers.map((e) => e.key));
   const escalationTypes = list(fd, "escalationTypes").filter((k) => allowed.has(k));
 
   const cleanHours: HoursRow[] = [];
@@ -129,7 +141,7 @@ export async function saveHours(_prev: ActionState, fd: FormData): Promise<Actio
     prisma.managerAvailability.createMany({ data: cleanManager.map((m) => ({ ...m, accountId: account.id })) }),
     prisma.account.update({ where: { id: account.id }, data: { escalatesToManager, escalationTypes } }),
   ]);
-  return finish(account.id, account.onboardingStep, 3, modeOf(fd));
+  return finish(account, "hours", modeOf(fd));
 }
 
 // ---------- Step 4: Menu + policies ----------
@@ -184,7 +196,7 @@ export async function saveMenuPolicies(_prev: ActionState, fd: FormData): Promis
       },
     }),
   ]);
-  return finish(account.id, account.onboardingStep, 4, modeOf(fd));
+  return finish(account, "menu-policies", modeOf(fd));
 }
 
 // ---------- Step 5: Reservations ----------
@@ -205,7 +217,7 @@ export async function saveReservationSettings(_prev: ActionState, fd: FormData):
     where: { id: account.id },
     data: { tableTurnMinutes, reservationIntervalMinutes, seatingCapacity, maxCoversPerSlot },
   });
-  return finish(account.id, account.onboardingStep, 5, modeOf(fd));
+  return finish(account, "reservations", modeOf(fd));
 }
 
 // ---------- Step 6: Voice + greeting ----------
@@ -247,17 +259,17 @@ export async function saveVoice(_prev: ActionState, fd: FormData): Promise<Actio
   if (!greetingHasDisclosure(greeting)) return { ok: false, error: 'The greeting must include the phrase "this call may be recorded".' };
 
   await prisma.account.update({ where: { id: account.id }, data: { voiceId, hostName, greeting } });
-  return finish(account.id, account.onboardingStep, 6, modeOf(fd));
+  return finish(account, "voice", modeOf(fd));
 }
 
 // ---------- Step 7 + 8: placeholders until Phase 2 / Phase 4 ----------
 
 export async function completePhoneStep(): Promise<void> {
   const { account } = await requireAccount();
-  await finish(account.id, account.onboardingStep, 7, "onboarding");
+  await finish(account, "phone", "onboarding");
 }
 
 export async function completePaymentStep(): Promise<void> {
   const { account } = await requireAccount();
-  await finish(account.id, account.onboardingStep, 8, "onboarding");
+  await finish(account, "payment", "onboarding");
 }

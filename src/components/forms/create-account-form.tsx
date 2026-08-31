@@ -1,11 +1,14 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createAccountForCurrentUser } from "@/actions/auth";
 import { Alert, Button, Field, Input } from "@/components/ui";
+import { VerticalPicker } from "@/components/forms/vertical-picker";
+import type { VerticalCatalogEntry } from "@/verticals/types";
 
-export function CreateAccountForm() {
+export function CreateAccountForm({ catalog }: { catalog: readonly VerticalCatalogEntry[] }) {
+  const [vertical, setVertical] = useState("");
   const [state, action, pending] = useActionState(createAccountForCurrentUser, null);
   const router = useRouter();
 
@@ -16,12 +19,13 @@ export function CreateAccountForm() {
 
   return (
     <form action={action} className="space-y-4 rounded-2xl border border-gray-200 bg-surface p-5 shadow-sm">
-      <p className="text-gray-600">Welcome! Tell us the name of your restaurant to get started.</p>
+      <p className="text-gray-600">Welcome! Tell us about your business to get started.</p>
       {state && !state.ok && state.error ? <Alert>{state.error}</Alert> : null}
-      <Field label="Restaurant name" htmlFor="restaurantName">
+      <VerticalPicker catalog={catalog} value={vertical} onChange={setVertical} />
+      <Field label="Business name" htmlFor="restaurantName">
         <Input id="restaurantName" name="restaurantName" required placeholder="Luigi's Trattoria" autoComplete="organization" />
       </Field>
-      <Button type="submit" size="lg" full disabled={pending || !!state?.ok}>
+      <Button type="submit" size="lg" full disabled={pending || !!state?.ok || !vertical}>
         {pending ? "Creating…" : "Continue"}
       </Button>
     </form>

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { requireAccount } from "@/lib/current-account";
 import { serializeAccount, serializeMenuItem } from "@/lib/serialize";
-import { ONBOARDING_LAST_STEP } from "@/lib/constants";
+import { MAX_ONBOARDING_STEPS, VERTICAL_CATALOG, onboardingStepsFor, verticalFor } from "@/verticals";
 import { OnboardingProgress } from "@/components/onboarding-progress";
 import { getGoogleCalendarView } from "@/lib/google-calendar-view";
 import { CreateAccountForm } from "@/components/forms/create-account-form";
@@ -21,7 +21,7 @@ export default async function OnboardingStepPage({ params, searchParams }: { par
   const { step: stepParam } = await params;
   const { google: googleStatus, message: googleMessage } = await searchParams;
   const step = Number.parseInt(stepParam, 10);
-  if (!Number.isInteger(step) || step < 1 || step > ONBOARDING_LAST_STEP) notFound();
+  if (!Number.isInteger(step) || step < 1 || step > MAX_ONBOARDING_STEPS) notFound();
 
   // Step 1 is only for signed-in users who don't have an Account yet (e.g. Google sign-up).
   if (step === 1) {
@@ -32,7 +32,7 @@ export default async function OnboardingStepPage({ params, searchParams }: { par
     return (
       <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
         <OnboardingProgress step={1} />
-        <CreateAccountForm />
+        <CreateAccountForm catalog={VERTICAL_CATALOG} />
       </div>
     );
   }
@@ -40,61 +40,67 @@ export default async function OnboardingStepPage({ params, searchParams }: { par
   const { account } = await requireAccount();
   const view = serializeAccount(account);
 
-  switch (step) {
-    case 2:
+  // The step NUMBER is only a position in this vertical's ordered list; the step ID decides what
+  // renders. A restaurant's list is unchanged, so its numbering is exactly what it always was.
+  const stepDef = onboardingStepsFor(account)[step - 1];
+  if (!stepDef) notFound();
+  const progress = <OnboardingProgress step={step} vertical={account.vertical} />;
+
+  switch (stepDef.id) {
+    case "business-basics":
       return (
         <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
-          <OnboardingProgress step={2} />
+          {progress}
           <BusinessBasicsForm account={view} mode="onboarding" />
         </div>
       );
-    case 3: {
+    case "hours": {
       const [hours, manager] = await Promise.all([
         prisma.businessHours.findMany({ where: { accountId: account.id }, orderBy: [{ dayOfWeek: "asc" }, { sortOrder: "asc" }] }),
         prisma.managerAvailability.findMany({ where: { accountId: account.id }, orderBy: { dayOfWeek: "asc" } }),
       ]);
       return (
         <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
-          <OnboardingProgress step={3} />
-          <HoursForm account={view} hours={hours} managerHours={manager} mode="onboarding" />
+          {progress}
+          <HoursForm account={view} hours={hours} managerHours={manager} mode="onboarding" escalationTypes={verticalFor(account).escalationTriggers} />
         </div>
       );
     }
-    case 4: {
+    case "menu-policies": {
       const items = await prisma.menuItem.findMany({ where: { accountId: account.id }, orderBy: { sortOrder: "asc" } });
       return (
         <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
-          <OnboardingProgress step={4} />
+          {progress}
           <MenuPoliciesForm account={view} menu={items.map(serializeMenuItem)} mode="onboarding" />
         </div>
       );
     }
-    case 5:
+    case "reservations":
       return (
         <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
-          <OnboardingProgress step={5} />
+          {progress}
           <ReservationSettingsForm account={view} mode="onboarding" google={await getGoogleCalendarView(account.id)} googleStatus={googleStatus} googleMessage={googleMessage} />
         </div>
       );
-    case 6:
+    case "voice":
       return (
         <div className="mx-auto max-w-6xl">
-          <OnboardingProgress step={6} />
+          {progress}
           <VoiceForm account={view} mode="onboarding" />
         </div>
       );
-    case 7:
+    case "phone":
       return (
         <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
-          <OnboardingProgress step={7} />
+          {progress}
           <PhoneStep account={view} mode="onboarding" />
         </div>
       );
-    case 8: {
+    case "payment": {
       const { checkout } = await searchParams;
       return (
         <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
-          <OnboardingProgress step={8} />
+          {progress}
           <PaymentStep account={view} mode="onboarding" checkout={parseCheckoutResult(checkout)} />
         </div>
       );

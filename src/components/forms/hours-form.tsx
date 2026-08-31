@@ -4,7 +4,8 @@ import { useActionState, useState } from "react";
 import type { BusinessHours, ManagerAvailability } from "@prisma/client";
 import { saveHours } from "@/actions/onboarding";
 import type { AccountView } from "@/lib/serialize";
-import { DAYS_OF_WEEK, ESCALATION_TYPES } from "@/lib/constants";
+import { DAYS_OF_WEEK } from "@/lib/constants";
+import type { ClassifiedReason } from "@/verticals/types";
 import { Button, Checkbox, Field, Toggle, inputClass } from "@/components/ui";
 import { FormFooter, type FormMode } from "@/components/form-footer";
 import { ActionForm } from "@/components/action-form";
@@ -22,7 +23,9 @@ function buildDays(hours: BusinessHours[]): DayState[] {
   });
 }
 
-export function HoursForm({ account, hours, managerHours, mode }: { account: AccountView; hours: BusinessHours[]; managerHours: ManagerAvailability[]; mode: FormMode }) {
+/** `escalationTypes` is passed in rather than imported: it is per-vertical, and a client bundle
+ * has no business pulling in the whole vertical registry (prompt text, Zod schemas) to read a label. */
+export function HoursForm({ account, hours, managerHours, mode, escalationTypes }: { account: AccountView; hours: BusinessHours[]; managerHours: ManagerAvailability[]; mode: FormMode; escalationTypes: readonly ClassifiedReason[] }) {
   const [state, action, pending] = useActionState(saveHours, null);
   const [days, setDays] = useState<DayState[]>(() => buildDays(hours));
   const [escalates, setEscalates] = useState(account.escalatesToManager);
@@ -124,7 +127,7 @@ export function HoursForm({ account, hours, managerHours, mode }: { account: Acc
             </Field>
             <Field label="Escalate these situations">
               <div className="space-y-2">
-                {ESCALATION_TYPES.map((t) => (
+                {escalationTypes.map((t) => (
                   <Checkbox key={t.key} name="escalationTypes" value={t.key} label={t.label} defaultChecked={account.escalationTypes.includes(t.key)} />
                 ))}
               </div>

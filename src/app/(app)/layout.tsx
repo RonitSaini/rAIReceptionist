@@ -3,10 +3,11 @@ import { Suspense } from "react";
 import { ArrowRightIcon } from "@/components/icons";
 import { requireAccount } from "@/lib/current-account";
 import { countUnread, recentNotifications } from "@/lib/notifications";
-import { ONBOARDING_DONE } from "@/lib/constants";
+import { onboardingDoneStep } from "@/verticals";
 import { stripeConfigured } from "@/lib/env";
 import { subscriptionActive } from "@/lib/billing-ui";
 import { AppNav } from "@/components/app-nav";
+import { navItemsFor } from "@/lib/nav";
 import { NotificationBell } from "@/components/notification-bell";
 import { SignOutButton } from "@/components/sign-out-button";
 import { Logo } from "@/components/logo";
@@ -17,7 +18,7 @@ import { AnimatedThemeToggle } from "@/components/ui/animated-theme-toggle";
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const { account } = await requireAccount();
   const [unread, recent] = await Promise.all([countUnread(account.id), recentNotifications(account.id)]);
-  const setupIncomplete = account.onboardingStep < ONBOARDING_DONE;
+  const setupIncomplete = account.onboardingStep < onboardingDoneStep(account);
   // Billing nag only once setup is done and Stripe is actually wired up on this deployment.
   const billingLapsed = !setupIncomplete && stripeConfigured() && !subscriptionActive(account);
   const paymentFailed = account.subscriptionStatus === "past_due";
@@ -29,7 +30,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="flex h-16 shrink-0 items-center justify-center px-5 short:h-14 tiny:h-12">
           <Logo />
         </div>
-        <AppNav variant="sidebar" />
+        <AppNav variant="sidebar" items={navItemsFor(account, "sidebar")} />
         <div className="min-h-0 flex-1 overflow-hidden pb-2">
           {/* Streams: the shell (nav, header, page skeleton) paints while the panel's queries run. */}
           <Suspense fallback={<SidebarPanelSkeleton />}>
@@ -73,7 +74,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
         {/* Mobile bottom tabs */}
         <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-surface safe-bottom md:hidden">
-          <AppNav variant="tabs" />
+          <AppNav variant="tabs" items={navItemsFor(account, "tabs")} />
         </nav>
       </div>
     </div>

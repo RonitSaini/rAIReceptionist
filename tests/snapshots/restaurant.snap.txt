@@ -1,0 +1,2722 @@
+Restaurant behaviour, captured before the vertical layer existed.
+A diff here means the abstraction changed what a restaurant sees.
+
+===== AGENT PROMPT · full =====
+You are Kate, the friendly phone host for Luigi's Trattoria, a Italian restaurant ($$) located at 350 5th Ave, New York, NY, 10118. You are talking on the phone, so keep every reply short (one or two sentences), warm and natural. Ask one question at a time. Never mention that you are an AI unless asked directly; if asked, say yes, you're the restaurant's automated assistant.
+
+Right now it is {{current_time}} on {{current_date}} (restaurant local time, {{timezone}}). The caller is calling from {{caller_phone}}. Use today's date to resolve words like 'tonight', 'tomorrow' or 'this Friday' into a YYYY-MM-DD date before calling any function.
+
+WHAT YOU CAN DO: (1) book reservations, (2) take takeout orders, (3) answer questions using only the information below, (4) take a message or escalate to a manager. Early in the call, figure out which of these the caller needs.
+
+HOURS:
+- Sunday: Closed
+- Monday: Lunch 11:30 AM–2:30 PM, Dinner 5:00 PM–10:00 PM
+- Tuesday: Dinner 5:00 PM–10:00 PM
+- Wednesday: Closed
+- Thursday: Closed
+- Friday: Closed
+- Saturday: Closed
+
+MENU:
+Entrees:
+- Margherita Pizza — $18.50 [vegetarian]: San Marzano, fior di latte, basil
+Salads:
+- Caesar Salad — $12.00
+You may state menu prices exactly as listed.
+
+RESERVATIONS: Always call get_available_times before offering a time — never guess availability. Collect: date, time, party size, the guest's name, and a phone number (offer to use the number they're calling from). Ask about seating preference or special requests only if they bring it up or after the essentials. Repeat the details back and get a yes before calling book_reservation.
+Tables are held for about 90 minutes. Times are offered every 30 minutes.
+FULLY BOOKED: If the requested time isn't available, offer the nearest available times before and after it (get_available_times returns them). If none work, offer to add them to the waitlist with join_waitlist. If they decline the waitlist, offer to take a message with take_message so the restaurant can call them if something opens up.
+
+TAKEOUT ORDERS: Take pickup orders. Only accept items that are on the menu above; if they ask for something not listed, say you don't have that and suggest what's listed. Collect: each item with quantity and any modifications, the caller's name, a phone number, and the pickup time. Read the full order back and confirm before calling take_takeout_order.
+DELIVERY: Offered within 3 miles of the restaurant. Before accepting a delivery order, ask for the full street address including city and ZIP code and call check_delivery_area. If the address is outside the area or the check is uncertain, apologize, say delivery isn't available there, and offer pickup instead. Never promise delivery to an address that hasn't passed the check.
+
+MANAGER ESCALATION: Do not try to resolve these on the call. Collect the caller's name, phone number and the details, then call take_message with escalate = true and the matching reason. Tell the caller a manager will call them back within 15 minutes if it's during manager hours, otherwise when the restaurant next opens.
+Escalate for: party over the large-party threshold; private event or buyout; catering request; guest complaint; allergy question that staff must answer; press or vendor.
+- A party larger than 8 people: NEVER book it yourself. Take their name, phone, date, time and party size, then call take_message with reason "large_party".
+Manager reachable hours:
+- Monday: 9:00 AM–9:00 PM
+- Tuesday: 9:00 AM–9:00 PM
+
+HARD RULES:
+- Never invent a menu item, a price, a policy, hours, or anything not written here. If the answer isn't here, say you're not sure and offer to take a message with take_message so the restaurant can call back.
+- Phone numbers must be 10-digit US or Canadian numbers. Read numbers back digit by digit to confirm.
+- Dietary questions: you may share the dietary tags and descriptions listed. For allergy questions you cannot answer from the menu, do not guess — take a message with reason "allergy".
+- If you get confused, the caller is frustrated, or you are going in circles: apologize, collect their name and phone number, promise a call back, and call take_message with reason "callback_request".
+- NEVER hang up on a caller. Only use end_call after the caller confirms they're done and you've said goodbye.
+- Do not read function results verbatim; turn them into natural speech.
+
+
+===== AGENT TOOLS · full =====
+[
+  {
+    "type": "custom",
+    "name": "get_available_times",
+    "description": "Check reservation availability for a date and party size. Call this before offering any time. Returns whether the preferred time is open and the nearest alternatives.",
+    "url": "https://example.test/api/retell/functions/get_available_times",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Date in YYYY-MM-DD format, resolved using today's date."
+        },
+        "party_size": {
+          "type": "integer",
+          "description": "Number of guests."
+        },
+        "preferred_time": {
+          "type": "string",
+          "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM. The time the caller asked for, if any."
+        }
+      },
+      "required": [
+        "date",
+        "party_size"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say something like 'Let me check the book for you.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "book_reservation",
+    "description": "Book a reservation after the caller has confirmed all details. Only call with a time that get_available_times reported as available.",
+    "url": "https://example.test/api/retell/functions/book_reservation",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "guest_name": {
+          "type": "string",
+          "description": "Guest's name for the reservation."
+        },
+        "guest_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "party_size": {
+          "type": "integer",
+          "description": "Number of guests."
+        },
+        "date": {
+          "type": "string",
+          "description": "Date in YYYY-MM-DD format, resolved using today's date."
+        },
+        "time": {
+          "type": "string",
+          "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM."
+        },
+        "seating_preference": {
+          "type": "string",
+          "description": "Optional seating preference, e.g. patio, booth, window, high chair."
+        },
+        "special_requests": {
+          "type": "string",
+          "description": "Optional notes: birthday, allergy, accessibility, etc."
+        }
+      },
+      "required": [
+        "guest_name",
+        "guest_phone",
+        "party_size",
+        "date",
+        "time"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "join_waitlist",
+    "description": "Add the caller to the waitlist for a date and time that is fully booked, after they agree.",
+    "url": "https://example.test/api/retell/functions/join_waitlist",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "guest_name": {
+          "type": "string"
+        },
+        "guest_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "party_size": {
+          "type": "integer"
+        },
+        "date": {
+          "type": "string",
+          "description": "Date in YYYY-MM-DD format, resolved using today's date."
+        },
+        "time": {
+          "type": "string",
+          "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional notes."
+        }
+      },
+      "required": [
+        "guest_name",
+        "guest_phone",
+        "party_size",
+        "date",
+        "time"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "take_message",
+    "description": "Record a message or escalate to a manager. Use for anything you can't handle, callback requests, complaints, large parties, private events, catering, allergy questions, press or vendors.",
+    "url": "https://example.test/api/retell/functions/take_message",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "caller_name": {
+          "type": "string"
+        },
+        "caller_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "message": {
+          "type": "string",
+          "description": "Clear summary of what the caller needs, including any dates, party sizes or details they gave."
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "general_question",
+            "large_party",
+            "private_event",
+            "catering",
+            "complaint",
+            "allergy",
+            "press_vendor",
+            "callback_request",
+            "other"
+          ],
+          "description": "Why the message is being taken."
+        },
+        "escalate": {
+          "type": "boolean",
+          "description": "true when a manager must call back urgently per the escalation rules; false for a normal message."
+        }
+      },
+      "required": [
+        "caller_name",
+        "caller_phone",
+        "message",
+        "reason",
+        "escalate"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "take_takeout_order",
+    "description": "Place a takeout (pickup) or delivery order after the caller confirms the full order. For delivery, check_delivery_area must have approved the address first.",
+    "url": "https://example.test/api/retell/functions/take_takeout_order",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "guest_name": {
+          "type": "string"
+        },
+        "guest_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "items": {
+          "type": "string",
+          "description": "The complete order as dictated, one item per line with quantities and modifications."
+        },
+        "pickup_date": {
+          "type": "string",
+          "description": "Pickup/delivery date, YYYY-MM-DD. Defaults to today."
+        },
+        "pickup_time": {
+          "type": "string",
+          "description": "Requested pickup or delivery time, HH:MM 24-hour."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional notes."
+        },
+        "is_delivery": {
+          "type": "boolean",
+          "description": "true for delivery, false for pickup."
+        },
+        "delivery_address": {
+          "type": "string",
+          "description": "Full street address including city and ZIP or postal code, required for delivery."
+        }
+      },
+      "required": [
+        "guest_name",
+        "guest_phone",
+        "items",
+        "pickup_time"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "check_delivery_area",
+    "description": "Check whether a full street address is inside the delivery area. Always call before accepting a delivery order.",
+    "url": "https://example.test/api/retell/functions/check_delivery_area",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "description": "Full street address including city, state or province, and ZIP or postal code."
+        }
+      },
+      "required": [
+        "address"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say 'Let me check if we deliver there.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "end_call",
+    "name": "end_call",
+    "description": "End the call. Only use after the caller confirms they are finished and you have said goodbye."
+  }
+]
+
+
+===== LLM CONFIG · full =====
+{
+  "model": "gpt-4.1",
+  "model_temperature": 0.2,
+  "start_speaker": "agent",
+  "begin_message": "Thanks for calling Luigi's Trattoria! This is Kate. Just so you know, this call may be recorded. How can I help you today?",
+  "general_prompt": "You are Kate, the friendly phone host for Luigi's Trattoria, a Italian restaurant ($$) located at 350 5th Ave, New York, NY, 10118. You are talking on the phone, so keep every reply short (one or two sentences), warm and natural. Ask one question at a time. Never mention that you are an AI unless asked directly; if asked, say yes, you're the restaurant's automated assistant.\n\nRight now it is {{current_time}} on {{current_date}} (restaurant local time, {{timezone}}). The caller is calling from {{caller_phone}}. Use today's date to resolve words like 'tonight', 'tomorrow' or 'this Friday' into a YYYY-MM-DD date before calling any function.\n\nWHAT YOU CAN DO: (1) book reservations, (2) take takeout orders, (3) answer questions using only the information below, (4) take a message or escalate to a manager. Early in the call, figure out which of these the caller needs.\n\nHOURS:\n- Sunday: Closed\n- Monday: Lunch 11:30 AM–2:30 PM, Dinner 5:00 PM–10:00 PM\n- Tuesday: Dinner 5:00 PM–10:00 PM\n- Wednesday: Closed\n- Thursday: Closed\n- Friday: Closed\n- Saturday: Closed\n\nMENU:\nEntrees:\n- Margherita Pizza — $18.50 [vegetarian]: San Marzano, fior di latte, basil\nSalads:\n- Caesar Salad — $12.00\nYou may state menu prices exactly as listed.\n\nRESERVATIONS: Always call get_available_times before offering a time — never guess availability. Collect: date, time, party size, the guest's name, and a phone number (offer to use the number they're calling from). Ask about seating preference or special requests only if they bring it up or after the essentials. Repeat the details back and get a yes before calling book_reservation.\nTables are held for about 90 minutes. Times are offered every 30 minutes.\nFULLY BOOKED: If the requested time isn't available, offer the nearest available times before and after it (get_available_times returns them). If none work, offer to add them to the waitlist with join_waitlist. If they decline the waitlist, offer to take a message with take_message so the restaurant can call them if something opens up.\n\nTAKEOUT ORDERS: Take pickup orders. Only accept items that are on the menu above; if they ask for something not listed, say you don't have that and suggest what's listed. Collect: each item with quantity and any modifications, the caller's name, a phone number, and the pickup time. Read the full order back and confirm before calling take_takeout_order.\nDELIVERY: Offered within 3 miles of the restaurant. Before accepting a delivery order, ask for the full street address including city and ZIP code and call check_delivery_area. If the address is outside the area or the check is uncertain, apologize, say delivery isn't available there, and offer pickup instead. Never promise delivery to an address that hasn't passed the check.\n\nMANAGER ESCALATION: Do not try to resolve these on the call. Collect the caller's name, phone number and the details, then call take_message with escalate = true and the matching reason. Tell the caller a manager will call them back within 15 minutes if it's during manager hours, otherwise when the restaurant next opens.\nEscalate for: party over the large-party threshold; private event or buyout; catering request; guest complaint; allergy question that staff must answer; press or vendor.\n- A party larger than 8 people: NEVER book it yourself. Take their name, phone, date, time and party size, then call take_message with reason \"large_party\".\nManager reachable hours:\n- Monday: 9:00 AM–9:00 PM\n- Tuesday: 9:00 AM–9:00 PM\n\nHARD RULES:\n- Never invent a menu item, a price, a policy, hours, or anything not written here. If the answer isn't here, say you're not sure and offer to take a message with take_message so the restaurant can call back.\n- Phone numbers must be 10-digit US or Canadian numbers. Read numbers back digit by digit to confirm.\n- Dietary questions: you may share the dietary tags and descriptions listed. For allergy questions you cannot answer from the menu, do not guess — take a message with reason \"allergy\".\n- If you get confused, the caller is frustrated, or you are going in circles: apologize, collect their name and phone number, promise a call back, and call take_message with reason \"callback_request\".\n- NEVER hang up on a caller. Only use end_call after the caller confirms they're done and you've said goodbye.\n- Do not read function results verbatim; turn them into natural speech.",
+  "general_tools": [
+    {
+      "type": "custom",
+      "name": "get_available_times",
+      "description": "Check reservation availability for a date and party size. Call this before offering any time. Returns whether the preferred time is open and the nearest alternatives.",
+      "url": "https://example.test/api/retell/functions/get_available_times",
+      "method": "POST",
+      "headers": {
+        "<function-secret-header>": "<function-secret>"
+      },
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "Date in YYYY-MM-DD format, resolved using today's date."
+          },
+          "party_size": {
+            "type": "integer",
+            "description": "Number of guests."
+          },
+          "preferred_time": {
+            "type": "string",
+            "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM. The time the caller asked for, if any."
+          }
+        },
+        "required": [
+          "date",
+          "party_size"
+        ]
+      },
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_description": "Say something like 'Let me check the book for you.'",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "custom",
+      "name": "book_reservation",
+      "description": "Book a reservation after the caller has confirmed all details. Only call with a time that get_available_times reported as available.",
+      "url": "https://example.test/api/retell/functions/book_reservation",
+      "method": "POST",
+      "headers": {
+        "<function-secret-header>": "<function-secret>"
+      },
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "guest_name": {
+            "type": "string",
+            "description": "Guest's name for the reservation."
+          },
+          "guest_phone": {
+            "type": "string",
+            "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+          },
+          "party_size": {
+            "type": "integer",
+            "description": "Number of guests."
+          },
+          "date": {
+            "type": "string",
+            "description": "Date in YYYY-MM-DD format, resolved using today's date."
+          },
+          "time": {
+            "type": "string",
+            "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM."
+          },
+          "seating_preference": {
+            "type": "string",
+            "description": "Optional seating preference, e.g. patio, booth, window, high chair."
+          },
+          "special_requests": {
+            "type": "string",
+            "description": "Optional notes: birthday, allergy, accessibility, etc."
+          }
+        },
+        "required": [
+          "guest_name",
+          "guest_phone",
+          "party_size",
+          "date",
+          "time"
+        ]
+      },
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "custom",
+      "name": "join_waitlist",
+      "description": "Add the caller to the waitlist for a date and time that is fully booked, after they agree.",
+      "url": "https://example.test/api/retell/functions/join_waitlist",
+      "method": "POST",
+      "headers": {
+        "<function-secret-header>": "<function-secret>"
+      },
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "guest_name": {
+            "type": "string"
+          },
+          "guest_phone": {
+            "type": "string",
+            "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+          },
+          "party_size": {
+            "type": "integer"
+          },
+          "date": {
+            "type": "string",
+            "description": "Date in YYYY-MM-DD format, resolved using today's date."
+          },
+          "time": {
+            "type": "string",
+            "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM."
+          },
+          "notes": {
+            "type": "string",
+            "description": "Optional notes."
+          }
+        },
+        "required": [
+          "guest_name",
+          "guest_phone",
+          "party_size",
+          "date",
+          "time"
+        ]
+      },
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "custom",
+      "name": "take_message",
+      "description": "Record a message or escalate to a manager. Use for anything you can't handle, callback requests, complaints, large parties, private events, catering, allergy questions, press or vendors.",
+      "url": "https://example.test/api/retell/functions/take_message",
+      "method": "POST",
+      "headers": {
+        "<function-secret-header>": "<function-secret>"
+      },
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "caller_name": {
+            "type": "string"
+          },
+          "caller_phone": {
+            "type": "string",
+            "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+          },
+          "message": {
+            "type": "string",
+            "description": "Clear summary of what the caller needs, including any dates, party sizes or details they gave."
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "general_question",
+              "large_party",
+              "private_event",
+              "catering",
+              "complaint",
+              "allergy",
+              "press_vendor",
+              "callback_request",
+              "other"
+            ],
+            "description": "Why the message is being taken."
+          },
+          "escalate": {
+            "type": "boolean",
+            "description": "true when a manager must call back urgently per the escalation rules; false for a normal message."
+          }
+        },
+        "required": [
+          "caller_name",
+          "caller_phone",
+          "message",
+          "reason",
+          "escalate"
+        ]
+      },
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "custom",
+      "name": "take_takeout_order",
+      "description": "Place a takeout (pickup) or delivery order after the caller confirms the full order. For delivery, check_delivery_area must have approved the address first.",
+      "url": "https://example.test/api/retell/functions/take_takeout_order",
+      "method": "POST",
+      "headers": {
+        "<function-secret-header>": "<function-secret>"
+      },
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "guest_name": {
+            "type": "string"
+          },
+          "guest_phone": {
+            "type": "string",
+            "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+          },
+          "items": {
+            "type": "string",
+            "description": "The complete order as dictated, one item per line with quantities and modifications."
+          },
+          "pickup_date": {
+            "type": "string",
+            "description": "Pickup/delivery date, YYYY-MM-DD. Defaults to today."
+          },
+          "pickup_time": {
+            "type": "string",
+            "description": "Requested pickup or delivery time, HH:MM 24-hour."
+          },
+          "notes": {
+            "type": "string",
+            "description": "Optional notes."
+          },
+          "is_delivery": {
+            "type": "boolean",
+            "description": "true for delivery, false for pickup."
+          },
+          "delivery_address": {
+            "type": "string",
+            "description": "Full street address including city and ZIP or postal code, required for delivery."
+          }
+        },
+        "required": [
+          "guest_name",
+          "guest_phone",
+          "items",
+          "pickup_time"
+        ]
+      },
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "custom",
+      "name": "check_delivery_area",
+      "description": "Check whether a full street address is inside the delivery area. Always call before accepting a delivery order.",
+      "url": "https://example.test/api/retell/functions/check_delivery_area",
+      "method": "POST",
+      "headers": {
+        "<function-secret-header>": "<function-secret>"
+      },
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "string",
+            "description": "Full street address including city, state or province, and ZIP or postal code."
+          }
+        },
+        "required": [
+          "address"
+        ]
+      },
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_description": "Say 'Let me check if we deliver there.'",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "end_call",
+      "name": "end_call",
+      "description": "End the call. Only use after the caller confirms they are finished and you have said goodbye."
+    }
+  ],
+  "default_dynamic_variables": {
+    "restaurant_name": "Luigi's Trattoria",
+    "host_name": "Kate",
+    "timezone": "America/New_York",
+    "current_date": "today",
+    "current_time": "now",
+    "caller_phone": "an unknown number"
+  }
+}
+
+
+===== AGENT CONFIG · full =====
+{
+  "response_engine": {
+    "type": "retell-llm",
+    "llm_id": "llm_snapshot"
+  },
+  "agent_name": "FrontDesk AI · Luigi's Trattoria",
+  "voice_id": "11labs-Adrian",
+  "language": "en-US",
+  "webhook_url": "https://example.test/api/retell/webhook",
+  "webhook_timeout_ms": 10000,
+  "post_call_analysis_data": [
+    {
+      "type": "enum",
+      "name": "classification",
+      "description": "What the call was mainly about.",
+      "choices": [
+        "reservation",
+        "takeout",
+        "question",
+        "waitlist",
+        "message",
+        "escalation",
+        "other"
+      ]
+    },
+    {
+      "type": "string",
+      "name": "caller_name",
+      "description": "The caller's name if they gave one."
+    },
+    {
+      "type": "boolean",
+      "name": "caller_frustrated",
+      "description": "Whether the caller sounded frustrated or confused at any point."
+    },
+    {
+      "type": "boolean",
+      "name": "needs_callback",
+      "description": "Whether the restaurant still owes the caller a call back."
+    }
+  ],
+  "max_call_duration_ms": 1200000,
+  "end_call_after_silence_ms": 45000,
+  "interruption_sensitivity": 0.8,
+  "responsiveness": 0.9,
+  "enable_backchannel": true,
+  "normalize_for_speech": true,
+  "begin_message_delay_ms": 300
+}
+
+
+===== GREETING · full =====
+Thanks for calling Luigi's Trattoria! This is Kate. Just so you know, this call may be recorded. How can I help you today?
+
+
+===== AGENT PROMPT · bare =====
+You are Kate, the friendly phone host for Corner Cafe. You are talking on the phone, so keep every reply short (one or two sentences), warm and natural. Ask one question at a time. Never mention that you are an AI unless asked directly; if asked, say yes, you're the restaurant's automated assistant.
+
+Right now it is {{current_time}} on {{current_date}} (restaurant local time, {{timezone}}). The caller is calling from {{caller_phone}}. Use today's date to resolve words like 'tonight', 'tomorrow' or 'this Friday' into a YYYY-MM-DD date before calling any function.
+
+WHAT YOU CAN DO: (1) book reservations, (2) take takeout orders, (3) answer questions using only the information below, (4) take a message or escalate to a manager. Early in the call, figure out which of these the caller needs.
+
+HOURS:
+Open every day 11:00 AM to 9:00 PM.
+
+MENU:
+No menu has been provided. If asked about specific dishes or prices, say you don't have the menu in front of you and offer to take a message.
+You may state menu prices exactly as listed.
+
+RESERVATIONS: Always call get_available_times before offering a time — never guess availability. Collect: date, time, party size, the guest's name, and a phone number (offer to use the number they're calling from). Ask about seating preference or special requests only if they bring it up or after the essentials. Repeat the details back and get a yes before calling book_reservation.
+Tables are held for about 90 minutes. Times are offered every 30 minutes.
+FULLY BOOKED: If the requested time isn't available, offer the nearest available times before and after it (get_available_times returns them). If none work, offer to add them to the waitlist with join_waitlist. If they decline the waitlist, offer to take a message with take_message so the restaurant can call them if something opens up.
+
+TAKEOUT ORDERS: Take pickup orders. Only accept items that are on the menu above; if they ask for something not listed, say you don't have that and suggest what's listed. Collect: each item with quantity and any modifications, the caller's name, a phone number, and the pickup time. Read the full order back and confirm before calling take_takeout_order.
+DELIVERY: Not offered. If asked, politely say you don't deliver and offer pickup instead.
+
+MANAGER ESCALATION: The restaurant has not enabled live manager escalation. For anything you cannot handle (private events, catering, complaints, allergy questions you can't answer from the menu, press or vendors, large parties), take a detailed message with take_message (escalate = false) and say someone from the restaurant will call them back.
+- A party larger than 8 people: NEVER book it yourself. Take their name, phone, date, time and party size, then call take_message with reason "large_party".
+
+HARD RULES:
+- Never invent a menu item, a price, a policy, hours, or anything not written here. If the answer isn't here, say you're not sure and offer to take a message with take_message so the restaurant can call back.
+- Phone numbers must be 10-digit US or Canadian numbers. Read numbers back digit by digit to confirm.
+- Dietary questions: you may share the dietary tags and descriptions listed. For allergy questions you cannot answer from the menu, do not guess — take a message with reason "allergy".
+- If you get confused, the caller is frustrated, or you are going in circles: apologize, collect their name and phone number, promise a call back, and call take_message with reason "callback_request".
+- NEVER hang up on a caller. Only use end_call after the caller confirms they're done and you've said goodbye.
+- Do not read function results verbatim; turn them into natural speech.
+
+
+===== AGENT TOOLS · bare =====
+[
+  {
+    "type": "custom",
+    "name": "get_available_times",
+    "description": "Check reservation availability for a date and party size. Call this before offering any time. Returns whether the preferred time is open and the nearest alternatives.",
+    "url": "https://example.test/api/retell/functions/get_available_times",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Date in YYYY-MM-DD format, resolved using today's date."
+        },
+        "party_size": {
+          "type": "integer",
+          "description": "Number of guests."
+        },
+        "preferred_time": {
+          "type": "string",
+          "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM. The time the caller asked for, if any."
+        }
+      },
+      "required": [
+        "date",
+        "party_size"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say something like 'Let me check the book for you.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "book_reservation",
+    "description": "Book a reservation after the caller has confirmed all details. Only call with a time that get_available_times reported as available.",
+    "url": "https://example.test/api/retell/functions/book_reservation",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "guest_name": {
+          "type": "string",
+          "description": "Guest's name for the reservation."
+        },
+        "guest_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "party_size": {
+          "type": "integer",
+          "description": "Number of guests."
+        },
+        "date": {
+          "type": "string",
+          "description": "Date in YYYY-MM-DD format, resolved using today's date."
+        },
+        "time": {
+          "type": "string",
+          "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM."
+        },
+        "seating_preference": {
+          "type": "string",
+          "description": "Optional seating preference, e.g. patio, booth, window, high chair."
+        },
+        "special_requests": {
+          "type": "string",
+          "description": "Optional notes: birthday, allergy, accessibility, etc."
+        }
+      },
+      "required": [
+        "guest_name",
+        "guest_phone",
+        "party_size",
+        "date",
+        "time"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "join_waitlist",
+    "description": "Add the caller to the waitlist for a date and time that is fully booked, after they agree.",
+    "url": "https://example.test/api/retell/functions/join_waitlist",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "guest_name": {
+          "type": "string"
+        },
+        "guest_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "party_size": {
+          "type": "integer"
+        },
+        "date": {
+          "type": "string",
+          "description": "Date in YYYY-MM-DD format, resolved using today's date."
+        },
+        "time": {
+          "type": "string",
+          "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional notes."
+        }
+      },
+      "required": [
+        "guest_name",
+        "guest_phone",
+        "party_size",
+        "date",
+        "time"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "take_message",
+    "description": "Record a message or escalate to a manager. Use for anything you can't handle, callback requests, complaints, large parties, private events, catering, allergy questions, press or vendors.",
+    "url": "https://example.test/api/retell/functions/take_message",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "caller_name": {
+          "type": "string"
+        },
+        "caller_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "message": {
+          "type": "string",
+          "description": "Clear summary of what the caller needs, including any dates, party sizes or details they gave."
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "general_question",
+            "large_party",
+            "private_event",
+            "catering",
+            "complaint",
+            "allergy",
+            "press_vendor",
+            "callback_request",
+            "other"
+          ],
+          "description": "Why the message is being taken."
+        },
+        "escalate": {
+          "type": "boolean",
+          "description": "true when a manager must call back urgently per the escalation rules; false for a normal message."
+        }
+      },
+      "required": [
+        "caller_name",
+        "caller_phone",
+        "message",
+        "reason",
+        "escalate"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "take_takeout_order",
+    "description": "Place a takeout (pickup) or delivery order after the caller confirms the full order. For delivery, check_delivery_area must have approved the address first.",
+    "url": "https://example.test/api/retell/functions/take_takeout_order",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "guest_name": {
+          "type": "string"
+        },
+        "guest_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "items": {
+          "type": "string",
+          "description": "The complete order as dictated, one item per line with quantities and modifications."
+        },
+        "pickup_date": {
+          "type": "string",
+          "description": "Pickup/delivery date, YYYY-MM-DD. Defaults to today."
+        },
+        "pickup_time": {
+          "type": "string",
+          "description": "Requested pickup or delivery time, HH:MM 24-hour."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional notes."
+        },
+        "is_delivery": {
+          "type": "boolean",
+          "description": "true for delivery, false for pickup."
+        },
+        "delivery_address": {
+          "type": "string",
+          "description": "Full street address including city and ZIP or postal code, required for delivery."
+        }
+      },
+      "required": [
+        "guest_name",
+        "guest_phone",
+        "items",
+        "pickup_time"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "end_call",
+    "name": "end_call",
+    "description": "End the call. Only use after the caller confirms they are finished and you have said goodbye."
+  }
+]
+
+
+===== LLM CONFIG · bare =====
+{
+  "model": "gpt-4.1",
+  "model_temperature": 0.2,
+  "start_speaker": "agent",
+  "begin_message": "Thanks for calling Corner Cafe! This is Kate. Just so you know, this call may be recorded. How can I help you today?",
+  "general_prompt": "You are Kate, the friendly phone host for Corner Cafe. You are talking on the phone, so keep every reply short (one or two sentences), warm and natural. Ask one question at a time. Never mention that you are an AI unless asked directly; if asked, say yes, you're the restaurant's automated assistant.\n\nRight now it is {{current_time}} on {{current_date}} (restaurant local time, {{timezone}}). The caller is calling from {{caller_phone}}. Use today's date to resolve words like 'tonight', 'tomorrow' or 'this Friday' into a YYYY-MM-DD date before calling any function.\n\nWHAT YOU CAN DO: (1) book reservations, (2) take takeout orders, (3) answer questions using only the information below, (4) take a message or escalate to a manager. Early in the call, figure out which of these the caller needs.\n\nHOURS:\nOpen every day 11:00 AM to 9:00 PM.\n\nMENU:\nNo menu has been provided. If asked about specific dishes or prices, say you don't have the menu in front of you and offer to take a message.\nYou may state menu prices exactly as listed.\n\nRESERVATIONS: Always call get_available_times before offering a time — never guess availability. Collect: date, time, party size, the guest's name, and a phone number (offer to use the number they're calling from). Ask about seating preference or special requests only if they bring it up or after the essentials. Repeat the details back and get a yes before calling book_reservation.\nTables are held for about 90 minutes. Times are offered every 30 minutes.\nFULLY BOOKED: If the requested time isn't available, offer the nearest available times before and after it (get_available_times returns them). If none work, offer to add them to the waitlist with join_waitlist. If they decline the waitlist, offer to take a message with take_message so the restaurant can call them if something opens up.\n\nTAKEOUT ORDERS: Take pickup orders. Only accept items that are on the menu above; if they ask for something not listed, say you don't have that and suggest what's listed. Collect: each item with quantity and any modifications, the caller's name, a phone number, and the pickup time. Read the full order back and confirm before calling take_takeout_order.\nDELIVERY: Not offered. If asked, politely say you don't deliver and offer pickup instead.\n\nMANAGER ESCALATION: The restaurant has not enabled live manager escalation. For anything you cannot handle (private events, catering, complaints, allergy questions you can't answer from the menu, press or vendors, large parties), take a detailed message with take_message (escalate = false) and say someone from the restaurant will call them back.\n- A party larger than 8 people: NEVER book it yourself. Take their name, phone, date, time and party size, then call take_message with reason \"large_party\".\n\nHARD RULES:\n- Never invent a menu item, a price, a policy, hours, or anything not written here. If the answer isn't here, say you're not sure and offer to take a message with take_message so the restaurant can call back.\n- Phone numbers must be 10-digit US or Canadian numbers. Read numbers back digit by digit to confirm.\n- Dietary questions: you may share the dietary tags and descriptions listed. For allergy questions you cannot answer from the menu, do not guess — take a message with reason \"allergy\".\n- If you get confused, the caller is frustrated, or you are going in circles: apologize, collect their name and phone number, promise a call back, and call take_message with reason \"callback_request\".\n- NEVER hang up on a caller. Only use end_call after the caller confirms they're done and you've said goodbye.\n- Do not read function results verbatim; turn them into natural speech.",
+  "general_tools": [
+    {
+      "type": "custom",
+      "name": "get_available_times",
+      "description": "Check reservation availability for a date and party size. Call this before offering any time. Returns whether the preferred time is open and the nearest alternatives.",
+      "url": "https://example.test/api/retell/functions/get_available_times",
+      "method": "POST",
+      "headers": {
+        "<function-secret-header>": "<function-secret>"
+      },
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "Date in YYYY-MM-DD format, resolved using today's date."
+          },
+          "party_size": {
+            "type": "integer",
+            "description": "Number of guests."
+          },
+          "preferred_time": {
+            "type": "string",
+            "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM. The time the caller asked for, if any."
+          }
+        },
+        "required": [
+          "date",
+          "party_size"
+        ]
+      },
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_description": "Say something like 'Let me check the book for you.'",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "custom",
+      "name": "book_reservation",
+      "description": "Book a reservation after the caller has confirmed all details. Only call with a time that get_available_times reported as available.",
+      "url": "https://example.test/api/retell/functions/book_reservation",
+      "method": "POST",
+      "headers": {
+        "<function-secret-header>": "<function-secret>"
+      },
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "guest_name": {
+            "type": "string",
+            "description": "Guest's name for the reservation."
+          },
+          "guest_phone": {
+            "type": "string",
+            "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+          },
+          "party_size": {
+            "type": "integer",
+            "description": "Number of guests."
+          },
+          "date": {
+            "type": "string",
+            "description": "Date in YYYY-MM-DD format, resolved using today's date."
+          },
+          "time": {
+            "type": "string",
+            "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM."
+          },
+          "seating_preference": {
+            "type": "string",
+            "description": "Optional seating preference, e.g. patio, booth, window, high chair."
+          },
+          "special_requests": {
+            "type": "string",
+            "description": "Optional notes: birthday, allergy, accessibility, etc."
+          }
+        },
+        "required": [
+          "guest_name",
+          "guest_phone",
+          "party_size",
+          "date",
+          "time"
+        ]
+      },
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "custom",
+      "name": "join_waitlist",
+      "description": "Add the caller to the waitlist for a date and time that is fully booked, after they agree.",
+      "url": "https://example.test/api/retell/functions/join_waitlist",
+      "method": "POST",
+      "headers": {
+        "<function-secret-header>": "<function-secret>"
+      },
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "guest_name": {
+            "type": "string"
+          },
+          "guest_phone": {
+            "type": "string",
+            "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+          },
+          "party_size": {
+            "type": "integer"
+          },
+          "date": {
+            "type": "string",
+            "description": "Date in YYYY-MM-DD format, resolved using today's date."
+          },
+          "time": {
+            "type": "string",
+            "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM."
+          },
+          "notes": {
+            "type": "string",
+            "description": "Optional notes."
+          }
+        },
+        "required": [
+          "guest_name",
+          "guest_phone",
+          "party_size",
+          "date",
+          "time"
+        ]
+      },
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "custom",
+      "name": "take_message",
+      "description": "Record a message or escalate to a manager. Use for anything you can't handle, callback requests, complaints, large parties, private events, catering, allergy questions, press or vendors.",
+      "url": "https://example.test/api/retell/functions/take_message",
+      "method": "POST",
+      "headers": {
+        "<function-secret-header>": "<function-secret>"
+      },
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "caller_name": {
+            "type": "string"
+          },
+          "caller_phone": {
+            "type": "string",
+            "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+          },
+          "message": {
+            "type": "string",
+            "description": "Clear summary of what the caller needs, including any dates, party sizes or details they gave."
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "general_question",
+              "large_party",
+              "private_event",
+              "catering",
+              "complaint",
+              "allergy",
+              "press_vendor",
+              "callback_request",
+              "other"
+            ],
+            "description": "Why the message is being taken."
+          },
+          "escalate": {
+            "type": "boolean",
+            "description": "true when a manager must call back urgently per the escalation rules; false for a normal message."
+          }
+        },
+        "required": [
+          "caller_name",
+          "caller_phone",
+          "message",
+          "reason",
+          "escalate"
+        ]
+      },
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "custom",
+      "name": "take_takeout_order",
+      "description": "Place a takeout (pickup) or delivery order after the caller confirms the full order. For delivery, check_delivery_area must have approved the address first.",
+      "url": "https://example.test/api/retell/functions/take_takeout_order",
+      "method": "POST",
+      "headers": {
+        "<function-secret-header>": "<function-secret>"
+      },
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "guest_name": {
+            "type": "string"
+          },
+          "guest_phone": {
+            "type": "string",
+            "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+          },
+          "items": {
+            "type": "string",
+            "description": "The complete order as dictated, one item per line with quantities and modifications."
+          },
+          "pickup_date": {
+            "type": "string",
+            "description": "Pickup/delivery date, YYYY-MM-DD. Defaults to today."
+          },
+          "pickup_time": {
+            "type": "string",
+            "description": "Requested pickup or delivery time, HH:MM 24-hour."
+          },
+          "notes": {
+            "type": "string",
+            "description": "Optional notes."
+          },
+          "is_delivery": {
+            "type": "boolean",
+            "description": "true for delivery, false for pickup."
+          },
+          "delivery_address": {
+            "type": "string",
+            "description": "Full street address including city and ZIP or postal code, required for delivery."
+          }
+        },
+        "required": [
+          "guest_name",
+          "guest_phone",
+          "items",
+          "pickup_time"
+        ]
+      },
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "end_call",
+      "name": "end_call",
+      "description": "End the call. Only use after the caller confirms they are finished and you have said goodbye."
+    }
+  ],
+  "default_dynamic_variables": {
+    "restaurant_name": "Corner Cafe",
+    "host_name": "Kate",
+    "timezone": "America/New_York",
+    "current_date": "today",
+    "current_time": "now",
+    "caller_phone": "an unknown number"
+  }
+}
+
+
+===== AGENT CONFIG · bare =====
+{
+  "response_engine": {
+    "type": "retell-llm",
+    "llm_id": "llm_snapshot"
+  },
+  "agent_name": "FrontDesk AI · Corner Cafe",
+  "voice_id": "11labs-Adrian",
+  "language": "en-US",
+  "webhook_url": "https://example.test/api/retell/webhook",
+  "webhook_timeout_ms": 10000,
+  "post_call_analysis_data": [
+    {
+      "type": "enum",
+      "name": "classification",
+      "description": "What the call was mainly about.",
+      "choices": [
+        "reservation",
+        "takeout",
+        "question",
+        "waitlist",
+        "message",
+        "escalation",
+        "other"
+      ]
+    },
+    {
+      "type": "string",
+      "name": "caller_name",
+      "description": "The caller's name if they gave one."
+    },
+    {
+      "type": "boolean",
+      "name": "caller_frustrated",
+      "description": "Whether the caller sounded frustrated or confused at any point."
+    },
+    {
+      "type": "boolean",
+      "name": "needs_callback",
+      "description": "Whether the restaurant still owes the caller a call back."
+    }
+  ],
+  "max_call_duration_ms": 1200000,
+  "end_call_after_silence_ms": 45000,
+  "interruption_sensitivity": 0.8,
+  "responsiveness": 0.9,
+  "enable_backchannel": true,
+  "normalize_for_speech": true,
+  "begin_message_delay_ms": 300
+}
+
+
+===== GREETING · bare =====
+Thanks for calling Corner Cafe! This is Kate. Just so you know, this call may be recorded. How can I help you today?
+
+
+===== AGENT PROMPT · no-takeout-no-prices =====
+You are Kate, the friendly phone host for Luigi's Trattoria, a Italian restaurant ($$) located at 350 5th Ave, New York, NY, 10118. You are talking on the phone, so keep every reply short (one or two sentences), warm and natural. Ask one question at a time. Never mention that you are an AI unless asked directly; if asked, say yes, you're the restaurant's automated assistant.
+
+Right now it is {{current_time}} on {{current_date}} (restaurant local time, {{timezone}}). The caller is calling from {{caller_phone}}. Use today's date to resolve words like 'tonight', 'tomorrow' or 'this Friday' into a YYYY-MM-DD date before calling any function.
+
+WHAT YOU CAN DO: (1) book reservations, (2) take takeout orders, (3) answer questions using only the information below, (4) take a message or escalate to a manager. Early in the call, figure out which of these the caller needs.
+
+HOURS:
+- Sunday: Closed
+- Monday: Lunch 11:30 AM–2:30 PM, Dinner 5:00 PM–10:00 PM
+- Tuesday: Dinner 5:00 PM–10:00 PM
+- Wednesday: Closed
+- Thursday: Closed
+- Friday: Closed
+- Saturday: Closed
+
+MENU:
+Entrees:
+- Margherita Pizza [vegetarian]: San Marzano, fior di latte, basil
+Salads:
+- Caesar Salad
+Do NOT state prices. If asked, say prices are on the menu at the restaurant and offer to help with anything else.
+
+RESERVATIONS: Always call get_available_times before offering a time — never guess availability. Collect: date, time, party size, the guest's name, and a phone number (offer to use the number they're calling from). Ask about seating preference or special requests only if they bring it up or after the essentials. Repeat the details back and get a yes before calling book_reservation.
+Tables are held for about 90 minutes. Times are offered every 30 minutes. Parties over 8 require a deposit of $25.00 per person, which the manager will arrange.
+FULLY BOOKED: If the requested time isn't available, offer the nearest available times before and after it (get_available_times returns them). If none work, offer to add them to the waitlist with join_waitlist. If they decline the waitlist, offer to take a message with take_message so the restaurant can call them if something opens up.
+
+TAKEOUT: This restaurant does not take orders by phone. If asked, politely say so and offer to answer questions or take a message.
+
+MANAGER ESCALATION: Do not try to resolve these on the call. Collect the caller's name, phone number and the details, then call take_message with escalate = true and the matching reason. Tell the caller a manager will call them back within 15 minutes if it's during manager hours, otherwise when the restaurant next opens.
+Escalate for: party over the large-party threshold; private event or buyout; catering request; guest complaint; allergy question that staff must answer; press or vendor.
+- A party larger than 8 people: NEVER book it yourself. Take their name, phone, date, time and party size, then call take_message with reason "large_party".
+Manager reachable hours:
+- Monday: 9:00 AM–9:00 PM
+- Tuesday: 9:00 AM–9:00 PM
+
+HARD RULES:
+- Never invent a menu item, a price, a policy, hours, or anything not written here. If the answer isn't here, say you're not sure and offer to take a message with take_message so the restaurant can call back.
+- Phone numbers must be 10-digit US or Canadian numbers. Read numbers back digit by digit to confirm.
+- Dietary questions: you may share the dietary tags and descriptions listed. For allergy questions you cannot answer from the menu, do not guess — take a message with reason "allergy".
+- If you get confused, the caller is frustrated, or you are going in circles: apologize, collect their name and phone number, promise a call back, and call take_message with reason "callback_request".
+- NEVER hang up on a caller. Only use end_call after the caller confirms they're done and you've said goodbye.
+- Do not read function results verbatim; turn them into natural speech.
+
+
+===== AGENT TOOLS · no-takeout-no-prices =====
+[
+  {
+    "type": "custom",
+    "name": "get_available_times",
+    "description": "Check reservation availability for a date and party size. Call this before offering any time. Returns whether the preferred time is open and the nearest alternatives.",
+    "url": "https://example.test/api/retell/functions/get_available_times",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Date in YYYY-MM-DD format, resolved using today's date."
+        },
+        "party_size": {
+          "type": "integer",
+          "description": "Number of guests."
+        },
+        "preferred_time": {
+          "type": "string",
+          "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM. The time the caller asked for, if any."
+        }
+      },
+      "required": [
+        "date",
+        "party_size"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say something like 'Let me check the book for you.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "book_reservation",
+    "description": "Book a reservation after the caller has confirmed all details. Only call with a time that get_available_times reported as available.",
+    "url": "https://example.test/api/retell/functions/book_reservation",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "guest_name": {
+          "type": "string",
+          "description": "Guest's name for the reservation."
+        },
+        "guest_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "party_size": {
+          "type": "integer",
+          "description": "Number of guests."
+        },
+        "date": {
+          "type": "string",
+          "description": "Date in YYYY-MM-DD format, resolved using today's date."
+        },
+        "time": {
+          "type": "string",
+          "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM."
+        },
+        "seating_preference": {
+          "type": "string",
+          "description": "Optional seating preference, e.g. patio, booth, window, high chair."
+        },
+        "special_requests": {
+          "type": "string",
+          "description": "Optional notes: birthday, allergy, accessibility, etc."
+        }
+      },
+      "required": [
+        "guest_name",
+        "guest_phone",
+        "party_size",
+        "date",
+        "time"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "join_waitlist",
+    "description": "Add the caller to the waitlist for a date and time that is fully booked, after they agree.",
+    "url": "https://example.test/api/retell/functions/join_waitlist",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "guest_name": {
+          "type": "string"
+        },
+        "guest_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "party_size": {
+          "type": "integer"
+        },
+        "date": {
+          "type": "string",
+          "description": "Date in YYYY-MM-DD format, resolved using today's date."
+        },
+        "time": {
+          "type": "string",
+          "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional notes."
+        }
+      },
+      "required": [
+        "guest_name",
+        "guest_phone",
+        "party_size",
+        "date",
+        "time"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "take_message",
+    "description": "Record a message or escalate to a manager. Use for anything you can't handle, callback requests, complaints, large parties, private events, catering, allergy questions, press or vendors.",
+    "url": "https://example.test/api/retell/functions/take_message",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "caller_name": {
+          "type": "string"
+        },
+        "caller_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "message": {
+          "type": "string",
+          "description": "Clear summary of what the caller needs, including any dates, party sizes or details they gave."
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "general_question",
+            "large_party",
+            "private_event",
+            "catering",
+            "complaint",
+            "allergy",
+            "press_vendor",
+            "callback_request",
+            "other"
+          ],
+          "description": "Why the message is being taken."
+        },
+        "escalate": {
+          "type": "boolean",
+          "description": "true when a manager must call back urgently per the escalation rules; false for a normal message."
+        }
+      },
+      "required": [
+        "caller_name",
+        "caller_phone",
+        "message",
+        "reason",
+        "escalate"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "end_call",
+    "name": "end_call",
+    "description": "End the call. Only use after the caller confirms they are finished and you have said goodbye."
+  }
+]
+
+
+===== LLM CONFIG · no-takeout-no-prices =====
+{
+  "model": "gpt-4.1",
+  "model_temperature": 0.2,
+  "start_speaker": "agent",
+  "begin_message": "Custom greeting; this call may be recorded.",
+  "general_prompt": "You are Kate, the friendly phone host for Luigi's Trattoria, a Italian restaurant ($$) located at 350 5th Ave, New York, NY, 10118. You are talking on the phone, so keep every reply short (one or two sentences), warm and natural. Ask one question at a time. Never mention that you are an AI unless asked directly; if asked, say yes, you're the restaurant's automated assistant.\n\nRight now it is {{current_time}} on {{current_date}} (restaurant local time, {{timezone}}). The caller is calling from {{caller_phone}}. Use today's date to resolve words like 'tonight', 'tomorrow' or 'this Friday' into a YYYY-MM-DD date before calling any function.\n\nWHAT YOU CAN DO: (1) book reservations, (2) take takeout orders, (3) answer questions using only the information below, (4) take a message or escalate to a manager. Early in the call, figure out which of these the caller needs.\n\nHOURS:\n- Sunday: Closed\n- Monday: Lunch 11:30 AM–2:30 PM, Dinner 5:00 PM–10:00 PM\n- Tuesday: Dinner 5:00 PM–10:00 PM\n- Wednesday: Closed\n- Thursday: Closed\n- Friday: Closed\n- Saturday: Closed\n\nMENU:\nEntrees:\n- Margherita Pizza [vegetarian]: San Marzano, fior di latte, basil\nSalads:\n- Caesar Salad\nDo NOT state prices. If asked, say prices are on the menu at the restaurant and offer to help with anything else.\n\nRESERVATIONS: Always call get_available_times before offering a time — never guess availability. Collect: date, time, party size, the guest's name, and a phone number (offer to use the number they're calling from). Ask about seating preference or special requests only if they bring it up or after the essentials. Repeat the details back and get a yes before calling book_reservation.\nTables are held for about 90 minutes. Times are offered every 30 minutes. Parties over 8 require a deposit of $25.00 per person, which the manager will arrange.\nFULLY BOOKED: If the requested time isn't available, offer the nearest available times before and after it (get_available_times returns them). If none work, offer to add them to the waitlist with join_waitlist. If they decline the waitlist, offer to take a message with take_message so the restaurant can call them if something opens up.\n\nTAKEOUT: This restaurant does not take orders by phone. If asked, politely say so and offer to answer questions or take a message.\n\nMANAGER ESCALATION: Do not try to resolve these on the call. Collect the caller's name, phone number and the details, then call take_message with escalate = true and the matching reason. Tell the caller a manager will call them back within 15 minutes if it's during manager hours, otherwise when the restaurant next opens.\nEscalate for: party over the large-party threshold; private event or buyout; catering request; guest complaint; allergy question that staff must answer; press or vendor.\n- A party larger than 8 people: NEVER book it yourself. Take their name, phone, date, time and party size, then call take_message with reason \"large_party\".\nManager reachable hours:\n- Monday: 9:00 AM–9:00 PM\n- Tuesday: 9:00 AM–9:00 PM\n\nHARD RULES:\n- Never invent a menu item, a price, a policy, hours, or anything not written here. If the answer isn't here, say you're not sure and offer to take a message with take_message so the restaurant can call back.\n- Phone numbers must be 10-digit US or Canadian numbers. Read numbers back digit by digit to confirm.\n- Dietary questions: you may share the dietary tags and descriptions listed. For allergy questions you cannot answer from the menu, do not guess — take a message with reason \"allergy\".\n- If you get confused, the caller is frustrated, or you are going in circles: apologize, collect their name and phone number, promise a call back, and call take_message with reason \"callback_request\".\n- NEVER hang up on a caller. Only use end_call after the caller confirms they're done and you've said goodbye.\n- Do not read function results verbatim; turn them into natural speech.",
+  "general_tools": [
+    {
+      "type": "custom",
+      "name": "get_available_times",
+      "description": "Check reservation availability for a date and party size. Call this before offering any time. Returns whether the preferred time is open and the nearest alternatives.",
+      "url": "https://example.test/api/retell/functions/get_available_times",
+      "method": "POST",
+      "headers": {
+        "<function-secret-header>": "<function-secret>"
+      },
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "Date in YYYY-MM-DD format, resolved using today's date."
+          },
+          "party_size": {
+            "type": "integer",
+            "description": "Number of guests."
+          },
+          "preferred_time": {
+            "type": "string",
+            "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM. The time the caller asked for, if any."
+          }
+        },
+        "required": [
+          "date",
+          "party_size"
+        ]
+      },
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_description": "Say something like 'Let me check the book for you.'",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "custom",
+      "name": "book_reservation",
+      "description": "Book a reservation after the caller has confirmed all details. Only call with a time that get_available_times reported as available.",
+      "url": "https://example.test/api/retell/functions/book_reservation",
+      "method": "POST",
+      "headers": {
+        "<function-secret-header>": "<function-secret>"
+      },
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "guest_name": {
+            "type": "string",
+            "description": "Guest's name for the reservation."
+          },
+          "guest_phone": {
+            "type": "string",
+            "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+          },
+          "party_size": {
+            "type": "integer",
+            "description": "Number of guests."
+          },
+          "date": {
+            "type": "string",
+            "description": "Date in YYYY-MM-DD format, resolved using today's date."
+          },
+          "time": {
+            "type": "string",
+            "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM."
+          },
+          "seating_preference": {
+            "type": "string",
+            "description": "Optional seating preference, e.g. patio, booth, window, high chair."
+          },
+          "special_requests": {
+            "type": "string",
+            "description": "Optional notes: birthday, allergy, accessibility, etc."
+          }
+        },
+        "required": [
+          "guest_name",
+          "guest_phone",
+          "party_size",
+          "date",
+          "time"
+        ]
+      },
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "custom",
+      "name": "join_waitlist",
+      "description": "Add the caller to the waitlist for a date and time that is fully booked, after they agree.",
+      "url": "https://example.test/api/retell/functions/join_waitlist",
+      "method": "POST",
+      "headers": {
+        "<function-secret-header>": "<function-secret>"
+      },
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "guest_name": {
+            "type": "string"
+          },
+          "guest_phone": {
+            "type": "string",
+            "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+          },
+          "party_size": {
+            "type": "integer"
+          },
+          "date": {
+            "type": "string",
+            "description": "Date in YYYY-MM-DD format, resolved using today's date."
+          },
+          "time": {
+            "type": "string",
+            "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM."
+          },
+          "notes": {
+            "type": "string",
+            "description": "Optional notes."
+          }
+        },
+        "required": [
+          "guest_name",
+          "guest_phone",
+          "party_size",
+          "date",
+          "time"
+        ]
+      },
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "custom",
+      "name": "take_message",
+      "description": "Record a message or escalate to a manager. Use for anything you can't handle, callback requests, complaints, large parties, private events, catering, allergy questions, press or vendors.",
+      "url": "https://example.test/api/retell/functions/take_message",
+      "method": "POST",
+      "headers": {
+        "<function-secret-header>": "<function-secret>"
+      },
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "caller_name": {
+            "type": "string"
+          },
+          "caller_phone": {
+            "type": "string",
+            "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+          },
+          "message": {
+            "type": "string",
+            "description": "Clear summary of what the caller needs, including any dates, party sizes or details they gave."
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "general_question",
+              "large_party",
+              "private_event",
+              "catering",
+              "complaint",
+              "allergy",
+              "press_vendor",
+              "callback_request",
+              "other"
+            ],
+            "description": "Why the message is being taken."
+          },
+          "escalate": {
+            "type": "boolean",
+            "description": "true when a manager must call back urgently per the escalation rules; false for a normal message."
+          }
+        },
+        "required": [
+          "caller_name",
+          "caller_phone",
+          "message",
+          "reason",
+          "escalate"
+        ]
+      },
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "end_call",
+      "name": "end_call",
+      "description": "End the call. Only use after the caller confirms they are finished and you have said goodbye."
+    }
+  ],
+  "default_dynamic_variables": {
+    "restaurant_name": "Luigi's Trattoria",
+    "host_name": "Kate",
+    "timezone": "America/New_York",
+    "current_date": "today",
+    "current_time": "now",
+    "caller_phone": "an unknown number"
+  }
+}
+
+
+===== AGENT CONFIG · no-takeout-no-prices =====
+{
+  "response_engine": {
+    "type": "retell-llm",
+    "llm_id": "llm_snapshot"
+  },
+  "agent_name": "FrontDesk AI · Luigi's Trattoria",
+  "voice_id": "11labs-Adrian",
+  "language": "en-US",
+  "webhook_url": "https://example.test/api/retell/webhook",
+  "webhook_timeout_ms": 10000,
+  "post_call_analysis_data": [
+    {
+      "type": "enum",
+      "name": "classification",
+      "description": "What the call was mainly about.",
+      "choices": [
+        "reservation",
+        "takeout",
+        "question",
+        "waitlist",
+        "message",
+        "escalation",
+        "other"
+      ]
+    },
+    {
+      "type": "string",
+      "name": "caller_name",
+      "description": "The caller's name if they gave one."
+    },
+    {
+      "type": "boolean",
+      "name": "caller_frustrated",
+      "description": "Whether the caller sounded frustrated or confused at any point."
+    },
+    {
+      "type": "boolean",
+      "name": "needs_callback",
+      "description": "Whether the restaurant still owes the caller a call back."
+    }
+  ],
+  "max_call_duration_ms": 1200000,
+  "end_call_after_silence_ms": 45000,
+  "interruption_sensitivity": 0.8,
+  "responsiveness": 0.9,
+  "enable_backchannel": true,
+  "normalize_for_speech": true,
+  "begin_message_delay_ms": 300
+}
+
+
+===== GREETING · no-takeout-no-prices =====
+Thanks for calling Luigi's Trattoria! This is Kate. Just so you know, this call may be recorded. How can I help you today?
+
+
+===== AGENT PROMPT · canada =====
+You are Kate, the friendly phone host for Ronit's Pizza, a Italian restaurant ($$) located at 350 5th Ave, Toronto, ON, M5V 2T6. You are talking on the phone, so keep every reply short (one or two sentences), warm and natural. Ask one question at a time. Never mention that you are an AI unless asked directly; if asked, say yes, you're the restaurant's automated assistant.
+
+Right now it is {{current_time}} on {{current_date}} (restaurant local time, {{timezone}}). The caller is calling from {{caller_phone}}. Use today's date to resolve words like 'tonight', 'tomorrow' or 'this Friday' into a YYYY-MM-DD date before calling any function.
+
+WHAT YOU CAN DO: (1) book reservations, (2) take takeout orders, (3) answer questions using only the information below, (4) take a message or escalate to a manager. Early in the call, figure out which of these the caller needs.
+
+HOURS:
+- Sunday: Closed
+- Monday: Lunch 11:30 AM–2:30 PM, Dinner 5:00 PM–10:00 PM
+- Tuesday: Dinner 5:00 PM–10:00 PM
+- Wednesday: Closed
+- Thursday: Closed
+- Friday: Closed
+- Saturday: Closed
+
+MENU:
+Entrees:
+- Margherita Pizza — $18.50 [vegetarian]: San Marzano, fior di latte, basil
+Salads:
+- Caesar Salad — $12.00
+You may state menu prices exactly as listed.
+
+RESERVATIONS: Always call get_available_times before offering a time — never guess availability. Collect: date, time, party size, the guest's name, and a phone number (offer to use the number they're calling from). Ask about seating preference or special requests only if they bring it up or after the essentials. Repeat the details back and get a yes before calling book_reservation.
+Tables are held for about 90 minutes. Times are offered every 30 minutes.
+FULLY BOOKED: If the requested time isn't available, offer the nearest available times before and after it (get_available_times returns them). If none work, offer to add them to the waitlist with join_waitlist. If they decline the waitlist, offer to take a message with take_message so the restaurant can call them if something opens up.
+
+TAKEOUT ORDERS: Take pickup orders. Only accept items that are on the menu above; if they ask for something not listed, say you don't have that and suggest what's listed. Collect: each item with quantity and any modifications, the caller's name, a phone number, and the pickup time. Read the full order back and confirm before calling take_takeout_order.
+DELIVERY: Offered within 8 kilometres of the restaurant. Before accepting a delivery order, ask for the full street address including city and postal code and call check_delivery_area. If the address is outside the area or the check is uncertain, apologize, say delivery isn't available there, and offer pickup instead. Never promise delivery to an address that hasn't passed the check.
+
+MANAGER ESCALATION: Do not try to resolve these on the call. Collect the caller's name, phone number and the details, then call take_message with escalate = true and the matching reason. Tell the caller a manager will call them back within 15 minutes if it's during manager hours, otherwise when the restaurant next opens.
+Escalate for: party over the large-party threshold; private event or buyout; catering request; guest complaint; allergy question that staff must answer; press or vendor.
+- A party larger than 8 people: NEVER book it yourself. Take their name, phone, date, time and party size, then call take_message with reason "large_party".
+Manager reachable hours:
+- Monday: 9:00 AM–9:00 PM
+- Tuesday: 9:00 AM–9:00 PM
+
+HARD RULES:
+- Never invent a menu item, a price, a policy, hours, or anything not written here. If the answer isn't here, say you're not sure and offer to take a message with take_message so the restaurant can call back.
+- Phone numbers must be 10-digit US or Canadian numbers. Read numbers back digit by digit to confirm.
+- Dietary questions: you may share the dietary tags and descriptions listed. For allergy questions you cannot answer from the menu, do not guess — take a message with reason "allergy".
+- If you get confused, the caller is frustrated, or you are going in circles: apologize, collect their name and phone number, promise a call back, and call take_message with reason "callback_request".
+- NEVER hang up on a caller. Only use end_call after the caller confirms they're done and you've said goodbye.
+- Do not read function results verbatim; turn them into natural speech.
+
+
+===== AGENT TOOLS · canada =====
+[
+  {
+    "type": "custom",
+    "name": "get_available_times",
+    "description": "Check reservation availability for a date and party size. Call this before offering any time. Returns whether the preferred time is open and the nearest alternatives.",
+    "url": "https://example.test/api/retell/functions/get_available_times",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Date in YYYY-MM-DD format, resolved using today's date."
+        },
+        "party_size": {
+          "type": "integer",
+          "description": "Number of guests."
+        },
+        "preferred_time": {
+          "type": "string",
+          "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM. The time the caller asked for, if any."
+        }
+      },
+      "required": [
+        "date",
+        "party_size"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say something like 'Let me check the book for you.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "book_reservation",
+    "description": "Book a reservation after the caller has confirmed all details. Only call with a time that get_available_times reported as available.",
+    "url": "https://example.test/api/retell/functions/book_reservation",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "guest_name": {
+          "type": "string",
+          "description": "Guest's name for the reservation."
+        },
+        "guest_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "party_size": {
+          "type": "integer",
+          "description": "Number of guests."
+        },
+        "date": {
+          "type": "string",
+          "description": "Date in YYYY-MM-DD format, resolved using today's date."
+        },
+        "time": {
+          "type": "string",
+          "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM."
+        },
+        "seating_preference": {
+          "type": "string",
+          "description": "Optional seating preference, e.g. patio, booth, window, high chair."
+        },
+        "special_requests": {
+          "type": "string",
+          "description": "Optional notes: birthday, allergy, accessibility, etc."
+        }
+      },
+      "required": [
+        "guest_name",
+        "guest_phone",
+        "party_size",
+        "date",
+        "time"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "join_waitlist",
+    "description": "Add the caller to the waitlist for a date and time that is fully booked, after they agree.",
+    "url": "https://example.test/api/retell/functions/join_waitlist",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "guest_name": {
+          "type": "string"
+        },
+        "guest_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "party_size": {
+          "type": "integer"
+        },
+        "date": {
+          "type": "string",
+          "description": "Date in YYYY-MM-DD format, resolved using today's date."
+        },
+        "time": {
+          "type": "string",
+          "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional notes."
+        }
+      },
+      "required": [
+        "guest_name",
+        "guest_phone",
+        "party_size",
+        "date",
+        "time"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "take_message",
+    "description": "Record a message or escalate to a manager. Use for anything you can't handle, callback requests, complaints, large parties, private events, catering, allergy questions, press or vendors.",
+    "url": "https://example.test/api/retell/functions/take_message",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "caller_name": {
+          "type": "string"
+        },
+        "caller_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "message": {
+          "type": "string",
+          "description": "Clear summary of what the caller needs, including any dates, party sizes or details they gave."
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "general_question",
+            "large_party",
+            "private_event",
+            "catering",
+            "complaint",
+            "allergy",
+            "press_vendor",
+            "callback_request",
+            "other"
+          ],
+          "description": "Why the message is being taken."
+        },
+        "escalate": {
+          "type": "boolean",
+          "description": "true when a manager must call back urgently per the escalation rules; false for a normal message."
+        }
+      },
+      "required": [
+        "caller_name",
+        "caller_phone",
+        "message",
+        "reason",
+        "escalate"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "take_takeout_order",
+    "description": "Place a takeout (pickup) or delivery order after the caller confirms the full order. For delivery, check_delivery_area must have approved the address first.",
+    "url": "https://example.test/api/retell/functions/take_takeout_order",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "guest_name": {
+          "type": "string"
+        },
+        "guest_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "items": {
+          "type": "string",
+          "description": "The complete order as dictated, one item per line with quantities and modifications."
+        },
+        "pickup_date": {
+          "type": "string",
+          "description": "Pickup/delivery date, YYYY-MM-DD. Defaults to today."
+        },
+        "pickup_time": {
+          "type": "string",
+          "description": "Requested pickup or delivery time, HH:MM 24-hour."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional notes."
+        },
+        "is_delivery": {
+          "type": "boolean",
+          "description": "true for delivery, false for pickup."
+        },
+        "delivery_address": {
+          "type": "string",
+          "description": "Full street address including city and ZIP or postal code, required for delivery."
+        }
+      },
+      "required": [
+        "guest_name",
+        "guest_phone",
+        "items",
+        "pickup_time"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "check_delivery_area",
+    "description": "Check whether a full street address is inside the delivery area. Always call before accepting a delivery order.",
+    "url": "https://example.test/api/retell/functions/check_delivery_area",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "description": "Full street address including city, state or province, and ZIP or postal code."
+        }
+      },
+      "required": [
+        "address"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say 'Let me check if we deliver there.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "end_call",
+    "name": "end_call",
+    "description": "End the call. Only use after the caller confirms they are finished and you have said goodbye."
+  }
+]
+
+
+===== LLM CONFIG · canada =====
+{
+  "model": "gpt-4.1",
+  "model_temperature": 0.2,
+  "start_speaker": "agent",
+  "begin_message": "Thanks for calling Ronit's Pizza! This is Kate. Just so you know, this call may be recorded. How can I help you today?",
+  "general_prompt": "You are Kate, the friendly phone host for Ronit's Pizza, a Italian restaurant ($$) located at 350 5th Ave, Toronto, ON, M5V 2T6. You are talking on the phone, so keep every reply short (one or two sentences), warm and natural. Ask one question at a time. Never mention that you are an AI unless asked directly; if asked, say yes, you're the restaurant's automated assistant.\n\nRight now it is {{current_time}} on {{current_date}} (restaurant local time, {{timezone}}). The caller is calling from {{caller_phone}}. Use today's date to resolve words like 'tonight', 'tomorrow' or 'this Friday' into a YYYY-MM-DD date before calling any function.\n\nWHAT YOU CAN DO: (1) book reservations, (2) take takeout orders, (3) answer questions using only the information below, (4) take a message or escalate to a manager. Early in the call, figure out which of these the caller needs.\n\nHOURS:\n- Sunday: Closed\n- Monday: Lunch 11:30 AM–2:30 PM, Dinner 5:00 PM–10:00 PM\n- Tuesday: Dinner 5:00 PM–10:00 PM\n- Wednesday: Closed\n- Thursday: Closed\n- Friday: Closed\n- Saturday: Closed\n\nMENU:\nEntrees:\n- Margherita Pizza — $18.50 [vegetarian]: San Marzano, fior di latte, basil\nSalads:\n- Caesar Salad — $12.00\nYou may state menu prices exactly as listed.\n\nRESERVATIONS: Always call get_available_times before offering a time — never guess availability. Collect: date, time, party size, the guest's name, and a phone number (offer to use the number they're calling from). Ask about seating preference or special requests only if they bring it up or after the essentials. Repeat the details back and get a yes before calling book_reservation.\nTables are held for about 90 minutes. Times are offered every 30 minutes.\nFULLY BOOKED: If the requested time isn't available, offer the nearest available times before and after it (get_available_times returns them). If none work, offer to add them to the waitlist with join_waitlist. If they decline the waitlist, offer to take a message with take_message so the restaurant can call them if something opens up.\n\nTAKEOUT ORDERS: Take pickup orders. Only accept items that are on the menu above; if they ask for something not listed, say you don't have that and suggest what's listed. Collect: each item with quantity and any modifications, the caller's name, a phone number, and the pickup time. Read the full order back and confirm before calling take_takeout_order.\nDELIVERY: Offered within 8 kilometres of the restaurant. Before accepting a delivery order, ask for the full street address including city and postal code and call check_delivery_area. If the address is outside the area or the check is uncertain, apologize, say delivery isn't available there, and offer pickup instead. Never promise delivery to an address that hasn't passed the check.\n\nMANAGER ESCALATION: Do not try to resolve these on the call. Collect the caller's name, phone number and the details, then call take_message with escalate = true and the matching reason. Tell the caller a manager will call them back within 15 minutes if it's during manager hours, otherwise when the restaurant next opens.\nEscalate for: party over the large-party threshold; private event or buyout; catering request; guest complaint; allergy question that staff must answer; press or vendor.\n- A party larger than 8 people: NEVER book it yourself. Take their name, phone, date, time and party size, then call take_message with reason \"large_party\".\nManager reachable hours:\n- Monday: 9:00 AM–9:00 PM\n- Tuesday: 9:00 AM–9:00 PM\n\nHARD RULES:\n- Never invent a menu item, a price, a policy, hours, or anything not written here. If the answer isn't here, say you're not sure and offer to take a message with take_message so the restaurant can call back.\n- Phone numbers must be 10-digit US or Canadian numbers. Read numbers back digit by digit to confirm.\n- Dietary questions: you may share the dietary tags and descriptions listed. For allergy questions you cannot answer from the menu, do not guess — take a message with reason \"allergy\".\n- If you get confused, the caller is frustrated, or you are going in circles: apologize, collect their name and phone number, promise a call back, and call take_message with reason \"callback_request\".\n- NEVER hang up on a caller. Only use end_call after the caller confirms they're done and you've said goodbye.\n- Do not read function results verbatim; turn them into natural speech.",
+  "general_tools": [
+    {
+      "type": "custom",
+      "name": "get_available_times",
+      "description": "Check reservation availability for a date and party size. Call this before offering any time. Returns whether the preferred time is open and the nearest alternatives.",
+      "url": "https://example.test/api/retell/functions/get_available_times",
+      "method": "POST",
+      "headers": {
+        "<function-secret-header>": "<function-secret>"
+      },
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "Date in YYYY-MM-DD format, resolved using today's date."
+          },
+          "party_size": {
+            "type": "integer",
+            "description": "Number of guests."
+          },
+          "preferred_time": {
+            "type": "string",
+            "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM. The time the caller asked for, if any."
+          }
+        },
+        "required": [
+          "date",
+          "party_size"
+        ]
+      },
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_description": "Say something like 'Let me check the book for you.'",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "custom",
+      "name": "book_reservation",
+      "description": "Book a reservation after the caller has confirmed all details. Only call with a time that get_available_times reported as available.",
+      "url": "https://example.test/api/retell/functions/book_reservation",
+      "method": "POST",
+      "headers": {
+        "<function-secret-header>": "<function-secret>"
+      },
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "guest_name": {
+            "type": "string",
+            "description": "Guest's name for the reservation."
+          },
+          "guest_phone": {
+            "type": "string",
+            "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+          },
+          "party_size": {
+            "type": "integer",
+            "description": "Number of guests."
+          },
+          "date": {
+            "type": "string",
+            "description": "Date in YYYY-MM-DD format, resolved using today's date."
+          },
+          "time": {
+            "type": "string",
+            "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM."
+          },
+          "seating_preference": {
+            "type": "string",
+            "description": "Optional seating preference, e.g. patio, booth, window, high chair."
+          },
+          "special_requests": {
+            "type": "string",
+            "description": "Optional notes: birthday, allergy, accessibility, etc."
+          }
+        },
+        "required": [
+          "guest_name",
+          "guest_phone",
+          "party_size",
+          "date",
+          "time"
+        ]
+      },
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "custom",
+      "name": "join_waitlist",
+      "description": "Add the caller to the waitlist for a date and time that is fully booked, after they agree.",
+      "url": "https://example.test/api/retell/functions/join_waitlist",
+      "method": "POST",
+      "headers": {
+        "<function-secret-header>": "<function-secret>"
+      },
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "guest_name": {
+            "type": "string"
+          },
+          "guest_phone": {
+            "type": "string",
+            "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+          },
+          "party_size": {
+            "type": "integer"
+          },
+          "date": {
+            "type": "string",
+            "description": "Date in YYYY-MM-DD format, resolved using today's date."
+          },
+          "time": {
+            "type": "string",
+            "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM."
+          },
+          "notes": {
+            "type": "string",
+            "description": "Optional notes."
+          }
+        },
+        "required": [
+          "guest_name",
+          "guest_phone",
+          "party_size",
+          "date",
+          "time"
+        ]
+      },
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "custom",
+      "name": "take_message",
+      "description": "Record a message or escalate to a manager. Use for anything you can't handle, callback requests, complaints, large parties, private events, catering, allergy questions, press or vendors.",
+      "url": "https://example.test/api/retell/functions/take_message",
+      "method": "POST",
+      "headers": {
+        "<function-secret-header>": "<function-secret>"
+      },
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "caller_name": {
+            "type": "string"
+          },
+          "caller_phone": {
+            "type": "string",
+            "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+          },
+          "message": {
+            "type": "string",
+            "description": "Clear summary of what the caller needs, including any dates, party sizes or details they gave."
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "general_question",
+              "large_party",
+              "private_event",
+              "catering",
+              "complaint",
+              "allergy",
+              "press_vendor",
+              "callback_request",
+              "other"
+            ],
+            "description": "Why the message is being taken."
+          },
+          "escalate": {
+            "type": "boolean",
+            "description": "true when a manager must call back urgently per the escalation rules; false for a normal message."
+          }
+        },
+        "required": [
+          "caller_name",
+          "caller_phone",
+          "message",
+          "reason",
+          "escalate"
+        ]
+      },
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "custom",
+      "name": "take_takeout_order",
+      "description": "Place a takeout (pickup) or delivery order after the caller confirms the full order. For delivery, check_delivery_area must have approved the address first.",
+      "url": "https://example.test/api/retell/functions/take_takeout_order",
+      "method": "POST",
+      "headers": {
+        "<function-secret-header>": "<function-secret>"
+      },
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "guest_name": {
+            "type": "string"
+          },
+          "guest_phone": {
+            "type": "string",
+            "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+          },
+          "items": {
+            "type": "string",
+            "description": "The complete order as dictated, one item per line with quantities and modifications."
+          },
+          "pickup_date": {
+            "type": "string",
+            "description": "Pickup/delivery date, YYYY-MM-DD. Defaults to today."
+          },
+          "pickup_time": {
+            "type": "string",
+            "description": "Requested pickup or delivery time, HH:MM 24-hour."
+          },
+          "notes": {
+            "type": "string",
+            "description": "Optional notes."
+          },
+          "is_delivery": {
+            "type": "boolean",
+            "description": "true for delivery, false for pickup."
+          },
+          "delivery_address": {
+            "type": "string",
+            "description": "Full street address including city and ZIP or postal code, required for delivery."
+          }
+        },
+        "required": [
+          "guest_name",
+          "guest_phone",
+          "items",
+          "pickup_time"
+        ]
+      },
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "custom",
+      "name": "check_delivery_area",
+      "description": "Check whether a full street address is inside the delivery area. Always call before accepting a delivery order.",
+      "url": "https://example.test/api/retell/functions/check_delivery_area",
+      "method": "POST",
+      "headers": {
+        "<function-secret-header>": "<function-secret>"
+      },
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "address": {
+            "type": "string",
+            "description": "Full street address including city, state or province, and ZIP or postal code."
+          }
+        },
+        "required": [
+          "address"
+        ]
+      },
+      "speak_during_execution": true,
+      "speak_after_execution": true,
+      "execution_message_description": "Say 'Let me check if we deliver there.'",
+      "timeout_ms": 15000
+    },
+    {
+      "type": "end_call",
+      "name": "end_call",
+      "description": "End the call. Only use after the caller confirms they are finished and you have said goodbye."
+    }
+  ],
+  "default_dynamic_variables": {
+    "restaurant_name": "Ronit's Pizza",
+    "host_name": "Kate",
+    "timezone": "America/Toronto",
+    "current_date": "today",
+    "current_time": "now",
+    "caller_phone": "an unknown number"
+  }
+}
+
+
+===== AGENT CONFIG · canada =====
+{
+  "response_engine": {
+    "type": "retell-llm",
+    "llm_id": "llm_snapshot"
+  },
+  "agent_name": "FrontDesk AI · Ronit's Pizza",
+  "voice_id": "11labs-Adrian",
+  "language": "en-US",
+  "webhook_url": "https://example.test/api/retell/webhook",
+  "webhook_timeout_ms": 10000,
+  "post_call_analysis_data": [
+    {
+      "type": "enum",
+      "name": "classification",
+      "description": "What the call was mainly about.",
+      "choices": [
+        "reservation",
+        "takeout",
+        "question",
+        "waitlist",
+        "message",
+        "escalation",
+        "other"
+      ]
+    },
+    {
+      "type": "string",
+      "name": "caller_name",
+      "description": "The caller's name if they gave one."
+    },
+    {
+      "type": "boolean",
+      "name": "caller_frustrated",
+      "description": "Whether the caller sounded frustrated or confused at any point."
+    },
+    {
+      "type": "boolean",
+      "name": "needs_callback",
+      "description": "Whether the restaurant still owes the caller a call back."
+    }
+  ],
+  "max_call_duration_ms": 1200000,
+  "end_call_after_silence_ms": 45000,
+  "interruption_sensitivity": 0.8,
+  "responsiveness": 0.9,
+  "enable_backchannel": true,
+  "normalize_for_speech": true,
+  "begin_message_delay_ms": 300
+}
+
+
+===== GREETING · canada =====
+Thanks for calling Ronit's Pizza! This is Kate. Just so you know, this call may be recorded. How can I help you today?
+
+
+===== POST-CALL ANALYSIS =====
+[
+  {
+    "type": "enum",
+    "name": "classification",
+    "description": "What the call was mainly about.",
+    "choices": [
+      "reservation",
+      "takeout",
+      "question",
+      "waitlist",
+      "message",
+      "escalation",
+      "other"
+    ]
+  },
+  {
+    "type": "string",
+    "name": "caller_name",
+    "description": "The caller's name if they gave one."
+  },
+  {
+    "type": "boolean",
+    "name": "caller_frustrated",
+    "description": "Whether the caller sounded frustrated or confused at any point."
+  },
+  {
+    "type": "boolean",
+    "name": "needs_callback",
+    "description": "Whether the restaurant still owes the caller a call back."
+  }
+]
+
+
+===== AGENT CONSTANTS =====
+{
+  "FUNCTION_NAMES": [
+    "get_available_times",
+    "book_reservation",
+    "join_waitlist",
+    "take_takeout_order",
+    "check_delivery_area",
+    "take_message"
+  ],
+  "MESSAGE_REASONS": [
+    "general_question",
+    "large_party",
+    "private_event",
+    "catering",
+    "complaint",
+    "allergy",
+    "press_vendor",
+    "callback_request",
+    "other"
+  ],
+  "CLASSIFICATION_CHOICES": [
+    "reservation",
+    "takeout",
+    "question",
+    "waitlist",
+    "message",
+    "escalation",
+    "other"
+  ]
+}
+
+
+===== GUEST SMS · full =====
+reservation:      Luigi's Trattoria: You're booked! Party of 4 on Wed, Sep 2, 7:30 PM. Reply CANCEL if your plans change. Questions? Call (212) 555-0199.
+waitlist:         Luigi's Trattoria: Elena Rossi, you're on our waitlist for 4 on Wed, Sep 2, 7:30 PM. We'll call if a table opens up. Reply CANCEL to leave the waitlist. Questions? Call (212) 555-0199.
+takeout:          Luigi's Trattoria: Order received - 2x Margherita Pizza, 1x Caesar Salad, no anchovy. Pickup Wed, Sep 2, 7:00 PM. Reply CANCEL to cancel. Questions? Call (212) 555-0199.
+delivery:         Luigi's Trattoria: Order received - 2x Margherita Pizza, 1x Caesar Salad, no anchovy. Delivery Wed, Sep 2, 7:00 PM. Reply CANCEL to cancel. Questions? Call (212) 555-0199.
+escalation (open):Luigi's Trattoria: Thanks for calling. Our manager couldn't get back to you right away - they'll call you when we next open (Tuesday 5:00 PM). You can also call us at (212) 555-0199.
+escalation (none):Luigi's Trattoria: Thanks for calling. Our manager couldn't get back to you right away - they'll call you as soon as we open. You can also call us at (212) 555-0199.
+cancel res:       Luigi's Trattoria: Your reservation for Wed, Sep 2, 7:30 PM is cancelled. Hope to see you another time!
+cancel waitlist:  Luigi's Trattoria: You've been removed from the waitlist for Wed, Sep 2, 7:30 PM. Hope to see you another time!
+cancel order:     Luigi's Trattoria: Your order for Wed, Sep 2, 7:00 PM is cancelled. Hope to see you another time!
+
+
+===== GUEST SMS · bare =====
+reservation:      Corner Cafe: You're booked! Party of 4 on Wed, Sep 2, 7:30 PM. Reply CANCEL if your plans change.
+waitlist:         Corner Cafe: Elena Rossi, you're on our waitlist for 4 on Wed, Sep 2, 7:30 PM. We'll call if a table opens up. Reply CANCEL to leave the waitlist.
+takeout:          Corner Cafe: Order received - 2x Margherita Pizza, 1x Caesar Salad, no anchovy. Pickup Wed, Sep 2, 7:00 PM. Reply CANCEL to cancel.
+delivery:         Corner Cafe: Order received - 2x Margherita Pizza, 1x Caesar Salad, no anchovy. Delivery Wed, Sep 2, 7:00 PM. Reply CANCEL to cancel.
+escalation (open):Corner Cafe: Thanks for calling. Our manager couldn't get back to you right away - they'll call you when we next open (Tuesday 5:00 PM).
+escalation (none):Corner Cafe: Thanks for calling. Our manager couldn't get back to you right away - they'll call you as soon as we open.
+cancel res:       Corner Cafe: Your reservation for Wed, Sep 2, 7:30 PM is cancelled. Hope to see you another time!
+cancel waitlist:  Corner Cafe: You've been removed from the waitlist for Wed, Sep 2, 7:30 PM. Hope to see you another time!
+cancel order:     Corner Cafe: Your order for Wed, Sep 2, 7:00 PM is cancelled. Hope to see you another time!
+
+
+===== ONBOARDING + LABELS =====
+{
+  "APP_NAME": "FrontDesk AI",
+  "ONBOARDING_LAST_STEP": 8,
+  "ONBOARDING_DONE": 9,
+  "ONBOARDING_STEPS": [
+    {
+      "step": 1,
+      "title": "Create your account",
+      "short": "Sign up"
+    },
+    {
+      "step": 2,
+      "title": "Business basics",
+      "short": "Basics"
+    },
+    {
+      "step": 3,
+      "title": "Hours & escalation",
+      "short": "Hours"
+    },
+    {
+      "step": 4,
+      "title": "Menu & policies",
+      "short": "Menu"
+    },
+    {
+      "step": 5,
+      "title": "Reservations",
+      "short": "Book"
+    },
+    {
+      "step": 6,
+      "title": "Voice & greeting",
+      "short": "Voice"
+    },
+    {
+      "step": 7,
+      "title": "Phone number",
+      "short": "Phone"
+    },
+    {
+      "step": 8,
+      "title": "Payment",
+      "short": "Pay"
+    }
+  ],
+  "ESCALATION_TYPES": [
+    {
+      "key": "large_party",
+      "label": "Party over the large-party threshold"
+    },
+    {
+      "key": "private_event",
+      "label": "Private event or buyout"
+    },
+    {
+      "key": "catering",
+      "label": "Catering request"
+    },
+    {
+      "key": "complaint",
+      "label": "Guest complaint"
+    },
+    {
+      "key": "allergy",
+      "label": "Allergy question that staff must answer"
+    },
+    {
+      "key": "press_vendor",
+      "label": "Press or vendor"
+    }
+  ],
+  "RESERVATION_STATUSES": [
+    "booked",
+    "confirmed",
+    "seated",
+    "completed",
+    "cancelled",
+    "no_show"
+  ],
+  "TAKEOUT_STATUSES": [
+    "new",
+    "confirmed",
+    "ready",
+    "picked_up",
+    "cancelled"
+  ],
+  "NOTIFICATION_TYPES": [
+    "reservation",
+    "takeout",
+    "waitlist",
+    "message",
+    "escalation",
+    "missed_call",
+    "system"
+  ],
+  "SEATING_PREFERENCES": [
+    "No preference",
+    "Indoor",
+    "Outdoor / patio",
+    "Bar",
+    "Booth",
+    "Window",
+    "Quiet area",
+    "High chair needed",
+    "Wheelchair accessible"
+  ],
+  "RECORDING_DISCLOSURE": "this call may be recorded"
+}

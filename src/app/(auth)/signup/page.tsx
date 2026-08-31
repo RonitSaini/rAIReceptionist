@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { googleEnabled } from "@/lib/auth";
 import { SignupForm } from "./signup-form";
+import { VERTICAL_CATALOG } from "@/verticals";
 import { AnimatedThemeToggle } from "@/components/ui/animated-theme-toggle";
 import { Logo } from "@/components/logo";
 import { Alert } from "@/components/ui";
@@ -27,7 +28,7 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
           <Alert kind="info">Your account and all of its data were deleted. You can sign up again any time.</Alert>
         </div>
       ) : null}
-      <SignupForm googleEnabled={googleEnabled} />
+      <SignupForm googleEnabled={googleEnabled} catalog={VERTICAL_CATALOG} />
       <p className="mt-6 text-center text-sm text-gray-600">
         Already have an account?{" "}
         <Link href="/login" className="font-semibold text-brand-700 underline">

@@ -2,8 +2,8 @@ import type { Account } from "@prisma/client";
 import { prisma } from "./prisma";
 import { sendSms } from "./twilio";
 import { twilioConfigured } from "./env";
-import { formatDateTime } from "./time";
-import { formatUsPhone } from "./form";
+import { verticalFor } from "@/verticals";
+import type { CancellationKind } from "@/verticals/types";
 
 /**
  * Guest-facing SMS (the restaurant itself is never texted — it gets in-app notifications).
@@ -32,33 +32,39 @@ export async function sendGuestSms(account: Pick<Account, "id" | "twilioNumber" 
   }
 }
 
-const trim = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+/**
+ * Guest-facing text is per-vertical: the words a restaurant sends a diner are not the words a
+ * plumber sends a homeowner. These wrappers keep the historic names and signatures so no caller
+ * changes, and hand the actual wording to the account's definition in src/verticals.
+ */
+type TemplateAccount = Pick<Account, "vertical" | "restaurantName" | "timeZone" | "twilioNumber">;
 
-export function reservationConfirmationText(account: Pick<Account, "restaurantName" | "timeZone" | "twilioNumber">, r: { guestName: string; partySize: number; startTime: Date; isWaitlist: boolean }): string {
-  const when = formatDateTime(r.startTime, account.timeZone);
-  const phone = account.twilioNumber ? ` Questions? Call ${formatUsPhone(account.twilioNumber)}.` : "";
-  if (r.isWaitlist) return `${account.restaurantName}: ${r.guestName}, you're on our waitlist for ${r.partySize} on ${when}. We'll call if a table opens up. Reply CANCEL to leave the waitlist.${phone}`;
-  return `${account.restaurantName}: You're booked! Party of ${r.partySize} on ${when}. Reply CANCEL if your plans change.${phone}`;
+export function reservationConfirmationText(account: TemplateAccount, r: { guestName: string; partySize: number; startTime: Date; isWaitlist: boolean }): string {
+  return verticalFor(account).smsTemplates.bookingConfirmation(account, {
+    kind: "reservation",
+    customerName: r.guestName,
+    when: r.startTime,
+    partySize: r.partySize,
+    isWaitlist: r.isWaitlist,
+  });
 }
 
-export function takeoutConfirmationText(account: Pick<Account, "restaurantName" | "timeZone" | "twilioNumber">, o: { guestName: string; items: string; pickupTime: Date; isDelivery: boolean }): string {
-  const when = formatDateTime(o.pickupTime, account.timeZone);
-  const items = trim(o.items.replace(/\s*\n+\s*/g, ", "), 90);
-  const phone = account.twilioNumber ? ` Questions? Call ${formatUsPhone(account.twilioNumber)}.` : "";
-  return `${account.restaurantName}: Order received — ${items}. ${o.isDelivery ? "Delivery" : "Pickup"} ${when}. Reply CANCEL to cancel.${phone}`;
+export function takeoutConfirmationText(account: TemplateAccount, o: { guestName: string; items: string; pickupTime: Date; isDelivery: boolean }): string {
+  return verticalFor(account).smsTemplates.bookingConfirmation(account, {
+    kind: "order",
+    customerName: o.guestName,
+    when: o.pickupTime,
+    items: o.items,
+    isDelivery: o.isDelivery,
+  });
 }
 
-export function escalationFollowUpText(account: Pick<Account, "restaurantName" | "twilioNumber">, nextOpen: string | null): string {
-  const when = nextOpen ? ` when we next open (${nextOpen})` : " as soon as we open";
-  const phone = account.twilioNumber ? ` You can also call us at ${formatUsPhone(account.twilioNumber)}.` : "";
-  return `${account.restaurantName}: Thanks for calling. Our manager couldn't get back to you right away — they'll call you${when}.${phone}`;
+export function escalationFollowUpText(account: TemplateAccount, nextOpen: string | null): string {
+  return verticalFor(account).smsTemplates.escalationFollowUp(account, nextOpen);
 }
 
-export function cancellationReplyText(account: Pick<Account, "restaurantName" | "timeZone">, kind: "reservation" | "waitlist" | "order", when: Date): string {
-  const w = formatDateTime(when, account.timeZone);
-  if (kind === "waitlist") return `${account.restaurantName}: You've been removed from the waitlist for ${w}. Hope to see you another time!`;
-  if (kind === "order") return `${account.restaurantName}: Your order for ${w} is cancelled. Hope to see you another time!`;
-  return `${account.restaurantName}: Your reservation for ${w} is cancelled. Hope to see you another time!`;
+export function cancellationReplyText(account: TemplateAccount, kind: CancellationKind, when: Date): string {
+  return verticalFor(account).smsTemplates.cancellationReply(account, kind, when);
 }
 
 /** Record that a guest confirmation went out (or why it didn't) on the booking. */
