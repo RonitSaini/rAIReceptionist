@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { escapeXml, parseTwilioForm, publicRequestUrl, twiml, validateTwilioSignature } from "@/lib/twilio";
 import { appUrl, twilioConfigured } from "@/lib/env";
 import { createNotification } from "@/lib/notifications";
-import { cancellationReplyText } from "@/lib/sms";
+import { cancellationReplyText, recordSms } from "@/lib/sms";
 import { formatDateTime } from "@/lib/time";
 import { formatUsPhone, normalizeUsPhone } from "@/lib/form";
 
@@ -37,6 +37,21 @@ export async function POST(req: NextRequest) {
 
   const account = await prisma.account.findUnique({ where: { twilioNumber: to } });
   if (!account) return twiml("");
+
+  // Inbound SMS is billed per segment too. Twilio sends NumSegments on the webhook, so record
+  // what was actually billed rather than guessing from the body. Best-effort and idempotent
+  // on MessageSid, so a webhook retry cannot double-count.
+  if (params.MessageSid) {
+    await recordSms({
+      accountId: account.id,
+      messageSid: params.MessageSid,
+      direction: "inbound",
+      toNumber: to,
+      fromNumber: from,
+      numSegments: Number(params.NumSegments ?? 1) || 1,
+      purpose: "inbound_reply",
+    });
+  }
 
   const help = account.twilioNumber ? ` Call ${formatUsPhone(account.twilioNumber)} and we'll help.` : "";
 

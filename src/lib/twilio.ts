@@ -130,17 +130,40 @@ export async function createCall(opts: { to: string; from: string; url: string; 
   return { sid: data.sid };
 }
 
+export type SentSms = {
+  sid: string;
+  /** Segments Twilio billed. SMS is priced per segment, not per message. */
+  numSegments: number;
+  status?: string;
+  /** "GSM-7" or "UCS-2" — UCS-2 means the body fell out of the GSM alphabet and each
+   *  segment holds 70 characters instead of 160. */
+  encoding?: string;
+  from?: string;
+};
+
 /** Send an SMS. Uses the Messaging Service when configured, otherwise the given `from` number. */
-export async function sendSms(opts: { to: string; body: string; from?: string }): Promise<{ sid: string }> {
+export async function sendSms(opts: { to: string; body: string; from?: string }): Promise<SentSms> {
   const service = process.env.TWILIO_MESSAGING_SERVICE_SID;
   if (!service && !opts.from) throw new Error("sendSms needs TWILIO_MESSAGING_SERVICE_SID or a from number.");
-  const data = await request<{ sid: string }>("POST", "/Messages.json", {
-    To: opts.to,
-    Body: opts.body,
-    MessagingServiceSid: service || undefined,
-    From: service ? undefined : opts.from,
-  });
-  return { sid: data.sid };
+  const data = await request<{ sid: string; num_segments?: string; status?: string; encoding?: string; from?: string }>(
+    "POST",
+    "/Messages.json",
+    {
+      To: opts.to,
+      Body: opts.body,
+      MessagingServiceSid: service || undefined,
+      From: service ? undefined : opts.from,
+    },
+  );
+  return {
+    sid: data.sid,
+    // Twilio returns num_segments as a STRING ("1", "2"). Parse it and never trust it to be
+    // a number; a bad value must not become NaN and poison the cost model.
+    numSegments: Number(data.num_segments ?? 1) || 1,
+    status: data.status,
+    encoding: data.encoding,
+    from: data.from,
+  };
 }
 
 // ---------- Request validation ----------

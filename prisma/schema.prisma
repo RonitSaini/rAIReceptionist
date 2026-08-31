@@ -140,6 +140,7 @@ model Account {
   takeoutOrders       TakeoutOrder[]
   calls               Call[]
   googleCalendar      GoogleCalendarConnection?
+  smsMessages         SmsMessage[]
   customers           Customer[]
 }
 
@@ -431,3 +432,43 @@ model GoogleCalendarConnection {
   updatedAt    DateTime  @updatedAt
 }
 
+// ---------- SMS log ----------
+
+/// Every SMS we send or receive, with the segment count Twilio actually billed.
+///
+/// SMS is billed per SEGMENT, not per message: 160 GSM-7 characters per segment, or 70 if the
+/// body contains any non-GSM character. Without this table the segment count has to be guessed
+/// by re-rendering the templates elsewhere, which silently goes wrong the moment the copy
+/// changes. Twilio returns `num_segments` on every send, so we store what was actually billed.
+///
+/// Written by src/lib/sms.ts and the inbound webhook. Read by the ops dashboard for costing.
+model SmsMessage {
+  id        String  @id @default(cuid())
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  /// Twilio Message SID (SM...). The join key for billing reconciliation.
+  messageSid String  @unique
+  direction  String // "outbound" | "inbound"
+  toNumber   String
+  fromNumber String?
+
+  /// Twilio's own count. This is what gets billed — never recompute it.
+  numSegments Int
+  /// "GSM-7" | "UCS-2", as reported by Twilio. Spots encoding regressions in the templates.
+  encoding    String?
+  status      String?
+
+  /// What the message was for: "reservation_confirmation" | "takeout_confirmation" |
+  /// "escalation_followup" | "cancellation_reply" | "inbound_reply"
+  purpose String?
+
+  /// Loose links: no FK, so a deleted booking never blocks the cost record.
+  callId        String?
+  reservationId String?
+
+  createdAt DateTime @default(now())
+
+  @@index([accountId, createdAt])
+  @@index([messageSid])
+}

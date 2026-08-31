@@ -42,7 +42,10 @@ export async function afterReservationBooked(account: Account, r: Reservation, c
     reservationId: r.id,
     callId: call?.id ?? null,
   });
-  const sms = await sendGuestSms(account, r.guestPhone, reservationConfirmationText(account, r));
+  const sms = await sendGuestSms(account, r.guestPhone, reservationConfirmationText(account, r), {
+    purpose: "reservation_confirmation",
+    reservationId: r.id,
+  });
   await markConfirmationSent("reservation", r.id, sms);
 }
 
@@ -56,7 +59,9 @@ export async function afterTakeoutOrdered(account: Account, o: TakeoutOrder, cal
     takeoutOrderId: o.id,
     callId: call?.id ?? null,
   });
-  const sms = await sendGuestSms(account, o.guestPhone, takeoutConfirmationText(account, o));
+  const sms = await sendGuestSms(account, o.guestPhone, takeoutConfirmationText(account, o), {
+    purpose: "takeout_confirmation",
+  });
   await markConfirmationSent("order", o.id, sms);
 }
 
@@ -156,7 +161,10 @@ export async function followUpUnacknowledgedEscalation(n: Notification & { call:
   const hours = await prisma.businessHours.findMany({ where: { accountId: n.accountId } });
   const nextOpen = nextOpeningLabel(hours, n.account.timeZone);
   const to = n.call?.callerPhone ?? null;
-  const sms = await sendGuestSms(n.account, to, escalationFollowUpText(n.account, nextOpen));
+  const sms = await sendGuestSms(n.account, to, escalationFollowUpText(n.account, nextOpen), {
+    purpose: "escalation_followup",
+    callId: n.callId,
+  });
   await prisma.notification.update({
     where: { id: n.id },
     data: {

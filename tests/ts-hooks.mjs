@@ -35,6 +35,12 @@ function withExtension(path) {
   return null;
 }
 
+// Stripe webhook tests verify an HMAC, and HMAC verification behaves identically with any
+// secret - so the test environment supplies a throwaway one. npm test must never reach for a
+// production credential; the real signing secret lives only on Vercel and in
+// .env.stripe-webhook-production, and nothing here reads either.
+process.env.STRIPE_WEBHOOK_SECRET ||= "whsec_localtestonly_0000000000000000000000";
+
 registerHooks({
   resolve(specifier, context, nextResolve) {
     if (specifier.startsWith("@/")) {

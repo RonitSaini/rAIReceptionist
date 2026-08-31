@@ -17,18 +17,81 @@ function sender(account: Pick<Account, "twilioNumber">): string | undefined {
   return process.env.TWILIO_MESSAGING_SERVICE_SID ? undefined : (account.twilioNumber ?? undefined);
 }
 
-export async function sendGuestSms(account: Pick<Account, "id" | "twilioNumber" | "restaurantName">, to: string | null | undefined, body: string): Promise<SmsResult> {
+/** What a guest message was for. Stored so cost reporting can break SMS spend down by cause. */
+export type SmsPurpose = "reservation_confirmation" | "takeout_confirmation" | "escalation_followup" | "cancellation_reply" | "inbound_reply";
+
+export async function sendGuestSms(
+  account: Pick<Account, "id" | "twilioNumber" | "restaurantName">,
+  to: string | null | undefined,
+  body: string,
+  meta?: { purpose?: SmsPurpose; callId?: string | null; reservationId?: string | null },
+): Promise<SmsResult> {
   if (!to) return { ok: false, error: "no phone number", skipped: true };
   if (!twilioConfigured()) return { ok: false, error: "Twilio not configured", skipped: true };
   const from = sender(account);
   if (!from && !process.env.TWILIO_MESSAGING_SERVICE_SID) return { ok: false, error: "no sending number yet", skipped: true };
   try {
-    const { sid } = await sendSms({ to, body, from });
-    return { ok: true, sid };
+    const sent = await sendSms({ to, body, from });
+    await recordSms({
+      accountId: account.id,
+      messageSid: sent.sid,
+      direction: "outbound",
+      toNumber: to,
+      fromNumber: sent.from ?? from ?? null,
+      numSegments: sent.numSegments,
+      encoding: sent.encoding ?? null,
+      status: sent.status ?? null,
+      purpose: meta?.purpose ?? null,
+      callId: meta?.callId ?? null,
+      reservationId: meta?.reservationId ?? null,
+    });
+    return { ok: true, sid: sent.sid };
   } catch (e) {
     const error = e instanceof Error ? e.message : String(e);
     console.warn(`[sms] to ${to} failed: ${error}`);
     return { ok: false, error };
+  }
+}
+
+/**
+ * Persist what Twilio billed for one message.
+ *
+ * Best-effort and never thrown from: a costing write must never break a call flow or a
+ * guest confirmation. Idempotent on messageSid so a webhook retry cannot double-count.
+ */
+export async function recordSms(row: {
+  accountId: string;
+  messageSid: string;
+  direction: "outbound" | "inbound";
+  toNumber: string;
+  fromNumber?: string | null;
+  numSegments: number;
+  encoding?: string | null;
+  status?: string | null;
+  purpose?: SmsPurpose | null;
+  callId?: string | null;
+  reservationId?: string | null;
+}): Promise<void> {
+  try {
+    await prisma.smsMessage.upsert({
+      where: { messageSid: row.messageSid },
+      update: { numSegments: row.numSegments, status: row.status ?? undefined, encoding: row.encoding ?? undefined },
+      create: {
+        accountId: row.accountId,
+        messageSid: row.messageSid,
+        direction: row.direction,
+        toNumber: row.toNumber,
+        fromNumber: row.fromNumber ?? null,
+        numSegments: row.numSegments,
+        encoding: row.encoding ?? null,
+        status: row.status ?? null,
+        purpose: row.purpose ?? null,
+        callId: row.callId ?? null,
+        reservationId: row.reservationId ?? null,
+      },
+    });
+  } catch (e) {
+    console.warn("[sms] could not record message for costing", e);
   }
 }
 

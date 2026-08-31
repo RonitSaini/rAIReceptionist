@@ -10,6 +10,7 @@ import { DEFAULT_CLOSE, DEFAULT_OPEN } from "@/lib/availability";
 import { MESSAGE_REASONS, type AgentSource, type ClassifiedReason, type VerticalDefinition } from "./types";
 import { DATE, END_CALL_TOOL, PHONE, TIME, customTool } from "./tools";
 import { RESTAURANT_STEP, STEP } from "./steps";
+import { SHARED_GUARDRAILS } from "./guardrails";
 import { restaurantSmsTemplates } from "./restaurant.sms";
 
 /**
@@ -127,7 +128,7 @@ function reservationSection(a: Account): string {
 }
 
 /** This profession's own hard instructions. Shared ones are appended in the definition below. */
-const RESTAURANT_GUARDRAILS: readonly string[] = [
+const RESTAURANT_OWN_GUARDRAILS: readonly string[] = [
   "Never invent a menu item, a price, a policy, hours, or anything not written here. If the answer isn't here, say you're not sure and offer to take a message with take_message so the restaurant can call back.",
   "Phone numbers must be 10-digit US or Canadian numbers. Read numbers back digit by digit to confirm.",
   'Dietary questions: you may share the dietary tags and descriptions listed. For allergy questions you cannot answer from the menu, do not guess — take a message with reason "allergy".',
@@ -135,6 +136,9 @@ const RESTAURANT_GUARDRAILS: readonly string[] = [
   "NEVER hang up on a caller. Only use end_call after the caller confirms they're done and you've said goodbye.",
   "Do not read function results verbatim; turn them into natural speech.",
 ];
+
+/** What the prompt renders: this profession's rules, then the ones every vertical inherits. */
+const RESTAURANT_GUARDRAILS: readonly string[] = [...RESTAURANT_OWN_GUARDRAILS, ...SHARED_GUARDRAILS];
 
 function buildRestaurantPrompt(src: AgentSource): string {
   const a = src.account;
