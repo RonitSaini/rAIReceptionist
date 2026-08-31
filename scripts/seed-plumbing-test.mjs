@@ -11,32 +11,22 @@
  *
  *   node scripts/seed-plumbing-test.mjs --yes
  */
-import { readFileSync } from "node:fs";
 import { scryptSync, randomBytes } from "node:crypto";
+import { REPO_ROOT, assertNotProduction, loadEnvFile } from "./db-env.mjs";
 
-// `.env.local` beats `.env`, which is the precedence Next.js uses and the opposite of what happens
-// by default here: importing @prisma/client runs its own dotenv on `.env` first, and ES imports are
-// evaluated before any of this file's statements. So load .env.local with an explicit override, and
-// only then import Prisma. Getting this backwards is how a "local" script ends up on production.
-for (const line of readFileSync(new URL("../.env.local", import.meta.url), "utf8").split(/\r?\n/)) {
-  const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
-  if (m) process.env[m[1]] = m[2].replace(/^"(.*)"$/, "$1");
-}
+// .env.local first and with override, then the guard, then Prisma. Importing @prisma/client runs its
+// own dotenv on `.env`, and ES imports evaluate before any of this, so the load has to override and
+// the client has to be pulled in afterwards.
+loadEnvFile(REPO_ROOT + "/.env.local");
+const { host, branch } = assertNotProduction({ what: "The plumbing test seeder" });
 
-const { PrismaClient } = await import("@prisma/client");
-
-const BRANCH = process.env.NEON_BRANCH ?? "";
-const host = (process.env.DATABASE_URL ?? "").match(/@([^/:?]+)/)?.[1] ?? "(unknown)";
-
-if (BRANCH === "production" || /ep-dry-flower/.test(host)) {
-  console.error(`REFUSING: DATABASE_URL points at production (${host}). This script seeds test data.`);
-  process.exit(1);
-}
 if (!process.argv.includes("--yes")) {
-  console.error(`About to seed a plumbing test account into ${host} (branch: ${BRANCH || "unset"}).`);
+  console.error(`About to seed a plumbing test account into ${host} (branch: ${branch || "unset"}).`);
   console.error("Re-run with --yes to confirm.");
   process.exit(1);
 }
+
+const { PrismaClient } = await import("@prisma/client");
 
 const EMAIL = "plumbing-test@frontdesk.test";
 const prisma = new PrismaClient();
@@ -77,7 +67,7 @@ async function main() {
   const account = await prisma.account.create({
     data: {
       vertical: "plumbing",
-      restaurantName: "Ridgeway Plumbing",
+      businessName: "Ridgeway Plumbing",
       ownerName: "Dave Ridgeway",
       cellPhone: "+12125550188",
       addressLine1: "44 Mill Lane",
@@ -92,8 +82,8 @@ async function main() {
       // Newark City Hall, so the service-area maths has a real point to measure from.
       latitude: 40.7357,
       longitude: -74.1724,
-      deliveryZip: "07102",
-      deliveryRadiusMiles: 25,
+      serviceAreaZip: "07102",
+      serviceAreaRadiusMiles: 25,
       technicianName: "Mike",
       emergencyTypes: ["burst_pipe", "no_water", "sewage_backup", "flooding", "gas_smell", "no_hot_water"],
       calloutFeeMicros: 89_000_000n,
@@ -115,7 +105,7 @@ async function main() {
     data: { email: EMAIL, name: "Dave Ridgeway", passwordHash: hashPassword("plumbing-test-1234"), accountId: account.id },
   });
 
-  console.log(`account ${account.id} — ${account.restaurantName} (${account.vertical})`);
+  console.log(`account ${account.id} — ${account.businessName} (${account.vertical})`);
   console.log(`sign in: ${EMAIL} / plumbing-test-1234`);
   console.log(`host: ${host}`);
 }

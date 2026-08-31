@@ -14,6 +14,9 @@ next-env.d.ts
 # debug
 npm-debug.log*
 
+# production credentials — read only by scripts/db-env.mjs, never by Prisma or Next
+secrets/
+
 # env files — never commit real keys
 .env
 .env.local
