@@ -43,6 +43,13 @@ process.env.STRIPE_WEBHOOK_SECRET ||= "whsec_localtestonly_000000000000000000000
 
 registerHooks({
   resolve(specifier, context, nextResolve) {
+    // Library code calls next/server's `after()` to queue calendar sync behind the response.
+    // Next publishes that entry for bundlers, not for Node's own ESM resolver, so map it to the
+    // real file. Tests only load it — nothing ever calls after() without a request in flight.
+    if (specifier === "next/server") {
+      const found = withExtension(resolvePath(SRC, "../node_modules/next/server")) ?? resolvePath(SRC, "../node_modules/next/server.js");
+      return { url: pathToFileURL(found).href, shortCircuit: true };
+    }
     if (specifier.startsWith("@/")) {
       const found = withExtension(resolvePath(SRC, specifier.slice(2)));
       if (found) return { url: pathToFileURL(found).href, shortCircuit: true };

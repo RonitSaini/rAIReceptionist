@@ -1,10 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAccount } from "@/lib/current-account";
 import { redirect } from "next/navigation";
 import { normalizeUsPhone, optStr, str } from "@/lib/form";
+import { syncJobToGoogle } from "@/lib/google-calendar";
 
 /**
  * These are plain <form action={...}> handlers rather than useActionState ones, because the pages
@@ -95,6 +97,7 @@ export async function assignVendor(fd: FormData): Promise<void> {
   const vendorId = optStr(fd, "vendorId");
   const vendor = vendorId ? await prisma.vendor.findFirst({ where: { id: vendorId, accountId: account.id } }) : null;
   await prisma.job.updateMany({ where: { id: jobId, accountId: account.id }, data: { assignedTo: vendor?.name ?? null } });
+  after(() => syncJobToGoogle(jobId)); // the mirrored event's description carries who is assigned
   revalidatePath("/work-orders");
   revalidatePath(`/jobs/${jobId}`);
 }

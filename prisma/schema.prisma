@@ -390,7 +390,11 @@ model Job {
   unitId     String?
   unit       Unit?     @relation(fields: [unitId], references: [id], onDelete: SetNull)
 
-  googleEventId  String?
+  googleEventId String?
+  /// Why the last Google Calendar sync failed, cleared on success. Sync is best-effort — a Google
+  /// outage must never block a booking — so failures land here and the escalation sweep retries them.
+  googleSyncError String?
+
   smsConfirmedAt DateTime?
   cancelledAt    DateTime?
   cancelledBy    String? // "customer" (SMS reply) | "staff" | "ai"

@@ -2,7 +2,9 @@
 
 import type { JobStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { syncJobToGoogle } from "@/lib/google-calendar";
 import { requireAccount } from "@/lib/current-account";
 import { bool, int, json, list, normalizeUsPhone, optDecimal, optStr, str, type ActionState } from "@/lib/form";
 import { isPostalCodeFor, normalizePostalCode, accountCountry, toMiles } from "@/lib/locale";
@@ -198,6 +200,7 @@ export async function createJob(_prev: ActionState, fd: FormData): Promise<Actio
       source: "manual",
     },
   });
+  after(() => syncJobToGoogle(job.id));
   revalidatePath("/schedule");
   revalidatePath("/jobs");
   return { ok: true, message: "Saved.", id: job.id } as ActionState;
@@ -219,6 +222,7 @@ export async function setJobStatus(fd: FormData): Promise<void> {
     where: { id },
     data: { status, ...(status === "cancelled" ? { cancelledAt: new Date(), cancelledBy: "staff" } : {}) },
   });
+  after(() => syncJobToGoogle(id)); // cancelling removes the calendar event
   revalidatePath("/schedule");
   revalidatePath("/jobs");
   revalidatePath(`/jobs/${id}`);

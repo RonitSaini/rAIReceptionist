@@ -1,6 +1,7 @@
 import type { Account, BusinessHours } from "@prisma/client";
 import { prisma } from "./prisma";
 import { DEFAULT_CLOSE, DEFAULT_OPEN, periodsForDay } from "./availability";
+import { googleBusyBlocks, overlapsBusy } from "./google-calendar";
 import { dayBoundsUtc, dayOfWeekOf, formatClock, timeToMinutes, zonedToUtc } from "./time";
 
 /**
@@ -25,7 +26,7 @@ export type JobSlot = {
   startUtc: Date;
   endUtc: Date;
   available: boolean;
-  reason?: "past" | "taken" | "day_full";
+  reason?: "past" | "taken" | "day_full" | "calendar_busy";
 };
 
 export type JobAvailability = {
@@ -50,10 +51,16 @@ export async function getAvailableJobSlots(account: Account, date: string, hours
   if (periods.length === 0) return { date, closed: true, slots: [], booked: 0, maxPerDay };
 
   const { start, end } = dayBoundsUtc(date, tz);
-  const existing = await prisma.job.findMany({
-    where: { accountId: account.id, status: { in: [...ACTIVE_JOB_STATUSES] }, scheduledStart: { gte: start, lt: end } },
-    select: { scheduledStart: true, scheduledEnd: true },
-  });
+  // Anything else on a connected Google calendar blocks its window, same as for reservations. Our
+  // own mirrored events are filtered out inside googleBusyBlocks, and a Google failure returns []
+  // rather than blocking the phone line — the built-in book stays the source of truth.
+  const [existing, busy] = await Promise.all([
+    prisma.job.findMany({
+      where: { accountId: account.id, status: { in: [...ACTIVE_JOB_STATUSES] }, scheduledStart: { gte: start, lt: end } },
+      select: { scheduledStart: true, scheduledEnd: true },
+    }),
+    googleBusyBlocks(account.id, start, end),
+  ]);
 
   const booked = existing.length;
   const dayFull = maxPerDay != null && booked >= maxPerDay;
@@ -74,6 +81,7 @@ export async function getAvailableJobSlots(account: Account, date: string, hours
       if (startUtc.getTime() < now) reason = "past";
       else if (dayFull) reason = "day_full";
       else if (existing.some((j) => j.scheduledStart && overlaps(startUtc, endUtc, j.scheduledStart, j.scheduledEnd ?? new Date(j.scheduledStart.getTime() + slotMinutes * 60_000)))) reason = "taken";
+      else if (overlapsBusy(busy, startUtc, endUtc)) reason = "calendar_busy";
 
       slots.push({ time, label: formatClock(time), startUtc, endUtc, available: !reason, reason });
     }

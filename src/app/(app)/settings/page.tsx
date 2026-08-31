@@ -10,6 +10,7 @@ import { BusinessBasicsForm } from "@/components/forms/business-basics-form";
 import { HoursForm } from "@/components/forms/hours-form";
 import { MenuPoliciesForm } from "@/components/forms/menu-policies-form";
 import { ReservationSettingsForm } from "@/components/forms/reservation-settings-form";
+import { GoogleCalendarCard } from "@/components/google-calendar-card";
 import { VoiceForm } from "@/components/forms/voice-form";
 import { PhoneStep } from "@/components/forms/phone-step";
 import { PaymentStep } from "@/components/forms/payment-step";
@@ -48,6 +49,7 @@ const SHOP_TABS = [
   { key: "hours", label: "Hours" },
   { key: "services", label: "Services & pricing" },
   { key: "handoffs", label: "Urgent & referrals" },
+  { key: "calendar", label: "Calendar" },
   { key: "voice", label: "Voice" },
   { key: "phone", label: "Phone" },
   { key: "billing", label: "Billing" },
@@ -60,10 +62,22 @@ const FIELD_SERVICE_TABS = [
   { key: "dispatch", label: "Dispatch" },
   { key: "services", label: "Services & pricing" },
   { key: "emergencies", label: "Emergencies" },
+  { key: "calendar", label: "Calendar" },
   { key: "voice", label: "Voice" },
   { key: "phone", label: "Phone" },
   { key: "billing", label: "Billing" },
 ] as const;
+
+/**
+ * Restaurants keep their calendar card inside the Reservations tab, where it has always lived;
+ * every other profession gets it as its own tab. Same component either way — only the words differ,
+ * and only where the archetypes genuinely behave differently (dispatch, no slot offers for PM).
+ */
+const CALENDAR_BLURB: Record<string, string> = {
+  shop_appointment: "Optional. Every appointment also appears on your calendar, and anything else on that calendar blocks those times for phone bookings. The built-in schedule stays the source of truth.",
+  property_management: "Optional. Work orders appear on your calendar once they have a scheduled time, and emergency dispatches show up as they happen. The built-in work-order list stays the source of truth.",
+  field_service: "Optional. Every scheduled job also appears on your calendar, emergency dispatches show up as they happen, and anything else on that calendar blocks those times for phone bookings. The built-in schedule stays the source of truth.",
+};
 
 type TabKey = (typeof RESTAURANT_TABS)[number]["key"] | (typeof FIELD_SERVICE_TABS)[number]["key"] | (typeof SHOP_TABS)[number]["key"];
 
@@ -151,6 +165,19 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         {tab === "emergencies" ? (
           <Card title="Emergencies">
             <EmergenciesForm account={view} emergencyTypes={verticalFor(account).emergencyTypes} defaultSlotMinutes={verticalFor(account).defaults.slotMinutes} mode="settings" />
+          </Card>
+        ) : null}
+
+        {tab === "calendar" ? (
+          <Card title="Connected calendar">
+            <GoogleCalendarCard
+              google={await getGoogleCalendarView(account.id)}
+              googleStatus={googleStatus}
+              googleMessage={googleMessage}
+              returnTo="/settings?tab=calendar"
+              itemsLabel={definition.vocabulary.booking.many}
+              blurb={CALENDAR_BLURB[definition.archetype] ?? CALENDAR_BLURB.field_service}
+            />
           </Card>
         ) : null}
 

@@ -1,12 +1,12 @@
-import type { Account, GoogleCalendarConnection, Reservation } from "@prisma/client";
+import type { Account, GoogleCalendarConnection, Job, Property, Reservation, Unit } from "@prisma/client";
 import { prisma } from "./prisma";
 import { decrypt, encrypt, signState, verifyState } from "./crypto";
 import { appUrl } from "./env";
 import { formatUsPhone } from "./form";
 
 /**
- * Google Calendar sync (Phase 5). The built-in reservation book stays the source of truth:
- * every active reservation is mirrored as an event on the connected calendar, and the calendar's
+ * Google Calendar sync. The built-in book stays the source of truth: every active reservation and
+ * every Job with a time on it is mirrored as an event on the connected calendar, and the calendar's
  * *other* events count as busy time when computing availability. Uses fetch against Google's REST
  * APIs — no googleapis package.
  */
@@ -17,6 +17,7 @@ const OAUTH_REVOKE = "https://oauth2.googleapis.com/revoke";
 const CAL = "https://www.googleapis.com/calendar/v3";
 export const CALENDAR_SCOPES = ["https://www.googleapis.com/auth/calendar.events", "https://www.googleapis.com/auth/calendar.readonly", "https://www.googleapis.com/auth/userinfo.email"];
 const OURS = "frontdesk_reservation_id"; // private extended property marking events we created
+const OURS_JOB = "frontdesk_job_id"; // same marker for Job events, so our own work never counts as busy
 
 export function googleCalendarCredentials(): { clientId: string; clientSecret: string } | null {
   const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID || process.env.GOOGLE_CLIENT_ID;
@@ -195,11 +196,140 @@ export async function syncReservationToGoogle(reservationId: string): Promise<{ 
   }
 }
 
+// ---------- Jobs ----------
+
+/** What the event is called, per kind of work. The kind *is* the booking noun: a roofer's estimate
+ *  and a vet's appointment should not both land on a calendar as "Job". */
+const JOB_NOUN: Record<Job["kind"], string> = {
+  service_call: "Service call",
+  estimate: "Estimate",
+  dispatch: "Dispatch",
+  shop_visit: "Appointment",
+  work_order: "Work order",
+};
+
+type JobForSync = Job & { property: Property | null; unit: Unit | null };
+
+/**
+ * The stretch of calendar a job occupies, or null when it occupies none (a work order waiting for a
+ * time). Scheduled work uses its slot. A dispatch with no slot is promised "someone within the
+ * response window", so that window — from the moment of the request — is what shows as active.
+ */
+export function jobEventWindow(
+  job: Pick<Job, "kind" | "scheduledStart" | "scheduledEnd" | "createdAt">,
+  account: Pick<Account, "jobSlotMinutes" | "responseTimeMaxMinutes">,
+): { start: Date; end: Date } | null {
+  if (job.scheduledStart) {
+    const minutes = Math.max(15, account.jobSlotMinutes || 120);
+    return { start: job.scheduledStart, end: job.scheduledEnd ?? new Date(job.scheduledStart.getTime() + minutes * 60_000) };
+  }
+  if (job.kind === "dispatch") {
+    const minutes = account.responseTimeMaxMinutes ?? 60;
+    return { start: job.createdAt, end: new Date(job.createdAt.getTime() + minutes * 60_000) };
+  }
+  return null;
+}
+
+/**
+ * Whether the job's mirrored event should be REMOVED from the calendar. Two ways out: the job was
+ * cancelled, or it no longer occupies any window (a work order whose time was taken away).
+ *
+ * A COMPLETED job's event deliberately stays. The visit happened; the calendar is the record of the
+ * day, and deleting history the moment a tap marks it done would make every operator's afternoon
+ * silently vanish. This is locked by tests/job-google-sync.test.mjs — it is not a bug to fix.
+ */
+export function jobEventGone(job: Pick<Job, "kind" | "status" | "scheduledStart" | "scheduledEnd" | "createdAt">, account: Pick<Account, "jobSlotMinutes" | "responseTimeMaxMinutes">): boolean {
+  return job.status === "cancelled" || jobEventWindow(job, account) === null;
+}
+
+function jobEventBody(account: Pick<Account, "businessName" | "timeZone">, job: JobForSync, window: { start: Date; end: Date }) {
+  const place = job.property ? [[job.property.name, job.unit?.label].filter(Boolean).join(" "), job.property.address].filter(Boolean).join(" — ") : job.address;
+  // Job.details is whatever the handler deliberately kept (category, vehicle, pet, preferred times…),
+  // different per archetype. Primitive entries are rendered as-is rather than schema'd per vertical.
+  const details = job.details && typeof job.details === "object" && !Array.isArray(job.details) ? Object.entries(job.details as Record<string, unknown>) : [];
+  const bits = [
+    place,
+    job.customerPhone ? formatUsPhone(job.customerPhone) : null,
+    job.description,
+    ...details.filter(([, v]) => ["string", "number", "boolean"].includes(typeof v) && String(v).length <= 200).map(([k, v]) => `${k.replace(/_/g, " ")}: ${v}`),
+    job.assignedTo ? `Assigned to ${job.assignedTo}` : null,
+    `Booked via FrontDesk AI (${job.source === "ai" ? "phone" : "staff"})`,
+  ].filter(Boolean);
+  return {
+    summary: `${job.isEmergency ? "EMERGENCY " : ""}${JOB_NOUN[job.kind] ?? "Job"}: ${job.customerName} — ${account.businessName}`,
+    description: bits.join("\n"),
+    start: { dateTime: window.start.toISOString(), timeZone: account.timeZone },
+    end: { dateTime: window.end.toISOString(), timeZone: account.timeZone },
+    status: "confirmed",
+    transparency: "opaque",
+    extendedProperties: { private: { [OURS_JOB]: job.id } },
+    reminders: { useDefault: false },
+  };
+}
+
+/**
+ * Mirror one job onto the connected calendar: create when it gains a window, patch when it moves,
+ * delete when it is cancelled (or loses its window). Best-effort, same contract as reservations —
+ * a failure is recorded on the Job (and retried by the escalation sweep) rather than thrown into
+ * the booking or dispatch that caused it.
+ */
+export async function syncJobToGoogle(jobId: string): Promise<{ synced: boolean; reason?: string }> {
+  const job = await prisma.job.findUnique({ where: { id: jobId }, include: { account: { include: { googleCalendar: true } }, property: true, unit: true } });
+  if (!job) return { synced: false, reason: "job not found" };
+  const conn = job.account.googleCalendar;
+  if (!conn) return { synced: false, reason: "not connected" };
+  if (!googleCalendarConfigured()) return { synced: false, reason: "not configured" };
+  const calendarId = encodeURIComponent(conn.calendarId);
+  const window = jobEventWindow(job, job.account);
+  const gone = jobEventGone(job, job.account);
+  try {
+    const token = await accessTokenFor(conn);
+    if (job.googleEventId) {
+      if (gone) {
+        await gfetch(token, `${CAL}/calendars/${calendarId}/events/${encodeURIComponent(job.googleEventId)}`, { method: "DELETE" }).catch((e: unknown) => {
+          if (!(e instanceof GoogleError && (e.status === 404 || e.status === 410))) throw e;
+        });
+        await prisma.job.update({ where: { id: job.id }, data: { googleEventId: null, googleSyncError: null } });
+      } else {
+        await gfetch(token, `${CAL}/calendars/${calendarId}/events/${encodeURIComponent(job.googleEventId)}`, { method: "PATCH", body: JSON.stringify(jobEventBody(job.account, job, window!)) });
+        if (job.googleSyncError) await prisma.job.update({ where: { id: job.id }, data: { googleSyncError: null } });
+      }
+    } else if (!gone) {
+      const ev = (await gfetch(token, `${CAL}/calendars/${calendarId}/events`, { method: "POST", body: JSON.stringify(jobEventBody(job.account, job, window!)) })) as { id: string };
+      await prisma.job.update({ where: { id: job.id }, data: { googleEventId: ev.id, googleSyncError: null } });
+    } else if (job.googleSyncError) {
+      await prisma.job.update({ where: { id: job.id }, data: { googleSyncError: null } }); // nothing left to sync
+    }
+    await prisma.googleCalendarConnection.update({ where: { id: conn.id }, data: { lastSyncedAt: new Date(), lastError: null } });
+    return { synced: true };
+  } catch (e) {
+    const reason = e instanceof Error ? e.message : String(e);
+    console.warn("[google-calendar] job sync failed", jobId, reason);
+    await prisma.job.update({ where: { id: job.id }, data: { googleSyncError: reason.slice(0, 300) } }).catch(() => {});
+    await prisma.googleCalendarConnection.update({ where: { id: conn.id }, data: { lastError: reason.slice(0, 300) } }).catch(() => {});
+    return { synced: false, reason };
+  }
+}
+
+/** Re-run every job sync that failed, oldest first. Called from the escalation sweep. */
+export async function retryFailedJobSyncs(limit = 20): Promise<{ attempted: number; synced: number }> {
+  if (!googleCalendarConfigured()) return { attempted: 0, synced: 0 };
+  const failed = await prisma.job.findMany({
+    where: { googleSyncError: { not: null }, account: { googleCalendar: { isNot: null } } },
+    orderBy: { updatedAt: "asc" },
+    take: limit,
+    select: { id: true },
+  });
+  let synced = 0;
+  for (const j of failed) if ((await syncJobToGoogle(j.id)).synced) synced++;
+  return { attempted: failed.length, synced };
+}
+
 export type BusyBlock = { start: Date; end: Date; title?: string };
 
 /**
  * Busy periods on the connected calendar within [start, end) that were NOT created by FrontDesk AI
- * (our own reservation events are already counted by the reservation book). All-day events are ignored.
+ * (our own reservation and job events are already counted by the built-in book). All-day events are ignored.
  */
 export async function googleBusyBlocks(accountId: string, start: Date, end: Date): Promise<BusyBlock[]> {
   const conn = await prisma.googleCalendarConnection.findUnique({ where: { accountId } });
@@ -211,7 +341,7 @@ export async function googleBusyBlocks(accountId: string, start: Date, end: Date
       items?: { status?: string; transparency?: string; summary?: string; start?: { dateTime?: string; date?: string }; end?: { dateTime?: string; date?: string }; extendedProperties?: { private?: Record<string, string> } }[];
     };
     return (data.items ?? [])
-      .filter((ev) => ev.status !== "cancelled" && ev.transparency !== "transparent" && ev.start?.dateTime && ev.end?.dateTime && !ev.extendedProperties?.private?.[OURS])
+      .filter((ev) => ev.status !== "cancelled" && ev.transparency !== "transparent" && ev.start?.dateTime && ev.end?.dateTime && !ev.extendedProperties?.private?.[OURS] && !ev.extendedProperties?.private?.[OURS_JOB])
       .map((ev) => ({ start: new Date(ev.start!.dateTime!), end: new Date(ev.end!.dateTime!), title: ev.summary }));
   } catch (e) {
     console.warn("[google-calendar] busy lookup failed", e instanceof Error ? e.message : e);
@@ -225,7 +355,7 @@ export function overlapsBusy(blocks: BusyBlock[], slotStart: Date, slotEnd: Date
   return blocks.some((b) => b.start < slotEnd && b.end > slotStart);
 }
 
-/** Push every upcoming active reservation to the calendar (used right after connecting). */
+/** Push every upcoming active reservation and scheduled job to the calendar (used right after connecting). */
 export async function backfillUpcoming(accountId: string, limit = 200): Promise<{ attempted: number; synced: number }> {
   const upcoming = await prisma.reservation.findMany({
     where: { accountId, startTime: { gte: new Date() }, status: { in: ["booked", "confirmed", "seated"] }, googleEventId: null },
@@ -233,7 +363,14 @@ export async function backfillUpcoming(accountId: string, limit = 200): Promise<
     take: limit,
     select: { id: true },
   });
+  const jobs = await prisma.job.findMany({
+    where: { accountId, scheduledStart: { gte: new Date() }, status: { notIn: ["cancelled", "completed"] }, googleEventId: null },
+    orderBy: { scheduledStart: "asc" },
+    take: limit,
+    select: { id: true },
+  });
   let synced = 0;
   for (const r of upcoming) if ((await syncReservationToGoogle(r.id)).synced) synced++;
-  return { attempted: upcoming.length, synced };
+  for (const j of jobs) if ((await syncJobToGoogle(j.id)).synced) synced++;
+  return { attempted: upcoming.length + jobs.length, synced };
 }

@@ -1,10 +1,12 @@
 import type { Account, Call, Job } from "@prisma/client";
+import { after } from "next/server";
 import { createNotification } from "./notifications";
 import { formatUsPhone } from "./form";
 import { formatDateTime } from "./time";
 import { verticalFor, vocabularyFor } from "@/verticals";
 import { markConfirmationSent, sendGuestSms } from "./sms";
 import { afterEscalation } from "./outcomes";
+import { syncJobToGoogle } from "./google-calendar";
 
 /**
  * What happens after the AI books or dispatches work.
@@ -18,6 +20,10 @@ import { afterEscalation } from "./outcomes";
 
 /** Confirmation notification + customer text for a booked or requested job. */
 export async function afterJobBooked(account: Account, job: Job, call: Call | null): Promise<void> {
+  // Mirror onto Google after the response is sent: the caller is on the phone, and a slow or down
+  // Google must never stretch the pause after "you're booked". Failures land on Job.googleSyncError.
+  after(() => syncJobToGoogle(job.id));
+
   const words = vocabularyFor(account);
   const when = job.scheduledStart ? formatDateTime(job.scheduledStart, account.timeZone) : "time to be confirmed";
 
