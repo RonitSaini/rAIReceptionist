@@ -144,10 +144,10 @@ export async function listCalendars(conn: GoogleCalendarConnection): Promise<Cal
   return (data.items ?? []).map((c) => ({ id: c.id, name: c.summary, primary: !!c.primary, accessRole: c.accessRole }));
 }
 
-function eventBody(account: Pick<Account, "restaurantName" | "timeZone">, r: Reservation) {
+function eventBody(account: Pick<Account, "businessName" | "timeZone">, r: Reservation) {
   const bits = [`Party of ${r.partySize}`, r.guestPhone ? formatUsPhone(r.guestPhone) : null, r.seatingPreference, r.specialRequests, r.isWaitlist ? "WAITLIST" : null, `Booked via FrontDesk AI (${r.source === "ai" ? "phone" : "staff"})`].filter(Boolean);
   return {
-    summary: `${r.isWaitlist ? "Waitlist: " : ""}${r.guestName} · ${r.partySize} — ${account.restaurantName}`,
+    summary: `${r.isWaitlist ? "Waitlist: " : ""}${r.guestName} · ${r.partySize} — ${account.businessName}`,
     description: bits.join("\n"),
     start: { dateTime: r.startTime.toISOString(), timeZone: account.timeZone },
     end: { dateTime: r.endTime.toISOString(), timeZone: account.timeZone },

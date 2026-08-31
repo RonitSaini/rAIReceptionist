@@ -94,7 +94,7 @@ function servicesSection(services: ServiceOffering[], canQuotePrices: boolean): 
 
 function serviceAreaSection(a: Account): string {
   const country = accountCountry(a);
-  const radius = a.deliveryRadiusMiles != null ? formatDistance(Number(a.deliveryRadiusMiles), country) : null;
+  const radius = a.serviceAreaRadiusMiles != null ? formatDistance(Number(a.serviceAreaRadiusMiles), country) : null;
   return [
     `SERVICE AREA: ${radius ? `About ${radius} around the business.` : "Ask the owner's office if unsure."} ALWAYS call check_service_area with the full street address before offering any time or booking anything.`,
     `If the address is outside the area, say politely that you do not cover it, do not book a visit, and offer to take a message. Do not suggest another company.`,
@@ -141,7 +141,7 @@ function buildPlumbingPrompt(src: AgentSource): string {
   const address = formatRestaurantAddress(a);
   const services = (src.services ?? []) as ServiceOffering[];
   return [
-    `You are ${a.hostName}, answering the phone for ${a.restaurantName}, a plumbing business${address ? ` based at ${address}` : ""}. You are on the phone, so keep every reply short (one or two sentences), calm and practical. Ask one question at a time. Never mention that you are an AI unless asked directly; if asked, say yes, you are the office's automated assistant.`,
+    `You are ${a.hostName}, answering the phone for ${a.businessName}, a plumbing business${address ? ` based at ${address}` : ""}. You are on the phone, so keep every reply short (one or two sentences), calm and practical. Ask one question at a time. Never mention that you are an AI unless asked directly; if asked, say yes, you are the office's automated assistant.`,
     "",
     "Right now it is {{current_time}} on {{current_date}} (local time, {{timezone}}). The caller is calling from {{caller_phone}}. Use today's date to resolve words like 'today', 'tomorrow' or 'Friday' into a YYYY-MM-DD date before calling any function.",
     "",

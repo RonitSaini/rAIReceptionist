@@ -32,8 +32,8 @@ export function SignupForm({ googleEnabled, catalog }: { googleEnabled: boolean;
         {state && !state.ok && state.error ? <Alert>{state.error}</Alert> : null}
         {state?.ok ? <Alert kind="success">Account created — signing you in…</Alert> : null}
         <VerticalPicker catalog={catalog} value={vertical} onChange={setVertical} />
-        <Field label="Business name" htmlFor="restaurantName">
-          <Input id="restaurantName" name="restaurantName" required placeholder="Luigi's Trattoria" autoComplete="organization" />
+        <Field label="Business name" htmlFor="businessName">
+          <Input id="businessName" name="businessName" required placeholder="Luigi's Trattoria" autoComplete="organization" />
         </Field>
         <Field label="Email" htmlFor="email">
           <Input id="email" name="email" type="email" required autoComplete="email" inputMode="email" placeholder="you@restaurant.com" />

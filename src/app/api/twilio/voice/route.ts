@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
       direction: "inbound",
       metadata: { accountId: account.id, twilioCallSid: callSid, test: isTest },
       retell_llm_dynamic_variables: {
-        restaurant_name: account.restaurantName,
+        restaurant_name: account.businessName,
         host_name: account.hostName,
         timezone: account.timeZone,
         current_date: formatDateString(todayString(account.timeZone), { weekday: "long", month: "long", day: "numeric", year: "numeric" }),
@@ -87,6 +87,6 @@ export async function POST(req: NextRequest) {
     return twimlDialSip(sipUriForCall(rc.call_id));
   } catch (e) {
     console.error("[twilio-voice] register failed", e instanceof RetellError ? `${e.status} ${e.message}` : e);
-    return twimlSay(`Thanks for calling ${account.restaurantName}. We're having trouble connecting right now. Please call back in a few minutes.`);
+    return twimlSay(`Thanks for calling ${account.businessName}. We're having trouble connecting right now. Please call back in a few minutes.`);
   }
 }

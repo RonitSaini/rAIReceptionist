@@ -167,7 +167,7 @@ export type SmsTemplates = {
   cancellationReply(account: SmsAccount, kind: CancellationKind, when: Date): string;
 };
 
-export type SmsAccount = Pick<Account, "restaurantName" | "timeZone" | "twilioNumber">;
+export type SmsAccount = Pick<Account, "businessName" | "timeZone" | "twilioNumber">;
 
 /** The subset of a booking that customer SMS is allowed to mention. */
 export type BookingSummary = {

@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       title: `Text from ${formatUsPhone(from)}`,
       body: body.slice(0, 300),
     });
-    return reply(`${account.restaurantName}: Thanks for your message — we'll get back to you.${help} Reply CANCEL to cancel a booking.`);
+    return reply(`${account.businessName}: Thanks for your message — we'll get back to you.${help} Reply CANCEL to cancel a booking.`);
   }
 
   const graceAgo = new Date(Date.now() - 30 * 60_000);
@@ -101,5 +101,5 @@ export async function POST(req: NextRequest) {
     return reply(cancellationReplyText(account, "order", order.pickupTime));
   }
 
-  return reply(`${account.restaurantName}: We couldn't find an upcoming booking for this number.${help}`);
+  return reply(`${account.businessName}: We couldn't find an upcoming booking for this number.${help}`);
 }

@@ -137,7 +137,7 @@ export const joinWaitlistHandler = (ctx: HandlerContext, args: Args) => createRe
 
 async function restaurantLocation(a: Account): Promise<{ lat: number; lng: number } | null> {
   if (a.latitude != null && a.longitude != null) return { lat: a.latitude, lng: a.longitude };
-  const addr = formatRestaurantAddress(a) ?? (a.deliveryZip ? a.deliveryZip : null);
+  const addr = formatRestaurantAddress(a) ?? (a.serviceAreaZip ? a.serviceAreaZip : null);
   if (!addr) return null;
   const loc = await geocodeAddress(addr, accountCountry(a));
   if (loc) await prisma.account.update({ where: { id: a.id }, data: { latitude: loc.lat, longitude: loc.lng } }).catch(() => {});
@@ -146,7 +146,7 @@ async function restaurantLocation(a: Account): Promise<{ lat: number; lng: numbe
 
 export async function checkDeliveryArea(a: Account, address: string): Promise<{ deliverable: boolean; uncertain?: boolean; distanceMiles?: number; distanceKm?: number; reason: string }> {
   if (!a.offersDelivery) return { deliverable: false, reason: "The restaurant does not offer delivery." };
-  const radius = a.deliveryRadiusMiles != null ? Number(a.deliveryRadiusMiles) : null;
+  const radius = a.serviceAreaRadiusMiles != null ? Number(a.serviceAreaRadiusMiles) : null;
   if (!address.trim()) return { deliverable: false, uncertain: true, reason: "No address given." };
 
   const country = accountCountry(a);
@@ -163,7 +163,7 @@ export async function checkDeliveryArea(a: Account, address: string): Promise<{ 
   }
   // Geocoding unavailable — fall back to a ZIP / postal-code match.
   const zip = extractZip(address);
-  if (zip && a.deliveryZip && zip.toUpperCase() === a.deliveryZip.toUpperCase()) return { deliverable: true, uncertain: true, reason: `Same ${postalLabel(country)} as the restaurant's delivery area.` };
+  if (zip && a.serviceAreaZip && zip.toUpperCase() === a.serviceAreaZip.toUpperCase()) return { deliverable: true, uncertain: true, reason: `Same ${postalLabel(country)} as the restaurant's delivery area.` };
   return { deliverable: false, uncertain: true, reason: "Could not verify the address is inside the delivery area." };
 }
 

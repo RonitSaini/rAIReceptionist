@@ -52,7 +52,7 @@ export async function startCheckout(_prev: ActionState, fd: FormData): Promise<A
 
   let url: string | null;
   try {
-    const customer = await ensureCustomer(account.id, userId, account.restaurantName, account.stripeCustomerId);
+    const customer = await ensureCustomer(account.id, userId, account.businessName, account.stripeCustomerId);
     const session = await createCheckoutSession({
       customer,
       clientReferenceId: account.id,

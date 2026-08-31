@@ -38,7 +38,7 @@ function account(overrides = {}) {
   return {
     id: "acct_snapshot",
     vertical: "restaurant",
-    restaurantName: "Luigi's Trattoria",
+    businessName: "Luigi's Trattoria",
     ownerName: "Maria Lopez",
     cellPhone: "+12125550123",
     addressLine1: "350 5th Ave",
@@ -74,8 +74,8 @@ function account(overrides = {}) {
     seatingCapacity: 60,
     takesTakeoutOrders: true,
     offersDelivery: true,
-    deliveryZip: "10118",
-    deliveryRadiusMiles: 3,
+    serviceAreaZip: "10118",
+    serviceAreaRadiusMiles: 3,
     latitude: 40.7484,
     longitude: -73.9857,
     agentSyncedAt: null,
@@ -113,7 +113,7 @@ const VARIANTS = [
     name: "bare",
     src: {
       account: account({
-        restaurantName: "Corner Cafe",
+        businessName: "Corner Cafe",
         cuisineType: null,
         priceRange: null,
         addressLine1: null,
@@ -124,8 +124,8 @@ const VARIANTS = [
         escalatesToManager: false,
         escalationTypes: [],
         offersDelivery: false,
-        deliveryZip: null,
-        deliveryRadiusMiles: null,
+        serviceAreaZip: null,
+        serviceAreaRadiusMiles: null,
         twilioNumber: null,
         greeting: null,
       }),
@@ -150,7 +150,7 @@ const VARIANTS = [
   {
     name: "canada",
     src: {
-      account: account({ restaurantName: "Ronit's Pizza", country: "CA", state: "ON", city: "Toronto", zip: "M5V 2T6", timeZone: "America/Toronto", twilioNumber: "+14165550199", deliveryRadiusMiles: 5 }),
+      account: account({ businessName: "Ronit's Pizza", country: "CA", state: "ON", city: "Toronto", zip: "M5V 2T6", timeZone: "America/Toronto", twilioNumber: "+14165550199", serviceAreaRadiusMiles: 5 }),
       hours: HOURS,
       managerHours: MANAGER_HOURS,
       menu: MENU,
@@ -202,7 +202,7 @@ async function buildSnapshot() {
     out.push(section(`AGENT TOOLS · ${name}`, json(agentConfig.buildTools(src))));
     out.push(section(`LLM CONFIG · ${name}`, json(agentConfig.buildLlmConfig(src))));
     out.push(section(`AGENT CONFIG · ${name}`, json(agentConfig.buildAgentConfig(src, "llm_snapshot", "11labs-Adrian"))));
-    out.push(section(`GREETING · ${name}`, greeting.generateGreeting(src.account.restaurantName, src.account.hostName)));
+    out.push(section(`GREETING · ${name}`, greeting.generateGreeting(src.account.businessName, src.account.hostName)));
   }
 
   out.push(section("POST-CALL ANALYSIS", json(agentConfig.buildPostCallAnalysis())));

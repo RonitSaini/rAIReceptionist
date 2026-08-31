@@ -26,24 +26,24 @@ export const plumbingSmsTemplates: SmsTemplates = {
     const phone = callUs(account);
 
     if (booking.isEmergency) {
-      return `${account.restaurantName}: We have your emergency${where ? ` at ${where}` : ""}. ${booking.technician || "Our plumber"} will call you within 15 minutes.${phone}`;
+      return `${account.businessName}: We have your emergency${where ? ` at ${where}` : ""}. ${booking.technician || "Our plumber"} will call you within 15 minutes.${phone}`;
     }
     if (!booking.when) {
-      return `${account.restaurantName}: Thanks ${booking.customerName}, we have your request${where ? ` for ${where}` : ""}. We will call to confirm a time. Reply CANCEL to cancel.${phone}`;
+      return `${account.businessName}: Thanks ${booking.customerName}, we have your request${where ? ` for ${where}` : ""}. We will call to confirm a time. Reply CANCEL to cancel.${phone}`;
     }
     const when = formatDateTime(booking.when, account.timeZone);
-    return `${account.restaurantName}: Booked!${who ? who + " is" : " We are"} coming ${when}${where ? ` to ${where}` : ""}. Reply CANCEL if your plans change.${phone}`;
+    return `${account.businessName}: Booked!${who ? who + " is" : " We are"} coming ${when}${where ? ` to ${where}` : ""}. Reply CANCEL if your plans change.${phone}`;
   },
 
   escalationFollowUp(account, nextOpen) {
     const when = nextOpen ? ` when we next open (${nextOpen})` : " as soon as we can";
     const phone = account.twilioNumber ? ` You can also call us at ${formatUsPhone(account.twilioNumber)}.` : "";
-    return `${account.restaurantName}: Thanks for calling. We could not reach a plumber right away - someone will call you${when}.${phone}`;
+    return `${account.businessName}: Thanks for calling. We could not reach a plumber right away - someone will call you${when}.${phone}`;
   },
 
   cancellationReply(account: SmsAccount, kind: CancellationKind, when: Date) {
     const w = formatDateTime(when, account.timeZone);
-    if (kind === "job") return `${account.restaurantName}: Your visit on ${w} is cancelled. Call us any time if you still need a plumber.`;
-    return `${account.restaurantName}: That booking for ${w} is cancelled. Call us any time if you still need a plumber.`;
+    if (kind === "job") return `${account.businessName}: Your visit on ${w} is cancelled. Call us any time if you still need a plumber.`;
+    return `${account.businessName}: That booking for ${w} is cancelled. Call us any time if you still need a plumber.`;
   },
 };

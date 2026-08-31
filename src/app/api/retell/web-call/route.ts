@@ -33,7 +33,7 @@ export async function POST() {
       agent_id: account.retellAgentId!,
       metadata: { accountId: account.id, test: true, web: true },
       retell_llm_dynamic_variables: {
-        restaurant_name: account.restaurantName,
+        restaurant_name: account.businessName,
         host_name: account.hostName,
         timezone: account.timeZone,
         current_date: formatDateString(todayString(account.timeZone), { weekday: "long", month: "long", day: "numeric", year: "numeric" }),

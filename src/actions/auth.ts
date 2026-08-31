@@ -38,16 +38,16 @@ function businessNameError(vertical: Vertical): string {
   return `Enter your ${vocabularyFor(vertical).business.one} name.`;
 }
 
-async function createAccountWithDefaults(restaurantName: string, vertical: Vertical, tx: TxClient) {
+async function createAccountWithDefaults(businessName: string, vertical: Vertical, tx: TxClient) {
   const account = await tx.account.create({
-    data: { restaurantName, vertical, greeting: generateGreeting(restaurantName, "Alex"), hostName: "Alex", onboardingStep: 2 },
+    data: { businessName, vertical, greeting: generateGreeting(businessName, "Alex"), hostName: "Alex", onboardingStep: 2 },
   });
   await tx.businessHours.createMany({ data: defaultHours(account.id) });
   await tx.notification.create({
     data: {
       accountId: account.id,
       type: "system",
-      title: `Welcome to FrontDesk AI, ${restaurantName}!`,
+      title: `Welcome to FrontDesk AI, ${businessName}!`,
       body: "Finish setup to get your phone number and start taking calls. You can change any setting later.",
     },
   });
@@ -83,13 +83,13 @@ async function linkAccountToUser(tx: TxClient, userId: string, accountId: string
 export async function signUp(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const email = str(formData, "email").toLowerCase();
   const password = formData.get("password");
-  const restaurantName = str(formData, "restaurantName");
+  const businessName = str(formData, "businessName");
   const vertical = readVertical(formData);
 
   if (!isEmail(email)) return { ok: false, error: "Enter a valid email address." };
   if (typeof password !== "string" || password.length < 8) return { ok: false, error: "Password must be at least 8 characters." };
   if (!vertical) return { ok: false, error: "Choose what kind of business this is." };
-  if (restaurantName.length < 2) return { ok: false, error: businessNameError(vertical) };
+  if (businessName.length < 2) return { ok: false, error: businessNameError(vertical) };
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing?.passwordHash) return { ok: false, error: "An account with that email already exists. Try logging in." };
@@ -104,11 +104,11 @@ export async function signUp(_prev: ActionState, formData: FormData): Promise<Ac
           await tx.user.update({ where: { id: existing.id }, data: { passwordHash } });
         } else {
           // Attach an account only if they still have none — see linkAccountToUser.
-          const account = await createAccountWithDefaults(restaurantName, vertical, tx);
+          const account = await createAccountWithDefaults(businessName, vertical, tx);
           await linkAccountToUser(tx, existing.id, account.id, { passwordHash });
         }
       } else {
-        const account = await createAccountWithDefaults(restaurantName, vertical, tx);
+        const account = await createAccountWithDefaults(businessName, vertical, tx);
         // The unique index on email is what makes this safe under concurrency: a second
         // request with the same address fails here and rolls its account back.
         await tx.user.create({ data: { email, passwordHash, accountId: account.id } });
@@ -131,10 +131,10 @@ export async function signUp(_prev: ActionState, formData: FormData): Promise<Ac
 export async function createAccountForCurrentUser(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: "Please log in again." };
-  const restaurantName = str(formData, "restaurantName");
+  const businessName = str(formData, "businessName");
   const vertical = readVertical(formData);
   if (!vertical) return { ok: false, error: "Choose what kind of business this is." };
-  if (restaurantName.length < 2) return { ok: false, error: businessNameError(vertical) };
+  if (businessName.length < 2) return { ok: false, error: businessNameError(vertical) };
 
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) return { ok: false, error: "Please log in again." };
@@ -142,7 +142,7 @@ export async function createAccountForCurrentUser(_prev: ActionState, formData: 
 
   try {
     await prisma.$transaction(async (tx) => {
-      const account = await createAccountWithDefaults(restaurantName, vertical, tx);
+      const account = await createAccountWithDefaults(businessName, vertical, tx);
       await linkAccountToUser(tx, user.id, account.id);
     });
   } catch (e) {

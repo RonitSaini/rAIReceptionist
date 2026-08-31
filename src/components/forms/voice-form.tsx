@@ -45,7 +45,7 @@ export function VoiceForm({ account, mode }: { account: AccountView; mode: FormM
     });
   }
   const [hostName, setHostName] = useState(account.hostName);
-  const [greeting, setGreeting] = useState(account.greeting ?? generateGreeting(account.restaurantName, account.hostName));
+  const [greeting, setGreeting] = useState(account.greeting ?? generateGreeting(account.businessName, account.hostName));
   const [samples, setSamples] = useState<Record<string, VoiceSample>>({});
   const [all, setAll] = useState<VoiceOption[]>([]);
   const [retellReady, setRetellReady] = useState(false);
@@ -209,7 +209,7 @@ export function VoiceForm({ account, mode }: { account: AccountView; mode: FormM
         </Field>
         {!hasDisclosure ? <p className="text-sm font-semibold text-red-600">Add &ldquo;this call may be recorded&rdquo; to the greeting.</p> : null}
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="secondary" size="sm" onClick={() => setGreeting(generateGreeting(account.restaurantName, hostName))}>
+          <Button type="button" variant="secondary" size="sm" onClick={() => setGreeting(generateGreeting(account.businessName, hostName))}>
             Regenerate greeting
           </Button>
           <Button type="button" variant="secondary" size="sm" disabled={!canSpeak} onClick={() => { const v = curated ?? VOICES[0]; speak(greeting, v.pitch, v.rate); }}>

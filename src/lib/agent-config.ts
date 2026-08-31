@@ -46,11 +46,11 @@ export function buildLlmConfig(src: AgentSource): RetellLlmRequest {
     model: process.env.RETELL_LLM_MODEL || "gpt-4.1",
     model_temperature: 0.2,
     start_speaker: "agent",
-    begin_message: a.greeting || generateGreeting(a.restaurantName, a.hostName),
+    begin_message: a.greeting || generateGreeting(a.businessName, a.hostName),
     general_prompt: buildGeneralPrompt(src),
     general_tools: buildTools(src),
     default_dynamic_variables: {
-      restaurant_name: a.restaurantName,
+      restaurant_name: a.businessName,
       host_name: a.hostName,
       timezone: a.timeZone,
       current_date: "today",
@@ -64,7 +64,7 @@ export function buildAgentConfig(src: AgentSource, llmId: string, voiceId: strin
   const a = src.account;
   return {
     response_engine: { type: "retell-llm", llm_id: llmId },
-    agent_name: `FrontDesk AI · ${a.restaurantName}`.slice(0, 100),
+    agent_name: `FrontDesk AI · ${a.businessName}`.slice(0, 100),
     voice_id: voiceId,
     language: "en-US",
     webhook_url: `${src.appUrl}/api/retell/webhook`,

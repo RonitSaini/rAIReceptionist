@@ -20,7 +20,7 @@ export function ServiceAreaForm({ account, mode }: { account: AccountView; mode:
   const [state, action, pending] = useActionState(saveServiceArea, null);
   const country = accountCountry(account);
   const unit = country === "CA" ? "km" : "miles";
-  const [radius, setRadius] = useState(account.deliveryRadiusMiles == null ? "" : String(displayDistance(account.deliveryRadiusMiles, country)));
+  const [radius, setRadius] = useState(account.serviceAreaRadiusMiles == null ? "" : String(displayDistance(account.serviceAreaRadiusMiles, country)));
   const radiusNumber = Number.parseFloat(radius);
   const radiusMiles = Number.isFinite(radiusNumber) ? (country === "CA" ? radiusNumber / 1.609344 : radiusNumber) : NaN;
   const pinned = account.latitude != null && account.longitude != null;
@@ -36,7 +36,7 @@ export function ServiceAreaForm({ account, mode }: { account: AccountView; mode:
           <Input
             id="serviceZip"
             name="serviceZip"
-            defaultValue={account.deliveryZip ?? account.zip ?? ""}
+            defaultValue={account.serviceAreaZip ?? account.zip ?? ""}
             placeholder={country === "CA" ? "M5V 3L9" : "10001"}
             inputMode={country === "CA" ? "text" : "numeric"}
             required
@@ -52,7 +52,7 @@ export function ServiceAreaForm({ account, mode }: { account: AccountView; mode:
           center={{ lat: account.latitude as number, lng: account.longitude as number }}
           radiusMiles={radiusMiles}
           radiusLabel={`${radiusNumber} ${unit}`}
-          label={account.restaurantName}
+          label={account.businessName}
         />
       ) : !pinned ? (
         <p className="text-xs text-gray-500">Add your street address in Business basics to see the area on a map. The radius still works without it.</p>

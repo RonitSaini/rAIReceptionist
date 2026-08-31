@@ -142,7 +142,7 @@ async function BillingTab({ account, view, checkout }: { account: Account; view:
       </Card>
       <InvoicesCard customerId={account.stripeCustomerId} timeZone={account.timeZone} />
       <Card title="Account">
-        <AccountActions restaurantName={account.restaurantName} />
+        <AccountActions businessName={account.businessName} />
       </Card>
     </div>
   );

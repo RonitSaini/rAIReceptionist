@@ -21,15 +21,15 @@ function reservationConfirmation(account: SmsAccount, b: BookingSummary): string
   // that has been requested but not yet slotted.
   const when = b.when ? formatDateTime(b.when, account.timeZone) : "a time we will confirm";
   const phone = callUs(account);
-  if (b.isWaitlist) return `${account.restaurantName}: ${b.customerName}, you're on our waitlist for ${b.partySize} on ${when}. We'll call if a table opens up. Reply CANCEL to leave the waitlist.${phone}`;
-  return `${account.restaurantName}: You're booked! Party of ${b.partySize} on ${when}. Reply CANCEL if your plans change.${phone}`;
+  if (b.isWaitlist) return `${account.businessName}: ${b.customerName}, you're on our waitlist for ${b.partySize} on ${when}. We'll call if a table opens up. Reply CANCEL to leave the waitlist.${phone}`;
+  return `${account.businessName}: You're booked! Party of ${b.partySize} on ${when}. Reply CANCEL if your plans change.${phone}`;
 }
 
 function orderConfirmation(account: SmsAccount, b: BookingSummary): string {
   const when = b.when ? formatDateTime(b.when, account.timeZone) : "a time we will confirm";
   const items = trim((b.items ?? "").replace(/\s*\n+\s*/g, ", "), 90);
   const phone = callUs(account);
-  return `${account.restaurantName}: Order received - ${items}. ${b.isDelivery ? "Delivery" : "Pickup"} ${when}. Reply CANCEL to cancel.${phone}`;
+  return `${account.businessName}: Order received - ${items}. ${b.isDelivery ? "Delivery" : "Pickup"} ${when}. Reply CANCEL to cancel.${phone}`;
 }
 
 export const restaurantSmsTemplates: SmsTemplates = {
@@ -40,13 +40,13 @@ export const restaurantSmsTemplates: SmsTemplates = {
   escalationFollowUp(account, nextOpen) {
     const when = nextOpen ? ` when we next open (${nextOpen})` : " as soon as we open";
     const phone = account.twilioNumber ? ` You can also call us at ${formatUsPhone(account.twilioNumber)}.` : "";
-    return `${account.restaurantName}: Thanks for calling. Our manager couldn't get back to you right away - they'll call you${when}.${phone}`;
+    return `${account.businessName}: Thanks for calling. Our manager couldn't get back to you right away - they'll call you${when}.${phone}`;
   },
 
   cancellationReply(account: SmsAccount, kind: CancellationKind, when: Date) {
     const w = formatDateTime(when, account.timeZone);
-    if (kind === "waitlist") return `${account.restaurantName}: You've been removed from the waitlist for ${w}. Hope to see you another time!`;
-    if (kind === "order") return `${account.restaurantName}: Your order for ${w} is cancelled. Hope to see you another time!`;
-    return `${account.restaurantName}: Your reservation for ${w} is cancelled. Hope to see you another time!`;
+    if (kind === "waitlist") return `${account.businessName}: You've been removed from the waitlist for ${w}. Hope to see you another time!`;
+    if (kind === "order") return `${account.businessName}: Your order for ${w} is cancelled. Hope to see you another time!`;
+    return `${account.businessName}: Your reservation for ${w} is cancelled. Hope to see you another time!`;
   },
 };

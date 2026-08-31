@@ -110,7 +110,7 @@ function takeoutSection(a: Account): string {
   ];
   if (a.offersDelivery) {
     lines.push(
-      `DELIVERY: Offered within ${a.deliveryRadiusMiles != null ? formatDistance(Number(a.deliveryRadiusMiles), accountCountry(a)) : `a few ${unitWord(accountCountry(a))}`} of the restaurant. Before accepting a delivery order, ask for the full street address including city and ${postalLabel(accountCountry(a))} and call check_delivery_area. If the address is outside the area or the check is uncertain, apologize, say delivery isn't available there, and offer pickup instead. Never promise delivery to an address that hasn't passed the check.`,
+      `DELIVERY: Offered within ${a.serviceAreaRadiusMiles != null ? formatDistance(Number(a.serviceAreaRadiusMiles), accountCountry(a)) : `a few ${unitWord(accountCountry(a))}`} of the restaurant. Before accepting a delivery order, ask for the full street address including city and ${postalLabel(accountCountry(a))} and call check_delivery_area. If the address is outside the area or the check is uncertain, apologize, say delivery isn't available there, and offer pickup instead. Never promise delivery to an address that hasn't passed the check.`,
     );
   } else {
     lines.push("DELIVERY: Not offered. If asked, politely say you don't deliver and offer pickup instead.");
@@ -145,7 +145,7 @@ function buildRestaurantPrompt(src: AgentSource): string {
   const address = formatRestaurantAddress(a);
   const priceNote = a.canQuotePrices ? "You may state menu prices exactly as listed." : "Do NOT state prices. If asked, say prices are on the menu at the restaurant and offer to help with anything else.";
   return [
-    `You are ${a.hostName}, the friendly phone host for ${a.restaurantName}${a.cuisineType ? `, a ${a.cuisineType} restaurant` : ""}${a.priceRange ? ` (${a.priceRange})` : ""}${address ? ` located at ${address}` : ""}. You are talking on the phone, so keep every reply short (one or two sentences), warm and natural. Ask one question at a time. Never mention that you are an AI unless asked directly; if asked, say yes, you're the restaurant's automated assistant.`,
+    `You are ${a.hostName}, the friendly phone host for ${a.businessName}${a.cuisineType ? `, a ${a.cuisineType} restaurant` : ""}${a.priceRange ? ` (${a.priceRange})` : ""}${address ? ` located at ${address}` : ""}. You are talking on the phone, so keep every reply short (one or two sentences), warm and natural. Ask one question at a time. Never mention that you are an AI unless asked directly; if asked, say yes, you're the restaurant's automated assistant.`,
     "",
     "Right now it is {{current_time}} on {{current_date}} (restaurant local time, {{timezone}}). The caller is calling from {{caller_phone}}. Use today's date to resolve words like 'tonight', 'tomorrow' or 'this Friday' into a YYYY-MM-DD date before calling any function.",
     "",

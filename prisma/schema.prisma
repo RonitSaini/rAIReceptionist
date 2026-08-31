@@ -66,10 +66,10 @@ model Account {
   /// `restaurant`, which is also the default so a row can never exist without one.
   vertical Vertical @default(restaurant)
 
-  /// The trading name. Column name predates the move beyond restaurants; it holds the business
-  /// name for every vertical and is deliberately NOT renamed (renaming it would be a destructive
-  /// migration for zero user-visible gain).
-  restaurantName String
+  /// The trading name, for every vertical. The column is still called `restaurantName` because
+  /// renaming it would be a destructive migration for zero user-visible gain; @map lets the code
+  /// say what the field means without touching the database.
+  businessName String @map("restaurantName")
   ownerName      String?
   cellPhone      String?
   addressLine1   String?
@@ -115,16 +115,15 @@ model Account {
 
   // Takeout + delivery (restaurant), and the SERVICE AREA for field_service verticals.
   //
-  // `deliveryZip` and `deliveryRadiusMiles` are reused rather than duplicated: "a postcode and a
-  // radius in miles around the business" is the same quantity whether it bounds where a kitchen
-  // delivers or where a plumber will drive, and the distance maths, the Canadian km display and the
-  // geocoding fallbacks already operate on them. Same reasoning as `restaurantName` holding the
-  // business name for every vertical — the column name predates the product, renaming it would be a
-  // destructive migration for no user-visible gain.
-  takesTakeoutOrders  Boolean  @default(true)
-  offersDelivery      Boolean  @default(false)
-  deliveryZip         String?
-  deliveryRadiusMiles Decimal? @db.Decimal(5, 1)
+  // One postcode and one radius, serving both: "a postcode and a radius in miles around the
+  // business" is the same quantity whether it bounds where a kitchen delivers or how far a plumber
+  // will drive, and the distance maths, the Canadian kilometre display and the geocoding fallbacks
+  // already operate on them. The columns keep their delivery-era names — @map carries the neutral
+  // field names without a destructive migration.
+  takesTakeoutOrders     Boolean  @default(true)
+  offersDelivery         Boolean  @default(false)
+  serviceAreaZip         String?  @map("deliveryZip")
+  serviceAreaRadiusMiles Decimal? @db.Decimal(5, 1) @map("deliveryRadiusMiles")
 
   // Field service
   /// Who turns up. Spoken by the agent ("Mike will call you within 15 minutes") and the default

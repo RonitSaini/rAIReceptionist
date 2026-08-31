@@ -53,7 +53,7 @@ async function finish(account: Pick<Account, "id" | "vertical" | "onboardingStep
 
 export async function saveBusinessBasics(_prev: ActionState, fd: FormData): Promise<ActionState> {
   const { account } = await requireAccount();
-  const restaurantName = str(fd, "restaurantName") || account.restaurantName;
+  const businessName = str(fd, "businessName") || account.businessName;
   const ownerName = optStr(fd, "ownerName");
   const cellRaw = str(fd, "cellPhone");
   const cellPhone = cellRaw ? normalizeUsPhone(cellRaw) : null;
@@ -86,7 +86,7 @@ export async function saveBusinessBasics(_prev: ActionState, fd: FormData): Prom
   await prisma.account.update({
     where: { id: account.id },
     data: {
-      restaurantName,
+      businessName,
       ownerName,
       cellPhone,
       country,
@@ -152,18 +152,18 @@ export async function saveMenuPolicies(_prev: ActionState, fd: FormData): Promis
   const { account } = await requireAccount();
   const menu = json<MenuRow[]>(fd, "menu", []);
   const offersDelivery = bool(fd, "offersDelivery");
-  const deliveryZip = optStr(fd, "deliveryZip") ? normalizePostalCode(str(fd, "deliveryZip")) : null;
+  const serviceAreaZip = optStr(fd, "serviceAreaZip") ? normalizePostalCode(str(fd, "serviceAreaZip")) : null;
   // The owner types the radius in their own unit (km for Canadian provinces); miles are what we store.
   const country = accountCountry(account);
   const radiusUnit = str(fd, "radiusUnit") === "km" || country === "CA" ? "km" : "mi";
-  const radiusTyped = optDecimal(fd, "deliveryRadiusMiles");
-  const deliveryRadiusMiles = radiusTyped == null ? null : (Math.round(toMiles(Number(radiusTyped), radiusUnit) * 10) / 10).toFixed(1);
+  const radiusTyped = optDecimal(fd, "serviceAreaRadiusMiles");
+  const serviceAreaRadiusMiles = radiusTyped == null ? null : (Math.round(toMiles(Number(radiusTyped), radiusUnit) * 10) / 10).toFixed(1);
   const largePartyThreshold = int(fd, "largePartyThreshold", 8);
 
   if (largePartyThreshold < 2 || largePartyThreshold > 100) return { ok: false, error: "Large-party threshold must be between 2 and 100." };
   if (offersDelivery) {
-    if (!deliveryZip || !isPostalCodeFor(deliveryZip, country)) return { ok: false, error: country === "CA" ? "Delivery needs a valid postal code (A1A 1A1)." : "Delivery needs a valid 5-digit ZIP code." };
-    if (!deliveryRadiusMiles || Number(deliveryRadiusMiles) <= 0) return { ok: false, error: `Delivery needs a radius in ${radiusUnit === "km" ? "kilometres" : "miles"}.` };
+    if (!serviceAreaZip || !isPostalCodeFor(serviceAreaZip, country)) return { ok: false, error: country === "CA" ? "Delivery needs a valid postal code (A1A 1A1)." : "Delivery needs a valid 5-digit ZIP code." };
+    if (!serviceAreaRadiusMiles || Number(serviceAreaRadiusMiles) <= 0) return { ok: false, error: `Delivery needs a radius in ${radiusUnit === "km" ? "kilometres" : "miles"}.` };
   }
 
   const tagSet = new Set(DIETARY_TAGS);
@@ -191,8 +191,8 @@ export async function saveMenuPolicies(_prev: ActionState, fd: FormData): Promis
         largePartyDepositFee: optDecimal(fd, "largePartyDepositFee"),
         takesTakeoutOrders: bool(fd, "takesTakeoutOrders"),
         offersDelivery,
-        deliveryZip: offersDelivery ? deliveryZip : null,
-        deliveryRadiusMiles: offersDelivery ? deliveryRadiusMiles : null,
+        serviceAreaZip: offersDelivery ? serviceAreaZip : null,
+        serviceAreaRadiusMiles: offersDelivery ? serviceAreaRadiusMiles : null,
       },
     }),
   ]);

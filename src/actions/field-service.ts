@@ -71,7 +71,7 @@ export async function saveServiceArea(_prev: ActionState, fd: FormData): Promise
 
   await prisma.account.update({
     where: { id: account.id },
-    data: { deliveryZip: zip, deliveryRadiusMiles: radiusMiles, ...(coords ?? {}) },
+    data: { serviceAreaZip: zip, serviceAreaRadiusMiles: radiusMiles, ...(coords ?? {}) },
   });
   return finish(account, "service-area", modeOf(fd));
 }

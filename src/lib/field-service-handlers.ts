@@ -23,7 +23,7 @@ import { bool, normalizeTime, phoneOrCaller, str, tagCall, upsertCustomer, type 
 
 async function businessLocation(a: Account): Promise<{ lat: number; lng: number } | null> {
   if (a.latitude != null && a.longitude != null) return { lat: a.latitude, lng: a.longitude };
-  const addr = formatRestaurantAddress(a) ?? a.deliveryZip ?? null;
+  const addr = formatRestaurantAddress(a) ?? a.serviceAreaZip ?? null;
   if (!addr) return null;
   const loc = await geocodeAddress(addr, accountCountry(a));
   if (loc) await prisma.account.update({ where: { id: a.id }, data: { latitude: loc.lat, longitude: loc.lng } }).catch(() => {});
@@ -38,7 +38,7 @@ async function businessLocation(a: Account): Promise<{ lat: number; lng: number 
  * dependency and no new key: `GOOGLE_MAPS_API_KEY` is already configured server-side.
  */
 export async function checkServiceArea(a: Account, address: string): Promise<{ covered: boolean; uncertain?: boolean; distanceMiles?: number; reason: string }> {
-  const radius = a.deliveryRadiusMiles != null ? Number(a.deliveryRadiusMiles) : null;
+  const radius = a.serviceAreaRadiusMiles != null ? Number(a.serviceAreaRadiusMiles) : null;
   if (!address.trim()) return { covered: false, uncertain: true, reason: "No address given." };
   if (radius == null) return { covered: true, uncertain: true, reason: "No service radius is configured, so the address cannot be ruled out." };
 
@@ -55,7 +55,7 @@ export async function checkServiceArea(a: Account, address: string): Promise<{ c
 
   // Geocoding unavailable — fall back to a postcode match rather than guessing.
   const zip = extractZip(address);
-  if (zip && a.deliveryZip && zip.toUpperCase() === a.deliveryZip.toUpperCase()) {
+  if (zip && a.serviceAreaZip && zip.toUpperCase() === a.serviceAreaZip.toUpperCase()) {
     return { covered: true, uncertain: true, reason: `Same ${postalLabel(country)} as the business.` };
   }
   return { covered: false, uncertain: true, reason: "Could not confirm the address is inside the service area." };

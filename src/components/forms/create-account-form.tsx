@@ -22,8 +22,8 @@ export function CreateAccountForm({ catalog }: { catalog: readonly VerticalCatal
       <p className="text-gray-600">Welcome! Tell us about your business to get started.</p>
       {state && !state.ok && state.error ? <Alert>{state.error}</Alert> : null}
       <VerticalPicker catalog={catalog} value={vertical} onChange={setVertical} />
-      <Field label="Business name" htmlFor="restaurantName">
-        <Input id="restaurantName" name="restaurantName" required placeholder="Luigi's Trattoria" autoComplete="organization" />
+      <Field label="Business name" htmlFor="businessName">
+        <Input id="businessName" name="businessName" required placeholder="Luigi's Trattoria" autoComplete="organization" />
       </Field>
       <Button type="submit" size="lg" full disabled={pending || !!state?.ok || !vertical}>
         {pending ? "Creating…" : "Continue"}

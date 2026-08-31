@@ -38,7 +38,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </Suspense>
         </div>
         <div className="shrink-0 border-t border-gray-100 p-4 short:px-4 short:py-2.5">
-          <p className="truncate text-sm font-semibold">{account.restaurantName}</p>
+          <p className="truncate text-sm font-semibold">{account.businessName}</p>
           <SignOutButton className="mt-1 text-sm text-gray-500 hover:text-ink" />
         </div>
       </aside>
@@ -48,9 +48,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <header className="sticky top-0 z-20 border-b border-gray-200 bg-surface/90 backdrop-blur">
           <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-4 xl:max-w-6xl 2xl:max-w-7xl 2xl:px-8 3xl:max-w-[1680px]">
             <Link href="/dashboard" className="truncate text-base font-bold md:hidden">
-              {account.restaurantName}
+              {account.businessName}
             </Link>
-            <span className="hidden text-sm text-gray-500 md:block">{account.restaurantName}</span>
+            <span className="hidden text-sm text-gray-500 md:block">{account.businessName}</span>
             <div className="flex items-center gap-1">
               <AnimatedThemeToggle />
               <NotificationBell initialCount={unread} initialItems={recent} />

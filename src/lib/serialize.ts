@@ -2,9 +2,9 @@ import type { Account, MenuItem, ServiceOffering } from "@prisma/client";
 
 /** Plain-object versions of Prisma rows (Decimal -> number) safe to pass to client components. */
 
-export type AccountView = Omit<Account, "largePartyDepositFee" | "deliveryRadiusMiles" | "calloutFeeMicros" | "lastSeenAt" | "createdAt" | "updatedAt" | "subscriptionCurrentPeriodEnd" | "setupFeePaidAt"> & {
+export type AccountView = Omit<Account, "largePartyDepositFee" | "serviceAreaRadiusMiles" | "calloutFeeMicros" | "lastSeenAt" | "createdAt" | "updatedAt" | "subscriptionCurrentPeriodEnd" | "setupFeePaidAt"> & {
   largePartyDepositFee: number | null;
-  deliveryRadiusMiles: number | null;
+  serviceAreaRadiusMiles: number | null;
   /** BigInt cannot cross to a client component, so the call-out fee travels as whole micro-units. */
   calloutFeeMicros: number | null;
   lastSeenAt: string | null;
@@ -18,7 +18,7 @@ export function serializeAccount(a: Account): AccountView {
   return {
     ...a,
     largePartyDepositFee: a.largePartyDepositFee == null ? null : Number(a.largePartyDepositFee),
-    deliveryRadiusMiles: a.deliveryRadiusMiles == null ? null : Number(a.deliveryRadiusMiles),
+    serviceAreaRadiusMiles: a.serviceAreaRadiusMiles == null ? null : Number(a.serviceAreaRadiusMiles),
     calloutFeeMicros: a.calloutFeeMicros == null ? null : Number(a.calloutFeeMicros),
     lastSeenAt: a.lastSeenAt?.toISOString() ?? null,
     createdAt: a.createdAt.toISOString(),

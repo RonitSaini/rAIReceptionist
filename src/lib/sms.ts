@@ -21,7 +21,7 @@ function sender(account: Pick<Account, "twilioNumber">): string | undefined {
 export type SmsPurpose = "reservation_confirmation" | "takeout_confirmation" | "escalation_followup" | "cancellation_reply" | "inbound_reply";
 
 export async function sendGuestSms(
-  account: Pick<Account, "id" | "twilioNumber" | "restaurantName">,
+  account: Pick<Account, "id" | "twilioNumber" | "businessName">,
   to: string | null | undefined,
   body: string,
   meta?: { purpose?: SmsPurpose; callId?: string | null; reservationId?: string | null },
@@ -100,7 +100,7 @@ export async function recordSms(row: {
  * plumber sends a homeowner. These wrappers keep the historic names and signatures so no caller
  * changes, and hand the actual wording to the account's definition in src/verticals.
  */
-type TemplateAccount = Pick<Account, "vertical" | "restaurantName" | "timeZone" | "twilioNumber">;
+type TemplateAccount = Pick<Account, "vertical" | "businessName" | "timeZone" | "twilioNumber">;
 
 export function reservationConfirmationText(account: TemplateAccount, r: { guestName: string; partySize: number; startTime: Date; isWaitlist: boolean }): string {
   return verticalFor(account).smsTemplates.bookingConfirmation(account, {

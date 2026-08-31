@@ -34,7 +34,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
 
   return (
     <div className="space-y-4">
-      <PageHeader title={words.customer.Many} subtitle={`Everyone who has called ${account.restaurantName}.`} />
+      <PageHeader title={words.customer.Many} subtitle={`Everyone who has called ${account.businessName}.`} />
 
       <form className="flex gap-2" action="/customers">
         <input

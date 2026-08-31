@@ -16,7 +16,7 @@ async function alertScript(notificationId: string): Promise<{ text: string; ackn
   const phone = c?.callerPhone ? formatUsPhone(c.callerPhone).replace(/\D/g, "").split("").join(" ") : null;
   const msg = c?.messageText ? c.messageText.replace(/^[a-z_]+:\s*/i, "").replace(/\s*\(call back.*\)$/i, "") : "";
   const text = [
-    `This is FrontDesk AI for ${n.account.restaurantName}.`,
+    `This is FrontDesk AI for ${n.account.businessName}.`,
     `A caller needs a manager. Reason: ${reasonLabel(c?.escalationReason, n.account)}.`,
     `${who}${phone ? `, at ${phone}` : ""}.`,
     msg ? `They said: ${msg}.` : "",

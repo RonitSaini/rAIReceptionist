@@ -6,6 +6,7 @@ import type { AccountView } from "@/lib/serialize";
 import { CUISINE_TYPES, PRICE_RANGES, timeZonesFor } from "@/lib/constants";
 import { formatUsPhone } from "@/lib/form";
 import { accountCountry, COUNTRIES, type Country } from "@/lib/locale";
+import { verticalFor, vocabularyFor } from "@/verticals";
 import { Field, Input, Select } from "@/components/ui";
 import { FormFooter, type FormMode } from "@/components/form-footer";
 import { AddressFields } from "@/components/forms/address-fields";
@@ -35,8 +36,9 @@ export function BusinessBasicsForm({ account, mode }: { account: AccountView; mo
 
   return (
     <ActionForm action={action} className="space-y-4">
-      <Field label="Restaurant name" htmlFor="restaurantName">
-        <Input id="restaurantName" name="restaurantName" defaultValue={account.restaurantName} required />
+      {/* A restaurant's vocabulary makes this read "Restaurant name", exactly as it did before. */}
+      <Field label={`${vocabularyFor(account).business.One} name`} htmlFor="businessName">
+        <Input id="businessName" name="businessName" defaultValue={account.businessName} required />
       </Field>
       <Field label="Owner / manager name" htmlFor="ownerName">
         <Input id="ownerName" name="ownerName" defaultValue={account.ownerName ?? ""} autoComplete="name" placeholder="Maria Lopez" />
@@ -84,28 +86,31 @@ export function BusinessBasicsForm({ account, mode }: { account: AccountView; mo
         </>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Cuisine type" htmlFor="cuisineType">
-          <Select id="cuisineType" name="cuisineType" defaultValue={account.cuisineType ?? ""}>
-            <option value="">Choose…</option>
-            {CUISINE_TYPES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Price range" htmlFor="priceRange">
-          <Select id="priceRange" name="priceRange" defaultValue={account.priceRange ?? ""}>
-            <option value="">Choose…</option>
-            {PRICE_RANGES.map((p) => (
-              <option key={p.value} value={p.value}>
-                {p.label}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      </div>
+      {/* Cuisine and price range are a restaurant's own two questions; nobody asks a plumber. */}
+      {verticalFor(account).archetype === "restaurant" ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Cuisine type" htmlFor="cuisineType">
+            <Select id="cuisineType" name="cuisineType" defaultValue={account.cuisineType ?? ""}>
+              <option value="">Choose…</option>
+              {CUISINE_TYPES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Price range" htmlFor="priceRange">
+            <Select id="priceRange" name="priceRange" defaultValue={account.priceRange ?? ""}>
+              <option value="">Choose…</option>
+              {PRICE_RANGES.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+      ) : null}
 
       <FormFooter state={state} pending={pending} mode={mode} />
     </ActionForm>

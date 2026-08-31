@@ -7,7 +7,7 @@ import { Alert, Button, Input } from "@/components/ui";
 import { SignOutButton } from "@/components/sign-out-button";
 
 /** Log out + Delete account, side by side. Delete opens an inline confirmation that requires typing DELETE. */
-export function AccountActions({ restaurantName }: { restaurantName: string }) {
+export function AccountActions({ businessName }: { businessName: string }) {
   const [open, setOpen] = useState(false);
   const [state, action, pending] = useActionState(deleteAccount, null);
 
@@ -27,7 +27,7 @@ export function AccountActions({ restaurantName }: { restaurantName: string }) {
 
       {open ? (
         <form action={action} className="rounded-xl border border-red-200 bg-red-50/60 p-4 dark:bg-red-950/20">
-          <p className="font-semibold text-red-800 dark:text-red-300">This permanently deletes {restaurantName}.</p>
+          <p className="font-semibold text-red-800 dark:text-red-300">This permanently deletes {businessName}.</p>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-red-800/90 dark:text-red-200/90">
             <li>Your subscription is cancelled and your phone number is released.</li>
             <li>Every reservation, order, call, recording link, message, and setting is erased.</li>
