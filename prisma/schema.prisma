@@ -327,6 +327,9 @@ enum NotificationType {
   reservation
   takeout
   waitlist
+  /// A field-service booking. Added in 2b; before it, these borrowed `reservation` and were told
+  /// apart by Notification.jobId, which the UI then had to paper over when labelling them.
+  job
   message
   escalation
   missed_call
@@ -504,6 +507,11 @@ enum CallClassification {
   takeout
   question
   waitlist
+  /// Field service. `emergency` is deliberately distinct from `escalation`: one means someone is
+  /// in trouble right now, the other means a human is needed.
+  service_call
+  emergency
+  estimate
   message
   escalation
   missed

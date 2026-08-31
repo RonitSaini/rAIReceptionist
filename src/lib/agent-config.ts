@@ -1,7 +1,7 @@
 import type { AgentRequest, CustomTool, EndCallTool, PostCallAnalysisField, RetellLlmRequest } from "./retell";
 import { generateGreeting } from "./greeting";
 import { verticalFor } from "@/verticals";
-import { AGENT_FUNCTIONS, CLASSIFICATION_CHOICES, MESSAGE_REASONS, type AgentFunctionName, type AgentSource } from "@/verticals/types";
+import { AGENT_FUNCTIONS, CLASSIFICATION_CHOICES, MESSAGE_REASONS, classificationChoicesFor, type AgentFunctionName, type AgentSource } from "@/verticals/types";
 
 /**
  * Builds the Retell LLM + agent configuration for one account.
@@ -29,12 +29,13 @@ export function buildTools(src: AgentSource): (CustomTool | EndCallTool)[] {
 
 // ---------- Post-call analysis ----------
 
-export function buildPostCallAnalysis(): PostCallAnalysisField[] {
+export function buildPostCallAnalysis(src: AgentSource): PostCallAnalysisField[] {
+  const definition = verticalFor(src.account);
   return [
-    { type: "enum", name: "classification", description: "What the call was mainly about.", choices: [...CLASSIFICATION_CHOICES] },
+    { type: "enum", name: "classification", description: "What the call was mainly about.", choices: [...classificationChoicesFor(definition.archetype)] },
     { type: "string", name: "caller_name", description: "The caller's name if they gave one." },
     { type: "boolean", name: "caller_frustrated", description: "Whether the caller sounded frustrated or confused at any point." },
-    { type: "boolean", name: "needs_callback", description: "Whether the restaurant still owes the caller a call back." },
+    { type: "boolean", name: "needs_callback", description: `Whether the ${definition.vocabulary.business.one} still owes the caller a call back.` },
   ];
 }
 
@@ -69,7 +70,7 @@ export function buildAgentConfig(src: AgentSource, llmId: string, voiceId: strin
     language: "en-US",
     webhook_url: `${src.appUrl}/api/retell/webhook`,
     webhook_timeout_ms: 10000,
-    post_call_analysis_data: buildPostCallAnalysis(),
+    post_call_analysis_data: buildPostCallAnalysis(src),
     max_call_duration_ms: 20 * 60_000,
     end_call_after_silence_ms: 45_000,
     interruption_sensitivity: 0.8,

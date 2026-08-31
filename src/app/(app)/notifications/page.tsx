@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { NotificationType } from "@prisma/client";
 import { requireAccount } from "@/lib/current-account";
 import { prisma } from "@/lib/prisma";
-import { NOTIFICATION_TYPES } from "@/lib/constants";
+import { FIELD_SERVICE_NOTIFICATION_TYPES, NOTIFICATION_TYPES } from "@/lib/constants";
 import { NOTIFICATION_TYPE_LABEL } from "@/lib/notifications";
 import { verticalFor, vocabularyFor } from "@/verticals";
 import { markAllNotificationsRead } from "@/actions/notifications";
@@ -14,8 +14,17 @@ export const metadata = { title: "Notifications" };
 export default async function NotificationsPage({ searchParams }: { searchParams: Promise<{ type?: string; unread?: string }> }) {
   const { account } = await requireAccount();
   const { type, unread } = await searchParams;
-  const typeFilter = NOTIFICATION_TYPES.includes(type as NotificationType) ? (type as NotificationType) : null;
   const unreadOnly = unread === "1";
+
+  // A trade is never sent a reservation, a takeout order or a waitlist entry, so offering those as
+  // filters would be offering chips that can only ever come back empty. Its bookings are `job`
+  // notifications, read out in the vocabulary: "Service calls" for a plumber, "Estimates" for a roofer.
+  const words = vocabularyFor(account);
+  const isRestaurant = verticalFor(account).archetype === "restaurant";
+  const filterTypes: readonly NotificationType[] = isRestaurant ? NOTIFICATION_TYPES : FIELD_SERVICE_NOTIFICATION_TYPES;
+  const typeFilter = filterTypes.includes(type as NotificationType) ? (type as NotificationType) : null;
+  const labelFor = (t: NotificationType) => (t === "job" ? words.booking.Many : NOTIFICATION_TYPE_LABEL[t]);
+  const typeLabel = typeFilter ? labelFor(typeFilter) : null;
 
   const [items, unreadCount, totalCount] = await Promise.all([
     prisma.notification.findMany({
@@ -37,14 +46,6 @@ export default async function NotificationsPage({ searchParams }: { searchParams
 
   const chip = (active: boolean) => `shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${active ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 bg-surface text-gray-700"}`;
 
-  // A trade never gets a takeout or waitlist notification, so offering those as filters would be
-  // offering two chips that can only ever return nothing. The reservation type is kept but read out
-  // in the vocabulary, since that is the row a service call is stored on.
-  const words = vocabularyFor(account);
-  const isRestaurant = verticalFor(account).archetype === "restaurant";
-  const filterTypes: readonly NotificationType[] = isRestaurant ? NOTIFICATION_TYPES : ["reservation", "message", "escalation", "missed_call", "system"];
-  const labelFor = (t: NotificationType) => (isRestaurant || t !== "reservation" ? NOTIFICATION_TYPE_LABEL[t] : words.booking.Many);
-  const typeLabel = typeFilter ? labelFor(typeFilter) : null;
 
   // Explain an empty result in terms of the active filters, with one-click ways out.
   let empty: { title: string; body?: string; action?: React.ReactNode };

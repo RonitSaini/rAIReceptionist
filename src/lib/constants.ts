@@ -93,6 +93,9 @@ export const RESERVATION_STATUSES = ["booked", "confirmed", "seated", "completed
 export const TAKEOUT_STATUSES = ["new", "confirmed", "ready", "picked_up", "cancelled"] as const;
 export const NOTIFICATION_TYPES = ["reservation", "takeout", "waitlist", "message", "escalation", "missed_call", "system"] as const;
 
+/** A trade never gets a reservation, a takeout order or a waitlist entry; it gets jobs. */
+export const FIELD_SERVICE_NOTIFICATION_TYPES = ["job", "message", "escalation", "missed_call", "system"] as const;
+
 export const NOTIFICATION_POLL_MS = 30_000;
 
 export function humanize(value: string): string {
@@ -102,11 +105,10 @@ export function humanize(value: string): string {
 /**
  * What to call a call's outcome.
  *
- * CallClassification is restaurant-flavoured for the same reason NotificationType is: it predates
- * verticals, and a booking taken for a plumber is still stored as `reservation`. A restaurant reads
- * exactly what it always did, because its booking noun IS "reservation".
+ * `service_call` is one value covering every trade, so it reads in the vocabulary: "Service call"
+ * for a plumber, "Estimate" for a roofer. Everything else humanizes.
  */
 export function classificationLabel(value: string, words?: Vocabulary): string {
-  if (words && value === "reservation") return words.booking.One;
+  if (words && value === "service_call") return words.booking.One;
   return humanize(value);
 }

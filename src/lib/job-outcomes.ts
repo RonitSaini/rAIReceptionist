@@ -23,9 +23,7 @@ export async function afterJobBooked(account: Account, job: Job, call: Call | nu
 
   await createNotification({
     accountId: account.id,
-    // The NotificationType enum is shared and predates Job; `jobId` is what identifies the record,
-    // and notificationHref sends the reader to /jobs/<id>.
-    type: "reservation",
+    type: "job",
     priority: job.isEmergency ? "urgent" : "normal",
     title: `${job.isEmergency ? "EMERGENCY " : "New "}${words.booking.one}: ${job.customerName}`,
     body: [when, job.customerPhone ? formatUsPhone(job.customerPhone) : null, job.address, job.description, job.assignedTo ? `assigned to ${job.assignedTo}` : null, `booked by ${account.hostName}`]

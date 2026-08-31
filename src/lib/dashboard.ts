@@ -37,9 +37,12 @@ export function seriesKeyFor(c: CallClassification): (typeof CALL_SERIES)[number
   switch (c) {
     case "reservation":
     case "waitlist":
+    case "service_call":
+    case "estimate":
       return "booked";
     case "takeout":
       return "orders";
+    case "emergency":
     case "escalation":
     case "missed":
       return "attention";

@@ -205,7 +205,9 @@ async function buildSnapshot() {
     out.push(section(`GREETING · ${name}`, greeting.generateGreeting(src.account.businessName, src.account.hostName)));
   }
 
-  out.push(section("POST-CALL ANALYSIS", json(agentConfig.buildPostCallAnalysis())));
+  // Post-call analysis is per-archetype now (a plumber is never offered "takeout"), so it takes the
+  // source. VARIANTS[0] is the fully configured restaurant, which is what this file locks.
+  out.push(section("POST-CALL ANALYSIS", json(agentConfig.buildPostCallAnalysis(VARIANTS[0].src))));
   // FUNCTION_NAMES is the app-wide registry across every archetype, so it grows whenever a new
   // vertical lands — which says nothing about restaurants. What a restaurant is actually given is
   // its own `agentFunctions`, and that is what this asserts.

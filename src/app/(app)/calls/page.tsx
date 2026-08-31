@@ -15,7 +15,7 @@ export const metadata = { title: "Calls" };
 const CLASSIFICATIONS: CallClassification[] = ["reservation", "takeout", "question", "waitlist", "message", "escalation", "missed", "other"];
 // A trade takes no takeout orders and runs no waitlist, so those two chips could only ever come
 // back empty.
-const FIELD_SERVICE_CLASSIFICATIONS: CallClassification[] = ["reservation", "question", "message", "escalation", "missed", "other"];
+const FIELD_SERVICE_CLASSIFICATIONS: CallClassification[] = ["service_call", "estimate", "emergency", "question", "message", "escalation", "missed", "other"];
 
 export default async function CallsPage({ searchParams }: { searchParams: Promise<{ type?: string }> }) {
   const { account } = await requireAccount();

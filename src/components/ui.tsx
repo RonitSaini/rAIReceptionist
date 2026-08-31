@@ -190,6 +190,9 @@ export const takeoutTone: Record<string, keyof typeof badgeTone> = {
 
 export const classificationTone: Record<string, keyof typeof badgeTone> = {
   reservation: "blue",
+  service_call: "blue",
+  estimate: "brand",
+  emergency: "red",
   takeout: "brand",
   question: "gray",
   waitlist: "amber",
@@ -201,6 +204,7 @@ export const classificationTone: Record<string, keyof typeof badgeTone> = {
 
 export const notificationTone: Record<string, keyof typeof badgeTone> = {
   reservation: "blue",
+  job: "blue",
   takeout: "brand",
   waitlist: "amber",
   message: "purple",

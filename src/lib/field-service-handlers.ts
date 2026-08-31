@@ -174,7 +174,7 @@ export async function bookServiceCallHandler(ctx: HandlerContext, args: Args): P
     },
   });
 
-  await tagCall(ctx, { classification: "reservation", jobId: job.id, callerName: customerName });
+  await tagCall(ctx, { classification: job.kind === "estimate" ? "estimate" : "service_call", jobId: job.id, callerName: customerName });
   await afterJobBooked(a, job, ctx.call);
 
   const when = formatDateTime(slot.startUtc, a.timeZone);
@@ -245,7 +245,7 @@ export async function dispatchEmergencyHandler(ctx: HandlerContext, args: Args):
     },
   });
 
-  await tagCall(ctx, { classification: "escalation", jobId: job.id, callerName: customerName, escalationReason: "emergency", callbackRequested: true });
+  await tagCall(ctx, { classification: "emergency", jobId: job.id, callerName: customerName, escalationReason: "emergency", callbackRequested: true });
   await afterJobBooked(a, job, ctx.call);
   await afterEmergencyDispatched(a, ctx.call, { customerName, customerPhone, address, emergencyType, description });
 

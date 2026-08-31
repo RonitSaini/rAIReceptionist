@@ -123,8 +123,20 @@ export type AgentFunctionName = (typeof AGENT_FUNCTIONS)[number];
 export const MESSAGE_REASONS = ["general_question", "large_party", "private_event", "catering", "complaint", "allergy", "press_vendor", "callback_request", "other"] as const;
 export type MessageReason = (typeof MESSAGE_REASONS)[number];
 
-/** What a finished call was mainly about, filled in by Retell's post-call analysis. */
+/**
+ * What a finished call was mainly about, filled in by Retell's post-call analysis.
+ *
+ * Per archetype, because offering a plumber "takeout" and "waitlist" is offering two answers that
+ * can never be right, and withholding "emergency" from them loses the one that matters most. The
+ * restaurant list is exactly what it always was.
+ */
 export const CLASSIFICATION_CHOICES = ["reservation", "takeout", "question", "waitlist", "message", "escalation", "other"] as const;
+
+export const FIELD_SERVICE_CLASSIFICATION_CHOICES = ["service_call", "estimate", "emergency", "question", "message", "escalation", "other"] as const;
+
+export function classificationChoicesFor(archetype: Archetype): readonly string[] {
+  return archetype === "restaurant" ? CLASSIFICATION_CHOICES : FIELD_SERVICE_CLASSIFICATION_CHOICES;
+}
 
 // ---------- Dashboard ----------
 
