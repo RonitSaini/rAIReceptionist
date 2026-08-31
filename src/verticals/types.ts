@@ -1,5 +1,5 @@
 import type { ZodObject, ZodRawShape } from "zod";
-import type { Account, BusinessHours, ManagerAvailability, MenuItem, ServiceOffering, Vertical } from "@prisma/client";
+import type { Account, BusinessHours, JobKind, ManagerAvailability, MenuItem, ServiceOffering, Vertical } from "@prisma/client";
 import type { CustomTool, EndCallTool } from "@/lib/retell";
 
 /**
@@ -253,6 +253,13 @@ export type VerticalDefinition = {
 
   /** Hard "never do this" instructions, rendered into the prompt verbatim. */
   guardrails: readonly string[];
+
+  /**
+   * What a booking on this vertical IS. A roofer's calls are estimates, not repairs, and Jobs and
+   * Schedule have to be able to tell those apart; without this the archetype can only ever create
+   * service calls. Left unset by restaurants, which have no Jobs.
+   */
+  bookingKind?: JobKind;
 
   defaults: VerticalDefaults;
 };

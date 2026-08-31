@@ -159,7 +159,7 @@ export async function bookServiceCallHandler(ctx: HandlerContext, args: Args): P
     data: {
       accountId: a.id,
       customerId: customer?.id ?? null,
-      kind: "service_call",
+      kind: verticalFor(a).bookingKind ?? "service_call",
       customerName,
       customerPhone,
       address,
@@ -232,7 +232,9 @@ export async function dispatchEmergencyHandler(ctx: HandlerContext, args: Args):
     data: {
       accountId: a.id,
       customerId: customer?.id ?? null,
-      kind: "service_call",
+      // Deliberately not the vertical's bookingKind: a roofer books estimates, but a roof leaking
+      // in a storm is a dispatch, not an estimate.
+      kind: "dispatch",
       customerName,
       customerPhone,
       address,

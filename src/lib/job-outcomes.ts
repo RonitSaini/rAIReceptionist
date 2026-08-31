@@ -25,7 +25,9 @@ export async function afterJobBooked(account: Account, job: Job, call: Call | nu
     accountId: account.id,
     type: "job",
     priority: job.isEmergency ? "urgent" : "normal",
-    title: `${job.isEmergency ? "EMERGENCY " : "New "}${words.booking.one}: ${job.customerName}`,
+    // An emergency is never the vertical's booking noun: a roofer books estimates, but "EMERGENCY
+    // estimate" is not what water coming through a ceiling is. Same reason its Job.kind is dispatch.
+    title: job.isEmergency ? `EMERGENCY: ${job.customerName}` : `New ${words.booking.one}: ${job.customerName}`,
     body: [when, job.customerPhone ? formatUsPhone(job.customerPhone) : null, job.address, job.description, job.assignedTo ? `assigned to ${job.assignedTo}` : null, `booked by ${account.hostName}`]
       .filter(Boolean)
       .join(" · "),

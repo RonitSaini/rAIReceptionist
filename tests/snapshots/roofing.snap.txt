@@ -1,0 +1,779 @@
+Roofing: the rendered prompt, the tools the agent is given, and every customer SMS.
+
+===== AGENT PROMPT · full =====
+You are Sam, answering the phone for Ridgeway Roofing, a roofing business based at 44 Mill Lane, Newark, NJ, 07102. You are on the phone, so keep every reply short (one or two sentences), calm and practical. Ask one question at a time. Never mention that you are an AI unless asked directly; if asked, say yes, you are the office's automated assistant.
+
+Right now it is {{current_time}} on {{current_date}} (local time, {{timezone}}). The caller is calling from {{caller_phone}}. Use today's date to resolve words like 'today', 'tomorrow' or 'Friday' into a YYYY-MM-DD date before calling any function.
+
+FIRST THING: find out whether this is an emergency. Ask what is happening. If it matches the emergency list below, handle it as an emergency and do not try to schedule a normal visit.
+
+WHAT YOU CAN DO: (1) book an estimate, (2) handle an emergency, (3) answer questions using only the information below, (4) take a message.
+
+WORKING HOURS:
+- Sunday: Not working
+- Monday: 8:00 AM-5:00 PM
+- Tuesday: 8:00 AM-5:00 PM
+- Wednesday: Not working
+- Thursday: Not working
+- Friday: Not working
+- Saturday: 9:00 AM-1:00 PM
+
+SERVICES:
+Repairs:
+- Leak repair - from $249
+Maintenance:
+- Gutter clearing - from $129
+Replacement:
+- Full roof replacement
+
+SERVICE AREA: About 25 miles around the business. ALWAYS call check_service_area with the full street address before offering any time or booking anything.
+If the address is outside the area, say politely that you do not cover it, do not book a visit, and offer to take a message. Do not suggest another company.
+Ask for the full street address including the ZIP code.
+
+BOOKING AN ESTIMATE: Call get_available_slots before offering any time - never guess. Collect: the full street address, what is wrong in their own words, their name, and a phone number (offer to use the number they are calling from).
+Estimate visits are 180 minutes long. There is a call-out fee of $89, which you should mention before booking.
+Read the address and the time back and get a yes before calling book_service_call.
+NO SLOTS LEFT: if there is nothing free on the days they can do, do not invent a time and do not promise a call-out. Take a message with take_message so the office can call them back.
+
+EMERGENCIES: These are not booked into a normal slot. Confirm the address and a callback number, then call dispatch_emergency.
+Treat as an emergency: water coming into the property now; storm damage; sagging or collapsing roof; fallen tree or debris on the roof; roof open to the weather.
+Tell the caller Sal will call them back within 15 minutes. Never promise an arrival time yourself.
+Owner reachable hours:
+- Monday: 7:00 AM-8:00 PM
+- Tuesday: 7:00 AM-8:00 PM
+
+HARD RULES:
+- NEVER tell a caller to go onto the roof, up a ladder, or into a loft to look at anything, and never suggest they photograph the damage from height. If they offer to go up, tell them not to and that the roofer will look when they come out.
+- NEVER diagnose a roof over the phone and never say what is causing a leak, how much it will cost, or how long it will take. You are not a roofer. Describe what the caller told you, and let the roofer assess it on site.
+- Never quote a repair or a replacement roof. You may only state a starting price for a listed service, and only when it is written above. Every price is confirmed after the roofer has been out and looked.
+- If water is coming in now, you may suggest they put a bucket under it and move anything valuable out of the way. Nothing beyond that.
+- Never promise that someone will come out during a storm or high wind. Say the roofer will call to arrange a time once it is safe to get on the roof.
+- Never promise an arrival time you have not booked, and never say someone is 'on the way' unless dispatch_emergency has been called.
+- Phone numbers must be 10-digit US or Canadian numbers. Read numbers back digit by digit to confirm.
+- If a function call fails, times out, or comes back with an error: never invent an answer, never guess what it would have said, and never tell the caller something was done when it was not. Apologize, collect their name and phone number, promise a call back, and call take_message with reason "callback_request".
+
+
+===== AGENT TOOLS · full =====
+[
+  {
+    "type": "custom",
+    "name": "check_service_area",
+    "description": "Check whether an address is inside the service area. Always call this before offering a time or booking a visit.",
+    "url": "https://example.test/api/retell/functions/check_service_area",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "description": "Full street address of the property, including city and ZIP or postal code."
+        }
+      },
+      "required": [
+        "address"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say 'Let me check if we cover that area.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "get_available_slots",
+    "description": "Find the free visit windows on a day. Call before offering any time. For an emergency this returns no times and tells you to dispatch instead.",
+    "url": "https://example.test/api/retell/functions/get_available_slots",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Date in YYYY-MM-DD format, resolved using today's date."
+        },
+        "is_emergency": {
+          "type": "boolean",
+          "description": "true when the caller's situation matches the emergency list."
+        }
+      },
+      "required": [
+        "date"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say something like 'Let me look at the diary.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "book_service_call",
+    "description": "Book a roofing estimate after the caller has confirmed the address and the time. Only call with a window get_available_slots reported as free.",
+    "url": "https://example.test/api/retell/functions/book_service_call",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "customer_name": {
+          "type": "string",
+          "description": "Who the visit is for."
+        },
+        "customer_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "address": {
+          "type": "string",
+          "description": "Full street address of the property, including city and ZIP or postal code."
+        },
+        "description": {
+          "type": "string",
+          "description": "What is wrong, in the caller's own words. Do not diagnose."
+        },
+        "date": {
+          "type": "string",
+          "description": "Date in YYYY-MM-DD format, resolved using today's date."
+        },
+        "time": {
+          "type": "string",
+          "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM."
+        },
+        "property_type": {
+          "type": "string",
+          "enum": [
+            "house",
+            "apartment",
+            "commercial",
+            "other"
+          ],
+          "description": "What kind of building it is."
+        },
+        "water_inside": {
+          "type": "boolean",
+          "description": "Whether water is currently coming into the property."
+        },
+        "occupancy": {
+          "type": "string",
+          "enum": [
+            "owner",
+            "tenant"
+          ],
+          "description": "Whether the caller owns the property or rents it."
+        }
+      },
+      "required": [
+        "customer_name",
+        "customer_phone",
+        "address",
+        "description",
+        "date",
+        "time"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "dispatch_emergency",
+    "description": "Log an emergency and alert the business immediately. Use instead of booking when the situation matches the emergency list.",
+    "url": "https://example.test/api/retell/functions/dispatch_emergency",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "customer_name": {
+          "type": "string"
+        },
+        "customer_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "address": {
+          "type": "string",
+          "description": "Full street address of the property, including city and ZIP or postal code."
+        },
+        "emergency_type": {
+          "type": "string",
+          "enum": [
+            "active_leak",
+            "storm_damage",
+            "collapse_risk",
+            "fallen_debris",
+            "exposed_roof"
+          ],
+          "description": "Which emergency this is."
+        },
+        "description": {
+          "type": "string",
+          "description": "What the caller said is happening."
+        },
+        "water_inside": {
+          "type": "boolean",
+          "description": "Whether water is currently coming into the property."
+        }
+      },
+      "required": [
+        "customer_name",
+        "customer_phone",
+        "address",
+        "emergency_type"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say 'Let me get someone on this right now.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "take_message",
+    "description": "Record a message or escalate to the owner. Use when you cannot book, cannot answer, or the caller wants a quote for something unusual.",
+    "url": "https://example.test/api/retell/functions/take_message",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "caller_name": {
+          "type": "string"
+        },
+        "caller_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "message": {
+          "type": "string",
+          "description": "Clear summary of what the caller needs, including the address if they gave one."
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "general_question",
+            "large_party",
+            "private_event",
+            "catering",
+            "complaint",
+            "allergy",
+            "press_vendor",
+            "callback_request",
+            "other"
+          ],
+          "description": "Why the message is being taken."
+        },
+        "escalate": {
+          "type": "boolean",
+          "description": "true when the owner must call back urgently; false for a normal message."
+        }
+      },
+      "required": [
+        "caller_name",
+        "caller_phone",
+        "message",
+        "reason",
+        "escalate"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "end_call",
+    "name": "end_call",
+    "description": "End the call. Only use after the caller confirms they are finished and you have said goodbye."
+  }
+]
+
+
+===== CUSTOMER SMS · full =====
+booked:            Ridgeway Roofing: Booked! Mike is coming Wed, Sep 2, 10:00 AM to 12 Oak Street. Reply CANCEL if your plans change. Questions? Call (212) 555-0111.
+emergency:         Ridgeway Roofing: We have your emergency at 12 Oak Street. Mike will call you within 15 minutes. Questions? Call (212) 555-0111.
+no time yet:       Ridgeway Roofing: Thanks Elena Rossi, we have your request for 12 Oak Street. We will call to confirm a time. Reply CANCEL to cancel. Questions? Call (212) 555-0111.
+escalation (open): Ridgeway Roofing: Thanks for calling. We could not reach a roofer right away - someone will call you when we next open (Monday 8:00 AM). You can also call us at (212) 555-0111.
+escalation (none): Ridgeway Roofing: Thanks for calling. We could not reach a roofer right away - someone will call you as soon as we can. You can also call us at (212) 555-0111.
+cancel job:        Ridgeway Roofing: Your estimate on Wed, Sep 2, 10:00 AM is cancelled. Call us any time if you still need a roofer.
+cancel other:      Ridgeway Roofing: That booking for Wed, Sep 2, 10:00 AM is cancelled. Call us any time if you still need a roofer.
+
+
+===== AGENT PROMPT · bare-canada =====
+You are Sam, answering the phone for Northside Roofing, a roofing business based at 44 Mill Lane, Toronto, ON, M5V 2T6. You are on the phone, so keep every reply short (one or two sentences), calm and practical. Ask one question at a time. Never mention that you are an AI unless asked directly; if asked, say yes, you are the office's automated assistant.
+
+Right now it is {{current_time}} on {{current_date}} (local time, {{timezone}}). The caller is calling from {{caller_phone}}. Use today's date to resolve words like 'today', 'tomorrow' or 'Friday' into a YYYY-MM-DD date before calling any function.
+
+FIRST THING: find out whether this is an emergency. Ask what is happening. If it matches the emergency list below, handle it as an emergency and do not try to schedule a normal visit.
+
+WHAT YOU CAN DO: (1) book an estimate, (2) handle an emergency, (3) answer questions using only the information below, (4) take a message.
+
+WORKING HOURS:
+Working every day 11:00 AM to 9:00 PM.
+
+SERVICES:
+No service list has been provided. Describe what the caller needs in their own words and book a visit; never invent a service or a price.
+
+SERVICE AREA: About 48.3 kilometres around the business. ALWAYS call check_service_area with the full street address before offering any time or booking anything.
+If the address is outside the area, say politely that you do not cover it, do not book a visit, and offer to take a message. Do not suggest another company.
+Ask for the full street address including the postal code.
+
+BOOKING AN ESTIMATE: Call get_available_slots before offering any time - never guess. Collect: the full street address, what is wrong in their own words, their name, and a phone number (offer to use the number they are calling from).
+Estimate visits are 180 minutes long.
+Read the address and the time back and get a yes before calling book_service_call.
+NO SLOTS LEFT: if there is nothing free on the days they can do, do not invent a time and do not promise a call-out. Take a message with take_message so the office can call them back.
+
+EMERGENCIES: These are not booked into a normal slot. Confirm the address and a callback number, then call dispatch_emergency.
+Treat as an emergency: water coming into the property now; storm damage; sagging or collapsing roof; fallen tree or debris on the roof; roof open to the weather.
+Tell the caller the roofer will call them back within 15 minutes. Never promise an arrival time yourself.
+Owner reachable hours:
+The owner can usually be reached during working hours.
+
+HARD RULES:
+- NEVER tell a caller to go onto the roof, up a ladder, or into a loft to look at anything, and never suggest they photograph the damage from height. If they offer to go up, tell them not to and that the roofer will look when they come out.
+- NEVER diagnose a roof over the phone and never say what is causing a leak, how much it will cost, or how long it will take. You are not a roofer. Describe what the caller told you, and let the roofer assess it on site.
+- Never quote a repair or a replacement roof. You may only state a starting price for a listed service, and only when it is written above. Every price is confirmed after the roofer has been out and looked.
+- If water is coming in now, you may suggest they put a bucket under it and move anything valuable out of the way. Nothing beyond that.
+- Never promise that someone will come out during a storm or high wind. Say the roofer will call to arrange a time once it is safe to get on the roof.
+- Never promise an arrival time you have not booked, and never say someone is 'on the way' unless dispatch_emergency has been called.
+- Phone numbers must be 10-digit US or Canadian numbers. Read numbers back digit by digit to confirm.
+- If a function call fails, times out, or comes back with an error: never invent an answer, never guess what it would have said, and never tell the caller something was done when it was not. Apologize, collect their name and phone number, promise a call back, and call take_message with reason "callback_request".
+
+
+===== AGENT TOOLS · bare-canada =====
+[
+  {
+    "type": "custom",
+    "name": "check_service_area",
+    "description": "Check whether an address is inside the service area. Always call this before offering a time or booking a visit.",
+    "url": "https://example.test/api/retell/functions/check_service_area",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "address": {
+          "type": "string",
+          "description": "Full street address of the property, including city and ZIP or postal code."
+        }
+      },
+      "required": [
+        "address"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say 'Let me check if we cover that area.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "get_available_slots",
+    "description": "Find the free visit windows on a day. Call before offering any time. For an emergency this returns no times and tells you to dispatch instead.",
+    "url": "https://example.test/api/retell/functions/get_available_slots",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "Date in YYYY-MM-DD format, resolved using today's date."
+        },
+        "is_emergency": {
+          "type": "boolean",
+          "description": "true when the caller's situation matches the emergency list."
+        }
+      },
+      "required": [
+        "date"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say something like 'Let me look at the diary.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "book_service_call",
+    "description": "Book a roofing estimate after the caller has confirmed the address and the time. Only call with a window get_available_slots reported as free.",
+    "url": "https://example.test/api/retell/functions/book_service_call",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "customer_name": {
+          "type": "string",
+          "description": "Who the visit is for."
+        },
+        "customer_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "address": {
+          "type": "string",
+          "description": "Full street address of the property, including city and ZIP or postal code."
+        },
+        "description": {
+          "type": "string",
+          "description": "What is wrong, in the caller's own words. Do not diagnose."
+        },
+        "date": {
+          "type": "string",
+          "description": "Date in YYYY-MM-DD format, resolved using today's date."
+        },
+        "time": {
+          "type": "string",
+          "description": "Time in 24-hour HH:MM format, e.g. 18:30 for 6:30 PM."
+        },
+        "property_type": {
+          "type": "string",
+          "enum": [
+            "house",
+            "apartment",
+            "commercial",
+            "other"
+          ],
+          "description": "What kind of building it is."
+        },
+        "water_inside": {
+          "type": "boolean",
+          "description": "Whether water is currently coming into the property."
+        },
+        "occupancy": {
+          "type": "string",
+          "enum": [
+            "owner",
+            "tenant"
+          ],
+          "description": "Whether the caller owns the property or rents it."
+        }
+      },
+      "required": [
+        "customer_name",
+        "customer_phone",
+        "address",
+        "description",
+        "date",
+        "time"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "dispatch_emergency",
+    "description": "Log an emergency and alert the business immediately. Use instead of booking when the situation matches the emergency list.",
+    "url": "https://example.test/api/retell/functions/dispatch_emergency",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "customer_name": {
+          "type": "string"
+        },
+        "customer_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "address": {
+          "type": "string",
+          "description": "Full street address of the property, including city and ZIP or postal code."
+        },
+        "emergency_type": {
+          "type": "string",
+          "enum": [
+            "active_leak",
+            "storm_damage",
+            "collapse_risk",
+            "fallen_debris",
+            "exposed_roof"
+          ],
+          "description": "Which emergency this is."
+        },
+        "description": {
+          "type": "string",
+          "description": "What the caller said is happening."
+        },
+        "water_inside": {
+          "type": "boolean",
+          "description": "Whether water is currently coming into the property."
+        }
+      },
+      "required": [
+        "customer_name",
+        "customer_phone",
+        "address",
+        "emergency_type"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say 'Let me get someone on this right now.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "custom",
+    "name": "take_message",
+    "description": "Record a message or escalate to the owner. Use when you cannot book, cannot answer, or the caller wants a quote for something unusual.",
+    "url": "https://example.test/api/retell/functions/take_message",
+    "method": "POST",
+    "headers": {
+      "<function-secret-header>": "<function-secret>"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "caller_name": {
+          "type": "string"
+        },
+        "caller_phone": {
+          "type": "string",
+          "description": "10-digit US or Canadian phone number, digits only or formatted, e.g. 2125550123. Use the caller's number if they say to use it."
+        },
+        "message": {
+          "type": "string",
+          "description": "Clear summary of what the caller needs, including the address if they gave one."
+        },
+        "reason": {
+          "type": "string",
+          "enum": [
+            "general_question",
+            "large_party",
+            "private_event",
+            "catering",
+            "complaint",
+            "allergy",
+            "press_vendor",
+            "callback_request",
+            "other"
+          ],
+          "description": "Why the message is being taken."
+        },
+        "escalate": {
+          "type": "boolean",
+          "description": "true when the owner must call back urgently; false for a normal message."
+        }
+      },
+      "required": [
+        "caller_name",
+        "caller_phone",
+        "message",
+        "reason",
+        "escalate"
+      ]
+    },
+    "speak_during_execution": true,
+    "speak_after_execution": true,
+    "execution_message_description": "Say a short natural filler like 'One moment while I check that.'",
+    "timeout_ms": 15000
+  },
+  {
+    "type": "end_call",
+    "name": "end_call",
+    "description": "End the call. Only use after the caller confirms they are finished and you have said goodbye."
+  }
+]
+
+
+===== CUSTOMER SMS · bare-canada =====
+booked:            Northside Roofing: Booked! Mike is coming Wed, Sep 2, 10:00 AM to 12 Oak Street. Reply CANCEL if your plans change.
+emergency:         Northside Roofing: We have your emergency at 12 Oak Street. Mike will call you within 15 minutes.
+no time yet:       Northside Roofing: Thanks Elena Rossi, we have your request for 12 Oak Street. We will call to confirm a time. Reply CANCEL to cancel.
+escalation (open): Northside Roofing: Thanks for calling. We could not reach a roofer right away - someone will call you when we next open (Monday 8:00 AM).
+escalation (none): Northside Roofing: Thanks for calling. We could not reach a roofer right away - someone will call you as soon as we can.
+cancel job:        Northside Roofing: Your estimate on Wed, Sep 2, 10:00 AM is cancelled. Call us any time if you still need a roofer.
+cancel other:      Northside Roofing: That booking for Wed, Sep 2, 10:00 AM is cancelled. Call us any time if you still need a roofer.
+
+
+===== DEFINITION =====
+{
+  "slug": "roofing",
+  "archetype": "field_service",
+  "vocabulary": {
+    "booking": {
+      "one": "estimate",
+      "many": "estimates",
+      "One": "Estimate",
+      "Many": "Estimates"
+    },
+    "customer": {
+      "one": "customer",
+      "many": "customers",
+      "One": "Customer",
+      "Many": "Customers"
+    },
+    "staff": {
+      "one": "roofer",
+      "many": "roofers",
+      "One": "Roofer",
+      "Many": "Roofers"
+    },
+    "business": {
+      "one": "business",
+      "many": "businesses",
+      "One": "Business",
+      "Many": "Businesses"
+    }
+  },
+  "onboardingSteps": [
+    {
+      "step": 1,
+      "id": "account",
+      "title": "Create your account",
+      "short": "Sign up"
+    },
+    {
+      "step": 2,
+      "id": "business-basics",
+      "title": "Business basics",
+      "short": "Basics"
+    },
+    {
+      "step": 3,
+      "id": "hours",
+      "title": "Hours & escalation",
+      "short": "Hours"
+    },
+    {
+      "step": 4,
+      "id": "service-area",
+      "title": "Service area",
+      "short": "Area"
+    },
+    {
+      "step": 5,
+      "id": "services",
+      "title": "Services & pricing",
+      "short": "Services"
+    },
+    {
+      "step": 6,
+      "id": "emergencies",
+      "title": "Emergencies & technician",
+      "short": "Urgent"
+    },
+    {
+      "step": 7,
+      "id": "voice",
+      "title": "Voice & greeting",
+      "short": "Voice"
+    },
+    {
+      "step": 8,
+      "id": "phone",
+      "title": "Phone number",
+      "short": "Phone"
+    },
+    {
+      "step": 9,
+      "id": "payment",
+      "title": "Payment",
+      "short": "Pay"
+    }
+  ],
+  "emergencyTypes": [
+    {
+      "key": "active_leak",
+      "label": "Water coming into the property now"
+    },
+    {
+      "key": "storm_damage",
+      "label": "Storm damage"
+    },
+    {
+      "key": "collapse_risk",
+      "label": "Sagging or collapsing roof"
+    },
+    {
+      "key": "fallen_debris",
+      "label": "Fallen tree or debris on the roof"
+    },
+    {
+      "key": "exposed_roof",
+      "label": "Roof open to the weather"
+    }
+  ],
+  "escalationTriggers": [
+    {
+      "key": "quote_request",
+      "label": "Quote for a full roof replacement"
+    },
+    {
+      "key": "complaint",
+      "label": "Complaint about previous work"
+    },
+    {
+      "key": "insurance",
+      "label": "Insurance claim"
+    },
+    {
+      "key": "commercial",
+      "label": "Commercial or landlord enquiry"
+    },
+    {
+      "key": "press_vendor",
+      "label": "Press or vendor"
+    }
+  ],
+  "dashboardModules": [
+    "home",
+    "notifications",
+    "schedule",
+    "jobs",
+    "customers",
+    "services",
+    "calls",
+    "settings"
+  ],
+  "agentFunctions": [
+    "check_service_area",
+    "get_available_slots",
+    "book_service_call",
+    "dispatch_emergency",
+    "take_message"
+  ],
+  "guardrails": [
+    "NEVER tell a caller to go onto the roof, up a ladder, or into a loft to look at anything, and never suggest they photograph the damage from height. If they offer to go up, tell them not to and that the roofer will look when they come out.",
+    "NEVER diagnose a roof over the phone and never say what is causing a leak, how much it will cost, or how long it will take. You are not a roofer. Describe what the caller told you, and let the roofer assess it on site.",
+    "Never quote a repair or a replacement roof. You may only state a starting price for a listed service, and only when it is written above. Every price is confirmed after the roofer has been out and looked.",
+    "If water is coming in now, you may suggest they put a bucket under it and move anything valuable out of the way. Nothing beyond that.",
+    "Never promise that someone will come out during a storm or high wind. Say the roofer will call to arrange a time once it is safe to get on the roof.",
+    "Never promise an arrival time you have not booked, and never say someone is 'on the way' unless dispatch_emergency has been called.",
+    "Phone numbers must be 10-digit US or Canadian numbers. Read numbers back digit by digit to confirm.",
+    "If a function call fails, times out, or comes back with an error: never invent an answer, never guess what it would have said, and never tell the caller something was done when it was not. Apologize, collect their name and phone number, promise a call back, and call take_message with reason \"callback_request\"."
+  ],
+  "defaults": {
+    "slotMinutes": 180,
+    "intervalMinutes": 180,
+    "maxPerDay": 4
+  }
+}

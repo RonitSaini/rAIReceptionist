@@ -2,6 +2,9 @@ import type { Vertical } from "@prisma/client";
 import type { OnboardingStep, VerticalCatalogEntry, VerticalDefinition, Vocabulary } from "./types";
 import { restaurant } from "./restaurant";
 import { plumbing } from "./plumbing";
+import { hvac } from "./hvac";
+import { electrical } from "./electrical";
+import { roofing } from "./roofing";
 
 /**
  * The vertical registry — the only place professions are enumerated.
@@ -18,6 +21,9 @@ import { plumbing } from "./plumbing";
 const VERTICALS = {
   restaurant,
   plumbing,
+  hvac,
+  electrical,
+  roofing,
 } as const satisfies Partial<Record<Vertical, VerticalDefinition>>;
 
 type CatalogSeed = Omit<VerticalCatalogEntry, "available">;
@@ -25,9 +31,9 @@ type CatalogSeed = Omit<VerticalCatalogEntry, "available">;
 const CATALOG_SEED: readonly CatalogSeed[] = [
   { slug: "restaurant", label: "Restaurant", blurb: "Reservations, takeout orders and questions.", archetype: "restaurant" },
   { slug: "plumbing", label: "Plumbing", blurb: "Service calls, emergencies and a service area.", archetype: "field_service" },
-  { slug: "hvac", label: "HVAC", blurb: "Heating and cooling calls, no-heat emergencies.", archetype: "field_service" },
-  { slug: "electrical", label: "Electrical", blurb: "Service calls, outages and safety escalations.", archetype: "field_service" },
-  { slug: "roofing", label: "Roofing", blurb: "Estimates, leaks and storm damage.", archetype: "field_service" },
+  { slug: "hvac", label: "HVAC", blurb: "Heating and cooling call-outs, emergencies and a service area.", archetype: "field_service" },
+  { slug: "electrical", label: "Electrical", blurb: "Electrical call-outs, emergencies and a service area.", archetype: "field_service" },
+  { slug: "roofing", label: "Roofing", blurb: "Estimates, storm damage and a service area.", archetype: "field_service" },
   { slug: "locksmith", label: "Locksmith", blurb: "Lockouts dispatched to the caller's location.", archetype: "field_service" },
   { slug: "towing", label: "Towing", blurb: "Tow requests dispatched to a vehicle.", archetype: "field_service" },
   { slug: "auto_repair", label: "Auto Repair", blurb: "Appointments booked around a vehicle.", archetype: "shop_appointment" },
