@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { signIn } from "next-auth/react";
-import { signUp } from "@/actions/auth";
+import { recordTermsForGoogleSignup, signUp } from "@/actions/auth";
 import type { ActionState } from "@/lib/form";
 import { Alert, Button, Field, Input } from "@/components/ui";
 import { GoogleButton } from "@/components/google-button";
@@ -11,6 +11,9 @@ import type { VerticalCatalogEntry } from "@/verticals/types";
 
 export function SignupForm({ googleEnabled, catalog }: { googleEnabled: boolean; catalog: readonly VerticalCatalogEntry[] }) {
   const [vertical, setVertical] = useState("");
+  // Unchecked by default, and both signup paths key off it: the submit button stays disabled and
+  // the Google button won't leave for OAuth until it's ticked. The server checks again regardless.
+  const [agreed, setAgreed] = useState(false);
   // React resets the form once a server action completes, so the credentials must be captured
   // on the way in — reading the fields afterwards yields empty strings and a failed sign-in.
   const credsRef = useRef<{ email: string; password: string } | null>(null);
@@ -41,7 +44,29 @@ export function SignupForm({ googleEnabled, catalog }: { googleEnabled: boolean;
         <Field label="Password" htmlFor="password" hint="At least 8 characters.">
           <Input id="password" name="password" type="password" required minLength={8} autoComplete="new-password" placeholder="••••••••" />
         </Field>
-        <Button type="submit" size="lg" full disabled={pending || !!state?.ok || !vertical}>
+        <label htmlFor="acceptTerms" className="flex items-start gap-2.5 text-sm text-gray-700">
+          <input
+            id="acceptTerms"
+            name="acceptTerms"
+            type="checkbox"
+            required
+            checked={agreed}
+            onChange={(e) => setAgreed(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 accent-brand-600"
+          />
+          <span>
+            I agree to the{" "}
+            <a href="/terms" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-700 underline">
+              Terms of Service
+            </a>{" "}
+            and{" "}
+            <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-700 underline">
+              Privacy Policy
+            </a>
+            .
+          </span>
+        </label>
+        <Button type="submit" size="lg" full disabled={pending || !!state?.ok || !vertical || !agreed}>
           {pending ? "Creating account…" : "Create account"}
         </Button>
       </form>
@@ -52,7 +77,10 @@ export function SignupForm({ googleEnabled, catalog }: { googleEnabled: boolean;
             or
             <span className="h-px flex-1 bg-gray-200" />
           </div>
-          <GoogleButton callbackUrl="/onboarding/1" label="Sign up with Google" />
+          {/* Consent is captured server-side (a signed cookie) BEFORE the browser leaves for
+              Google; the NextAuth callback refuses to create a user without it. */}
+          <GoogleButton callbackUrl="/onboarding/1" label="Sign up with Google" disabled={!agreed} beforeSignIn={() => recordTermsForGoogleSignup()} />
+          {!agreed ? <p className="mt-2 text-center text-xs text-gray-400">Tick the agreement box above to enable sign-up.</p> : null}
         </>
       ) : null}
     </div>

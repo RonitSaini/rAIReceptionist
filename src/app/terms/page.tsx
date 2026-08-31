@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Logo } from "@/components/logo";
 import { AnimatedThemeToggle } from "@/components/ui/animated-theme-toggle";
+import { TERMS_EFFECTIVE } from "./terms-version";
 
 export const metadata: Metadata = {
   title: "Terms of Service — FrontDesk AI",
@@ -14,7 +15,6 @@ export const metadata: Metadata = {
  * on that business, and hiding them in boilerplate would be the dishonest version of this page.
  */
 
-const EFFECTIVE = "August 31, 2026";
 const CONTACT = "mintchilled553@gmail.com";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -35,7 +35,7 @@ export default function TermsPage() {
       <header className="mb-10">
         <Logo href="/" />
         <h1 className="mt-6 text-3xl font-extrabold tracking-tight">Terms of Service</h1>
-        <p className="mt-2 text-sm text-gray-500">Effective {EFFECTIVE}</p>
+        <p className="mt-2 text-sm text-gray-500">Effective {TERMS_EFFECTIVE}</p>
       </header>
 
       <div className="space-y-10 text-[15px] leading-7 text-gray-700">

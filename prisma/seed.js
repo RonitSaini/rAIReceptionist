@@ -92,7 +92,14 @@ async function main() {
     },
   });
 
-  await prisma.user.create({ data: { email, name: "Maria Lopez", passwordHash: hashPassword("password123"), accountId: account.id } });
+  const user = await prisma.user.create({ data: { email, name: "Maria Lopez", passwordHash: hashPassword("password123"), accountId: account.id } });
+
+  // A seeded demo is a signed-up user, and signing up now records terms acceptance — without this
+  // row the interstitial (correctly) blocks the dashboard. Version read from its single source.
+  const TERMS_VERSION = require("node:fs")
+    .readFileSync(require("node:path").join(__dirname, "../src/app/terms/terms-version.ts"), "utf8")
+    .match(/TERMS_VERSION = "(\d{4}-\d{2}-\d{2})"/)[1];
+  await prisma.termsAcceptance.create({ data: { userId: user.id, termsVersion: TERMS_VERSION, ipAddress: null } });
 
   // Hours: lunch + dinner Tue–Sun, closed Monday
   const hours = [];

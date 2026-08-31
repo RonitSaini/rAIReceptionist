@@ -4,6 +4,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { prisma } from "./prisma";
 import { verifyPassword } from "./password";
+import { hasPendingTermsCookie, recordTermsAcceptance, requestIp } from "./terms-acceptance";
 
 export const googleEnabled = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 
@@ -44,13 +45,25 @@ export const authOptions: NextAuthOptions = {
       if (account?.provider === "google") {
         const email = user.email?.toLowerCase();
         if (!email) return false;
+
+        // Terms gate for the Google SIGNUP path. Consent was captured before the OAuth redirect as
+        // a signed cookie (recordTermsForGoogleSignup); a brand-new user arriving without it — a
+        // hand-crafted flow, or Google clicked on the login page by someone with no account — is
+        // sent to the signup screen to tick the box. Existing users are untouched here: the
+        // interstitial handles anyone who predates the current version.
+        const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+        const accepted = await hasPendingTermsCookie();
+        if (!existing && !accepted) return "/signup?error=terms";
+
         const googleId = account.providerAccountId;
         const emailVerified = (profile as { email_verified?: boolean } | undefined)?.email_verified ? new Date() : null;
-        await prisma.user.upsert({
+        const dbUser = await prisma.user.upsert({
           where: { email },
           update: { googleId, name: user.name ?? undefined, image: user.image ?? undefined, ...(emailVerified ? { emailVerified } : {}) },
           create: { email, googleId, name: user.name ?? null, image: user.image ?? null, emailVerified },
+          select: { id: true },
         });
+        if (accepted) await recordTermsAcceptance(dbUser.id, await requestIp());
       }
       return true;
     },

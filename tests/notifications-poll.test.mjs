@@ -58,7 +58,8 @@ test("polling and page GETs never change readAt", async () => {
   await get("/api/notifications/recent");
   for (const page of ["/dashboard", "/notifications", "/notifications?unread=1"]) {
     const res = await get(page);
-    assert.equal(res.status, 200, `${page} -> ${res.status}`);
+    const hint = res.status === 307 ? ` (redirect to ${res.headers.get("location")} — the demo user likely lacks a current terms acceptance; re-run npm run db:seed)` : "";
+    assert.equal(res.status, 200, `${page} -> ${res.status}${hint}`);
     const html = await res.text();
     // Guard against a side-effecting GET coming back as a link target (it was once a route handler).
     assert.doesNotMatch(html, /\/notifications\/open\//, `${page} renders a link to a mark-read GET`);

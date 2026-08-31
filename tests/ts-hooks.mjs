@@ -41,13 +41,34 @@ function withExtension(path) {
 // .env.stripe-webhook-production, and nothing here reads either.
 process.env.STRIPE_WEBHOOK_SECRET ||= "whsec_localtestonly_0000000000000000000000";
 
+/**
+ * next-auth's providers are CJS compiled with `exports.default = fn`. A bundler unwraps that;
+ * Node's ESM loader hands back the whole exports object, and `CredentialsProvider(...)` explodes.
+ * These specifiers get a one-line synthetic module that re-exports the real default.
+ */
+const CJS_DEFAULT_INTEROP = new Set(["next-auth/providers/credentials", "next-auth/providers/google"]);
+const INTEROP_PREFIX = "frontdesk-interop:";
+
 registerHooks({
+  load(url, context, nextLoad) {
+    if (url.startsWith(INTEROP_PREFIX)) {
+      const real = url.slice(INTEROP_PREFIX.length);
+      return { format: "module", source: `import m from ${JSON.stringify(real)}; export default m && m.default ? m.default : m;`, shortCircuit: true };
+    }
+    return nextLoad(url, context);
+  },
   resolve(specifier, context, nextResolve) {
-    // Library code calls next/server's `after()` to queue calendar sync behind the response.
-    // Next publishes that entry for bundlers, not for Node's own ESM resolver, so map it to the
-    // real file. Tests only load it — nothing ever calls after() without a request in flight.
-    if (specifier === "next/server") {
-      const found = withExtension(resolvePath(SRC, "../node_modules/next/server")) ?? resolvePath(SRC, "../node_modules/next/server.js");
+    if (CJS_DEFAULT_INTEROP.has(specifier)) {
+      const real = nextResolve(specifier, context);
+      return { url: INTEROP_PREFIX + real.url, shortCircuit: true };
+    }
+    // Library code imports Next's top-level entries — next/server (after()), next/headers
+    // (cookies/headers for the terms records), next/navigation (redirect). Next publishes them for
+    // bundlers, not for Node's own ESM resolver, so map each to its real shim file. Tests only
+    // load them — request-scoped calls all degrade or are never reached outside a request.
+    if (/^next\/[a-z-]+$/.test(specifier)) {
+      const base = resolvePath(SRC, "../node_modules/next/" + specifier.slice("next/".length));
+      const found = withExtension(base) ?? `${base}.js`;
       return { url: pathToFileURL(found).href, shortCircuit: true };
     }
     if (specifier.startsWith("@/")) {

@@ -26,7 +26,23 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  termsAcceptances TermsAcceptance[]
+
   @@index([accountId])
+}
+
+/// The record produced during a dispute: who agreed to which version of /terms, when, from where.
+/// One row per user per version — re-accepting the same version keeps the FIRST timestamp, and a
+/// material terms change re-prompts by bumping TERMS_VERSION (src/app/terms/terms-version.ts).
+model TermsAcceptance {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  termsVersion String
+  acceptedAt   DateTime @default(now())
+  ipAddress    String?
+
+  @@unique([userId, termsVersion])
 }
 
 // ---------- Business account ----------
