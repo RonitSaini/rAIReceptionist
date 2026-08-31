@@ -15,7 +15,10 @@ const OAUTH_AUTH = "https://accounts.google.com/o/oauth2/v2/auth";
 const OAUTH_TOKEN = "https://oauth2.googleapis.com/token";
 const OAUTH_REVOKE = "https://oauth2.googleapis.com/revoke";
 const CAL = "https://www.googleapis.com/calendar/v3";
-export const CALENDAR_SCOPES = ["https://www.googleapis.com/auth/calendar.events", "https://www.googleapis.com/auth/calendar.readonly", "https://www.googleapis.com/auth/userinfo.email"];
+// The narrowest set that works: event read/write on the chosen calendar (which also covers reading
+// its busy times), the *list* of calendars for the picker — not their contents, which is what the
+// broader calendar.readonly would have granted — and the address shown as "Signed in as".
+export const CALENDAR_SCOPES = ["https://www.googleapis.com/auth/calendar.events", "https://www.googleapis.com/auth/calendar.calendarlist.readonly", "https://www.googleapis.com/auth/userinfo.email"];
 const OURS = "frontdesk_reservation_id"; // private extended property marking events we created
 const OURS_JOB = "frontdesk_job_id"; // same marker for Job events, so our own work never counts as busy
 
@@ -89,7 +92,9 @@ export async function completeConnection(accountId: string, code: string): Promi
     email = me.email ?? null;
   } catch {}
   try {
-    const primary = (await gfetch(tok.access_token, `${CAL}/calendars/primary`)) as { summary?: string };
+    // The calendarList entry, not the Calendars resource: reading calendar metadata directly needs
+    // a scope we deliberately no longer ask for, and the list entry carries the same display name.
+    const primary = (await gfetch(tok.access_token, `${CAL}/users/me/calendarList/primary`)) as { summary?: string };
     calendarName = primary.summary ?? null;
   } catch {}
 
