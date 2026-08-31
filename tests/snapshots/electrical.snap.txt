@@ -306,11 +306,11 @@ HARD RULES:
 
 
 ===== CUSTOMER SMS · full =====
-booked:            Ridgeway Electrical: Booked! Mike is coming Wed, Sep 2, 10:00 AM to 12 Oak Street. Reply CANCEL if your plans change. Questions? Call (212) 555-0111.
-emergency:         Ridgeway Electrical: We have your emergency at 12 Oak Street. Mike will call you within 15 minutes. Questions? Call (212) 555-0111.
-no time yet:       Ridgeway Electrical: Thanks Elena Rossi, we have your request for 12 Oak Street. We will call to confirm a time. Reply CANCEL to cancel. Questions? Call (212) 555-0111.
-escalation (open): Ridgeway Electrical: Thanks for calling. We could not reach a electrician right away - someone will call you when we next open (Monday 8:00 AM). You can also call us at (212) 555-0111.
-escalation (none): Ridgeway Electrical: Thanks for calling. We could not reach a electrician right away - someone will call you as soon as we can. You can also call us at (212) 555-0111.
+booked:            Ridgeway Electrical: Booked! Mike is coming Wed, Sep 2, 10:00 AM to 12 Oak Street. Reply CANCEL if your plans change. Questions? Call (212) 555-0111. Reply STOP to opt out.
+emergency:         Ridgeway Electrical: We have your emergency at 12 Oak Street. Mike will call you within 15 minutes. Questions? Call (212) 555-0111. Reply STOP to opt out.
+no time yet:       Ridgeway Electrical: Thanks Elena Rossi, we have your request for 12 Oak Street. We will call to confirm a time. Reply CANCEL to cancel. Questions? Call (212) 555-0111. Reply STOP to opt out.
+escalation (open): Ridgeway Electrical: Thanks for calling. We could not reach a electrician right away - someone will call you when we next open (Monday 8:00 AM). You can also call us at (212) 555-0111. Reply STOP to opt out.
+escalation (none): Ridgeway Electrical: Thanks for calling. We could not reach a electrician right away - someone will call you as soon as we can. You can also call us at (212) 555-0111. Reply STOP to opt out.
 cancel job:        Ridgeway Electrical: Your visit on Wed, Sep 2, 10:00 AM is cancelled. Call us any time if you still need a electrician.
 cancel other:      Ridgeway Electrical: That booking for Wed, Sep 2, 10:00 AM is cancelled. Call us any time if you still need a electrician.
 
@@ -610,11 +610,11 @@ HARD RULES:
 
 
 ===== CUSTOMER SMS · bare-canada =====
-booked:            Northside Electric: Booked! Mike is coming Wed, Sep 2, 10:00 AM to 12 Oak Street. Reply CANCEL if your plans change.
-emergency:         Northside Electric: We have your emergency at 12 Oak Street. Mike will call you within 15 minutes.
-no time yet:       Northside Electric: Thanks Elena Rossi, we have your request for 12 Oak Street. We will call to confirm a time. Reply CANCEL to cancel.
-escalation (open): Northside Electric: Thanks for calling. We could not reach a electrician right away - someone will call you when we next open (Monday 8:00 AM).
-escalation (none): Northside Electric: Thanks for calling. We could not reach a electrician right away - someone will call you as soon as we can.
+booked:            Northside Electric: Booked! Mike is coming Wed, Sep 2, 10:00 AM to 12 Oak Street. Reply CANCEL if your plans change. Reply STOP to opt out.
+emergency:         Northside Electric: We have your emergency at 12 Oak Street. Mike will call you within 15 minutes. Reply STOP to opt out.
+no time yet:       Northside Electric: Thanks Elena Rossi, we have your request for 12 Oak Street. We will call to confirm a time. Reply CANCEL to cancel. Reply STOP to opt out.
+escalation (open): Northside Electric: Thanks for calling. We could not reach a electrician right away - someone will call you when we next open (Monday 8:00 AM). Reply STOP to opt out.
+escalation (none): Northside Electric: Thanks for calling. We could not reach a electrician right away - someone will call you as soon as we can. Reply STOP to opt out.
 cancel job:        Northside Electric: Your visit on Wed, Sep 2, 10:00 AM is cancelled. Call us any time if you still need a electrician.
 cancel other:      Northside Electric: That booking for Wed, Sep 2, 10:00 AM is cancelled. Call us any time if you still need a electrician.
 

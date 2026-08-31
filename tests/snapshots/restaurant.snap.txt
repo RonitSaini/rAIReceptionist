@@ -2591,24 +2591,24 @@ Thanks for calling Ronit's Pizza! This is Kate. Just so you know, this call may 
 
 
 ===== GUEST SMS · full =====
-reservation:      Luigi's Trattoria: You're booked! Party of 4 on Wed, Sep 2, 7:30 PM. Reply CANCEL if your plans change. Questions? Call (212) 555-0199.
-waitlist:         Luigi's Trattoria: Elena Rossi, you're on our waitlist for 4 on Wed, Sep 2, 7:30 PM. We'll call if a table opens up. Reply CANCEL to leave the waitlist. Questions? Call (212) 555-0199.
-takeout:          Luigi's Trattoria: Order received - 2x Margherita Pizza, 1x Caesar Salad, no anchovy. Pickup Wed, Sep 2, 7:00 PM. Reply CANCEL to cancel. Questions? Call (212) 555-0199.
-delivery:         Luigi's Trattoria: Order received - 2x Margherita Pizza, 1x Caesar Salad, no anchovy. Delivery Wed, Sep 2, 7:00 PM. Reply CANCEL to cancel. Questions? Call (212) 555-0199.
-escalation (open):Luigi's Trattoria: Thanks for calling. Our manager couldn't get back to you right away - they'll call you when we next open (Tuesday 5:00 PM). You can also call us at (212) 555-0199.
-escalation (none):Luigi's Trattoria: Thanks for calling. Our manager couldn't get back to you right away - they'll call you as soon as we open. You can also call us at (212) 555-0199.
+reservation:      Luigi's Trattoria: You're booked! Party of 4 on Wed, Sep 2, 7:30 PM. Reply CANCEL if your plans change. Questions? Call (212) 555-0199. Reply STOP to opt out.
+waitlist:         Luigi's Trattoria: Elena Rossi, you're on our waitlist for 4 on Wed, Sep 2, 7:30 PM. We'll call if a table opens up. Reply CANCEL to leave the waitlist. Questions? Call (212) 555-0199. Reply STOP to opt out.
+takeout:          Luigi's Trattoria: Order received - 2x Margherita Pizza, 1x Caesar Salad, no anchovy. Pickup Wed, Sep 2, 7:00 PM. Reply CANCEL to cancel. Questions? Call (212) 555-0199. Reply STOP to opt out.
+delivery:         Luigi's Trattoria: Order received - 2x Margherita Pizza, 1x Caesar Salad, no anchovy. Delivery Wed, Sep 2, 7:00 PM. Reply CANCEL to cancel. Questions? Call (212) 555-0199. Reply STOP to opt out.
+escalation (open):Luigi's Trattoria: Thanks for calling. Our manager couldn't get back to you right away - they'll call you when we next open (Tuesday 5:00 PM). You can also call us at (212) 555-0199. Reply STOP to opt out.
+escalation (none):Luigi's Trattoria: Thanks for calling. Our manager couldn't get back to you right away - they'll call you as soon as we open. You can also call us at (212) 555-0199. Reply STOP to opt out.
 cancel res:       Luigi's Trattoria: Your reservation for Wed, Sep 2, 7:30 PM is cancelled. Hope to see you another time!
 cancel waitlist:  Luigi's Trattoria: You've been removed from the waitlist for Wed, Sep 2, 7:30 PM. Hope to see you another time!
 cancel order:     Luigi's Trattoria: Your order for Wed, Sep 2, 7:00 PM is cancelled. Hope to see you another time!
 
 
 ===== GUEST SMS · bare =====
-reservation:      Corner Cafe: You're booked! Party of 4 on Wed, Sep 2, 7:30 PM. Reply CANCEL if your plans change.
-waitlist:         Corner Cafe: Elena Rossi, you're on our waitlist for 4 on Wed, Sep 2, 7:30 PM. We'll call if a table opens up. Reply CANCEL to leave the waitlist.
-takeout:          Corner Cafe: Order received - 2x Margherita Pizza, 1x Caesar Salad, no anchovy. Pickup Wed, Sep 2, 7:00 PM. Reply CANCEL to cancel.
-delivery:         Corner Cafe: Order received - 2x Margherita Pizza, 1x Caesar Salad, no anchovy. Delivery Wed, Sep 2, 7:00 PM. Reply CANCEL to cancel.
-escalation (open):Corner Cafe: Thanks for calling. Our manager couldn't get back to you right away - they'll call you when we next open (Tuesday 5:00 PM).
-escalation (none):Corner Cafe: Thanks for calling. Our manager couldn't get back to you right away - they'll call you as soon as we open.
+reservation:      Corner Cafe: You're booked! Party of 4 on Wed, Sep 2, 7:30 PM. Reply CANCEL if your plans change. Reply STOP to opt out.
+waitlist:         Corner Cafe: Elena Rossi, you're on our waitlist for 4 on Wed, Sep 2, 7:30 PM. We'll call if a table opens up. Reply CANCEL to leave the waitlist. Reply STOP to opt out.
+takeout:          Corner Cafe: Order received - 2x Margherita Pizza, 1x Caesar Salad, no anchovy. Pickup Wed, Sep 2, 7:00 PM. Reply CANCEL to cancel. Reply STOP to opt out.
+delivery:         Corner Cafe: Order received - 2x Margherita Pizza, 1x Caesar Salad, no anchovy. Delivery Wed, Sep 2, 7:00 PM. Reply CANCEL to cancel. Reply STOP to opt out.
+escalation (open):Corner Cafe: Thanks for calling. Our manager couldn't get back to you right away - they'll call you when we next open (Tuesday 5:00 PM). Reply STOP to opt out.
+escalation (none):Corner Cafe: Thanks for calling. Our manager couldn't get back to you right away - they'll call you as soon as we open. Reply STOP to opt out.
 cancel res:       Corner Cafe: Your reservation for Wed, Sep 2, 7:30 PM is cancelled. Hope to see you another time!
 cancel waitlist:  Corner Cafe: You've been removed from the waitlist for Wed, Sep 2, 7:30 PM. Hope to see you another time!
 cancel order:     Corner Cafe: Your order for Wed, Sep 2, 7:00 PM is cancelled. Hope to see you another time!

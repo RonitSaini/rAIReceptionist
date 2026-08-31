@@ -332,10 +332,10 @@ HARD RULES:
 
 
 ===== CUSTOMER SMS =====
-work order:        Ridgeway Property: Thanks Elena Rossi, your work order is logged. We will be in touch to arrange a time. Questions? Call (212) 555-0111.
-emergency:         Ridgeway Property: We have your emergency and someone has been alerted. You will get a call back shortly. Questions? Call (212) 555-0111.
-escalation (open): Ridgeway Property: Thanks for calling. We could not reach anyone right away - someone will call you when the office next opens (Monday 9:00 AM). You can also call us at (212) 555-0111.
-escalation (none): Ridgeway Property: Thanks for calling. We could not reach anyone right away - someone will call you as soon as we can. You can also call us at (212) 555-0111.
+work order:        Ridgeway Property: Thanks Elena Rossi, your work order is logged. We will be in touch to arrange a time. Questions? Call (212) 555-0111. Reply STOP to opt out.
+emergency:         Ridgeway Property: We have your emergency and someone has been alerted. You will get a call back shortly. Questions? Call (212) 555-0111. Reply STOP to opt out.
+escalation (open): Ridgeway Property: Thanks for calling. We could not reach anyone right away - someone will call you when the office next opens (Monday 9:00 AM). You can also call us at (212) 555-0111. Reply STOP to opt out.
+escalation (none): Ridgeway Property: Thanks for calling. We could not reach anyone right away - someone will call you as soon as we can. You can also call us at (212) 555-0111. Reply STOP to opt out.
 cancel job:        Ridgeway Property: The work order scheduled for Wed, Sep 2, 10:00 AM is cancelled. Call us if you still need it.
 
 

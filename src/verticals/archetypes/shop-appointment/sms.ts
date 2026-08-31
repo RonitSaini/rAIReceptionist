@@ -16,22 +16,25 @@ import type { ShopWords } from "./index";
 
 const callUs = (account: SmsAccount) => (account.twilioNumber ? ` Questions? Call ${formatUsPhone(account.twilioNumber)}.` : "");
 
+/** Opt-out language for every template that can open a conversation; replies never carry it. */
+const STOP = " Reply STOP to opt out.";
+
 export function shopSmsTemplates(w: ShopWords): SmsTemplates {
   return {
     bookingConfirmation(account, booking: BookingSummary) {
       const phone = callUs(account);
       const subject = booking.items ? ` for ${booking.items}` : "";
       if (!booking.when) {
-        return `${account.businessName}: Thanks ${booking.customerName}, we have your request${subject}. We will call to confirm a time. Reply CANCEL to cancel.${phone}`;
+        return `${account.businessName}: Thanks ${booking.customerName}, we have your request${subject}. We will call to confirm a time. Reply CANCEL to cancel.${phone}${STOP}`;
       }
       const when = formatDateTime(booking.when, account.timeZone);
-      return `${account.businessName}: Booked! ${when}${subject}. Please arrive a few minutes early. Reply CANCEL if your plans change.${phone}`;
+      return `${account.businessName}: Booked! ${when}${subject}. Please arrive a few minutes early. Reply CANCEL if your plans change.${phone}${STOP}`;
     },
 
     escalationFollowUp(account, nextOpen) {
       const when = nextOpen ? ` when we next open (${nextOpen})` : " as soon as we can";
       const phone = account.twilioNumber ? ` You can also call us at ${formatUsPhone(account.twilioNumber)}.` : "";
-      return `${account.businessName}: Thanks for calling. We could not reach a ${w.staff} right away - someone will call you${when}.${phone}`;
+      return `${account.businessName}: Thanks for calling. We could not reach a ${w.staff} right away - someone will call you${when}.${phone}${STOP}`;
     },
 
     cancellationReply(account: SmsAccount, kind: CancellationKind, when: Date) {

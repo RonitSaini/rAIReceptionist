@@ -228,10 +228,10 @@ HARD RULES:
 
 
 ===== CUSTOMER SMS · full =====
-booked:            Ridgeway Motors: Booked! Wed, Sep 2, 10:00 AM for 2014 Honda Civic. Please arrive a few minutes early. Reply CANCEL if your plans change. Questions? Call (212) 555-0111.
-no time yet:       Ridgeway Motors: Thanks Elena Rossi, we have your request for 2014 Honda Civic. We will call to confirm a time. Reply CANCEL to cancel. Questions? Call (212) 555-0111.
-escalation (open): Ridgeway Motors: Thanks for calling. We could not reach a service advisor right away - someone will call you when we next open (Monday 8:00 AM). You can also call us at (212) 555-0111.
-escalation (none): Ridgeway Motors: Thanks for calling. We could not reach a service advisor right away - someone will call you as soon as we can. You can also call us at (212) 555-0111.
+booked:            Ridgeway Motors: Booked! Wed, Sep 2, 10:00 AM for 2014 Honda Civic. Please arrive a few minutes early. Reply CANCEL if your plans change. Questions? Call (212) 555-0111. Reply STOP to opt out.
+no time yet:       Ridgeway Motors: Thanks Elena Rossi, we have your request for 2014 Honda Civic. We will call to confirm a time. Reply CANCEL to cancel. Questions? Call (212) 555-0111. Reply STOP to opt out.
+escalation (open): Ridgeway Motors: Thanks for calling. We could not reach a service advisor right away - someone will call you when we next open (Monday 8:00 AM). You can also call us at (212) 555-0111. Reply STOP to opt out.
+escalation (none): Ridgeway Motors: Thanks for calling. We could not reach a service advisor right away - someone will call you as soon as we can. You can also call us at (212) 555-0111. Reply STOP to opt out.
 cancel job:        Ridgeway Motors: Your appointment on Wed, Sep 2, 10:00 AM is cancelled. Call us any time to rebook.
 cancel other:      Ridgeway Motors: That booking for Wed, Sep 2, 10:00 AM is cancelled. Call us any time to rebook.
 

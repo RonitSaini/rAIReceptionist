@@ -19,6 +19,9 @@ import type { TradeWords } from "./index";
 
 const callUs = (account: SmsAccount) => (account.twilioNumber ? ` Questions? Call ${formatUsPhone(account.twilioNumber)}.` : "");
 
+/** Opt-out language for every template that can open a conversation; replies never carry it. */
+const STOP = " Reply STOP to opt out.";
+
 /** Street address only, so a long "city, state, postcode" tail does not push the text to two segments. */
 const shortAddress = (address: string | null | undefined) => {
   const first = (address ?? "").split(",")[0].trim();
@@ -33,19 +36,19 @@ export function fieldServiceSmsTemplates(w: TradeWords): SmsTemplates {
       const phone = callUs(account);
 
       if (booking.isEmergency) {
-        return `${account.businessName}: We have your emergency${where ? ` at ${where}` : ""}. ${booking.technician || `Our ${w.staff}`} will call you within 15 minutes.${phone}`;
+        return `${account.businessName}: We have your emergency${where ? ` at ${where}` : ""}. ${booking.technician || `Our ${w.staff}`} will call you within 15 minutes.${phone}${STOP}`;
       }
       if (!booking.when) {
-        return `${account.businessName}: Thanks ${booking.customerName}, we have your request${where ? ` for ${where}` : ""}. We will call to confirm a time. Reply CANCEL to cancel.${phone}`;
+        return `${account.businessName}: Thanks ${booking.customerName}, we have your request${where ? ` for ${where}` : ""}. We will call to confirm a time. Reply CANCEL to cancel.${phone}${STOP}`;
       }
       const when = formatDateTime(booking.when, account.timeZone);
-      return `${account.businessName}: Booked!${who ? who + " is" : " We are"} coming ${when}${where ? ` to ${where}` : ""}. Reply CANCEL if your plans change.${phone}`;
+      return `${account.businessName}: Booked!${who ? who + " is" : " We are"} coming ${when}${where ? ` to ${where}` : ""}. Reply CANCEL if your plans change.${phone}${STOP}`;
     },
 
     escalationFollowUp(account, nextOpen) {
       const when = nextOpen ? ` when we next open (${nextOpen})` : " as soon as we can";
       const phone = account.twilioNumber ? ` You can also call us at ${formatUsPhone(account.twilioNumber)}.` : "";
-      return `${account.businessName}: Thanks for calling. We could not reach a ${w.staff} right away - someone will call you${when}.${phone}`;
+      return `${account.businessName}: Thanks for calling. We could not reach a ${w.staff} right away - someone will call you${when}.${phone}${STOP}`;
     },
 
     unacknowledged: w.unacknowledged

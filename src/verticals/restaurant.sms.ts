@@ -16,20 +16,24 @@ const trim = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 3)}...`
 
 const callUs = (account: SmsAccount) => (account.twilioNumber ? ` Questions? Call ${formatUsPhone(account.twilioNumber)}.` : "");
 
+/** Carrier rules want opt-out language visible in the first message a customer receives, so every
+ *  template that can OPEN a conversation ends with this. Replies (cancellations etc.) do not. */
+const STOP = " Reply STOP to opt out.";
+
 function reservationConfirmation(account: SmsAccount, b: BookingSummary): string {
   // A restaurant booking always has a time; the null case only exists for a field-service job
   // that has been requested but not yet slotted.
   const when = b.when ? formatDateTime(b.when, account.timeZone) : "a time we will confirm";
   const phone = callUs(account);
-  if (b.isWaitlist) return `${account.businessName}: ${b.customerName}, you're on our waitlist for ${b.partySize} on ${when}. We'll call if a table opens up. Reply CANCEL to leave the waitlist.${phone}`;
-  return `${account.businessName}: You're booked! Party of ${b.partySize} on ${when}. Reply CANCEL if your plans change.${phone}`;
+  if (b.isWaitlist) return `${account.businessName}: ${b.customerName}, you're on our waitlist for ${b.partySize} on ${when}. We'll call if a table opens up. Reply CANCEL to leave the waitlist.${phone}${STOP}`;
+  return `${account.businessName}: You're booked! Party of ${b.partySize} on ${when}. Reply CANCEL if your plans change.${phone}${STOP}`;
 }
 
 function orderConfirmation(account: SmsAccount, b: BookingSummary): string {
   const when = b.when ? formatDateTime(b.when, account.timeZone) : "a time we will confirm";
   const items = trim((b.items ?? "").replace(/\s*\n+\s*/g, ", "), 90);
   const phone = callUs(account);
-  return `${account.businessName}: Order received - ${items}. ${b.isDelivery ? "Delivery" : "Pickup"} ${when}. Reply CANCEL to cancel.${phone}`;
+  return `${account.businessName}: Order received - ${items}. ${b.isDelivery ? "Delivery" : "Pickup"} ${when}. Reply CANCEL to cancel.${phone}${STOP}`;
 }
 
 export const restaurantSmsTemplates: SmsTemplates = {
@@ -40,7 +44,7 @@ export const restaurantSmsTemplates: SmsTemplates = {
   escalationFollowUp(account, nextOpen) {
     const when = nextOpen ? ` when we next open (${nextOpen})` : " as soon as we open";
     const phone = account.twilioNumber ? ` You can also call us at ${formatUsPhone(account.twilioNumber)}.` : "";
-    return `${account.businessName}: Thanks for calling. Our manager couldn't get back to you right away - they'll call you${when}.${phone}`;
+    return `${account.businessName}: Thanks for calling. Our manager couldn't get back to you right away - they'll call you${when}.${phone}${STOP}`;
   },
 
   cancellationReply(account: SmsAccount, kind: CancellationKind, when: Date) {

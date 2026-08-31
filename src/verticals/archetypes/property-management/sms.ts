@@ -13,20 +13,23 @@ import type { PmWords } from "./index";
 
 const callUs = (account: SmsAccount) => (account.twilioNumber ? ` Questions? Call ${formatUsPhone(account.twilioNumber)}.` : "");
 
+/** Opt-out language for every template that can open a conversation; replies never carry it. */
+const STOP = " Reply STOP to opt out.";
+
 export function pmSmsTemplates(w: PmWords): SmsTemplates {
   return {
     bookingConfirmation(account, booking: BookingSummary) {
       const phone = callUs(account);
       if (booking.isEmergency) {
-        return `${account.businessName}: We have your emergency and someone has been alerted. You will get a call back shortly.${phone}`;
+        return `${account.businessName}: We have your emergency and someone has been alerted. You will get a call back shortly.${phone}${STOP}`;
       }
-      return `${account.businessName}: Thanks ${booking.customerName}, your ${w.visit} is logged. We will be in touch to arrange a time.${phone}`;
+      return `${account.businessName}: Thanks ${booking.customerName}, your ${w.visit} is logged. We will be in touch to arrange a time.${phone}${STOP}`;
     },
 
     escalationFollowUp(account, nextOpen) {
       const when = nextOpen ? ` when the office next opens (${nextOpen})` : " as soon as we can";
       const phone = account.twilioNumber ? ` You can also call us at ${formatUsPhone(account.twilioNumber)}.` : "";
-      return `${account.businessName}: Thanks for calling. We could not reach anyone right away - someone will call you${when}.${phone}`;
+      return `${account.businessName}: Thanks for calling. We could not reach anyone right away - someone will call you${when}.${phone}${STOP}`;
     },
 
     cancellationReply(account: SmsAccount, kind: CancellationKind, when: Date) {
