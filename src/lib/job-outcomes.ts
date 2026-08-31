@@ -44,7 +44,8 @@ export async function afterJobBooked(account: Account, job: Job, call: Call | nu
     isEmergency: job.isEmergency,
   });
 
-  const sms = await sendGuestSms(account, job.customerPhone, body, { purpose: "reservation_confirmation" });
+  // jobId so a failed confirmation shows up on the Dispatch queue beside the person waiting for it.
+  const sms = await sendGuestSms(account, job.customerPhone, body, { purpose: "reservation_confirmation", jobId: job.id });
   await markConfirmationSent("job", job.id, sms);
 }
 
