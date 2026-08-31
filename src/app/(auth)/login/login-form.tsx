@@ -39,10 +39,10 @@ export function LoginForm({ callbackUrl, initialError, googleEnabled }: { callba
       <form onSubmit={onSubmit} className="space-y-4 rounded-2xl border border-gray-200 bg-surface p-5 shadow-sm">
         {error ? <Alert>{error}</Alert> : null}
         <Field label="Email" htmlFor="email">
-          <Input id="email" name="email" type="email" autoComplete="email" inputMode="email" required placeholder="you@restaurant.com" />
+          <Input id="email" name="email" type="email" autoComplete="email" inputMode="email" required placeholder="you@yourbusiness.com" />
         </Field>
         <Field label="Password" htmlFor="password">
-          <Input id="password" name="password" type="password" autoComplete="current-password" required />
+          <Input id="password" name="password" type="password" autoComplete="current-password" required placeholder="••••••••" />
         </Field>
         <Button type="submit" size="lg" full disabled={busy}>
           {busy ? "Logging in…" : "Log in"}

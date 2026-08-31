@@ -36,10 +36,10 @@ export function SignupForm({ googleEnabled, catalog }: { googleEnabled: boolean;
           <Input id="businessName" name="businessName" required placeholder="Luigi's Trattoria" autoComplete="organization" />
         </Field>
         <Field label="Email" htmlFor="email">
-          <Input id="email" name="email" type="email" required autoComplete="email" inputMode="email" placeholder="you@restaurant.com" />
+          <Input id="email" name="email" type="email" required autoComplete="email" inputMode="email" placeholder="you@yourbusiness.com" />
         </Field>
         <Field label="Password" htmlFor="password" hint="At least 8 characters.">
-          <Input id="password" name="password" type="password" required minLength={8} autoComplete="new-password" />
+          <Input id="password" name="password" type="password" required minLength={8} autoComplete="new-password" placeholder="••••••••" />
         </Field>
         <Button type="submit" size="lg" full disabled={pending || !!state?.ok || !vertical}>
           {pending ? "Creating account…" : "Create account"}
