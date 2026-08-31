@@ -17,14 +17,16 @@ const trim = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 3)}...`
 const callUs = (account: SmsAccount) => (account.twilioNumber ? ` Questions? Call ${formatUsPhone(account.twilioNumber)}.` : "");
 
 function reservationConfirmation(account: SmsAccount, b: BookingSummary): string {
-  const when = formatDateTime(b.when, account.timeZone);
+  // A restaurant booking always has a time; the null case only exists for a field-service job
+  // that has been requested but not yet slotted.
+  const when = b.when ? formatDateTime(b.when, account.timeZone) : "a time we will confirm";
   const phone = callUs(account);
   if (b.isWaitlist) return `${account.restaurantName}: ${b.customerName}, you're on our waitlist for ${b.partySize} on ${when}. We'll call if a table opens up. Reply CANCEL to leave the waitlist.${phone}`;
   return `${account.restaurantName}: You're booked! Party of ${b.partySize} on ${when}. Reply CANCEL if your plans change.${phone}`;
 }
 
 function orderConfirmation(account: SmsAccount, b: BookingSummary): string {
-  const when = formatDateTime(b.when, account.timeZone);
+  const when = b.when ? formatDateTime(b.when, account.timeZone) : "a time we will confirm";
   const items = trim((b.items ?? "").replace(/\s*\n+\s*/g, ", "), 90);
   const phone = callUs(account);
   return `${account.restaurantName}: Order received - ${items}. ${b.isDelivery ? "Delivery" : "Pickup"} ${when}. Reply CANCEL to cancel.${phone}`;

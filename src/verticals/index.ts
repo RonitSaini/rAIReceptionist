@@ -1,6 +1,7 @@
 import type { Vertical } from "@prisma/client";
 import type { OnboardingStep, VerticalCatalogEntry, VerticalDefinition, Vocabulary } from "./types";
 import { restaurant } from "./restaurant";
+import { plumbing } from "./plumbing";
 
 /**
  * The vertical registry — the only place professions are enumerated.
@@ -16,6 +17,7 @@ import { restaurant } from "./restaurant";
 /** Implemented definitions. Later phases add entries; nothing else in the app enumerates verticals. */
 const VERTICALS = {
   restaurant,
+  plumbing,
 } as const satisfies Partial<Record<Vertical, VerticalDefinition>>;
 
 type CatalogSeed = Omit<VerticalCatalogEntry, "available">;
