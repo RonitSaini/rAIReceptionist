@@ -3,8 +3,9 @@
 import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAccount } from "@/lib/current-account";
-import { int, list, normalizeUsPhone, optStr, str, type ActionState } from "@/lib/form";
+import { int, list, optStr, str, type ActionState } from "@/lib/form";
 import { verticalFor } from "@/verticals";
+import { validateShopHandoffs } from "@/lib/shop-validation";
 import { syncRetellAgentQuietly } from "@/lib/agent-sync";
 import { finish, modeOf } from "@/lib/onboarding-flow";
 
@@ -22,21 +23,19 @@ export async function saveShopHandoffs(_prev: ActionState, fd: FormData): Promis
   const referral = definition.referral;
   if (!referral) return { ok: false, error: "This profession has no referral to set." };
 
-  const allowed = new Set(definition.emergencyTypes.map((e) => e.key));
-  const emergencyTypes = list(fd, "emergencyTypes").filter((k) => allowed.has(k));
-
-  const rawPhone = str(fd, "referralPhone");
-  const phone = rawPhone ? normalizeUsPhone(rawPhone) : null;
-  if (referral.required && !phone) {
-    return { ok: false, error: `${referral.label} is required, and it must be a 10-digit US or Canadian number. It is what a caller is given when you are closed.` };
-  }
-  if (rawPhone && !phone) return { ok: false, error: "That does not look like a 10-digit US or Canadian number." };
-
-  const jobSlotMinutes = int(fd, "jobSlotMinutes", definition.defaults.slotMinutes);
-  const maxRaw = str(fd, "maxJobsPerDay");
-  const maxJobsPerDay = maxRaw ? Number.parseInt(maxRaw, 10) : null;
-  if (jobSlotMinutes < 5 || jobSlotMinutes > 8 * 60) return { ok: false, error: "An appointment should be between 5 minutes and 8 hours." };
-  if (maxJobsPerDay != null && (!Number.isInteger(maxJobsPerDay) || maxJobsPerDay < 1)) return { ok: false, error: "Most per day must be a whole number, or left blank." };
+  const result = validateShopHandoffs(
+    {
+      referralPhone: str(fd, "referralPhone"),
+      referralName: optStr(fd, "referralName") ?? undefined,
+      emergencyTypes: list(fd, "emergencyTypes"),
+      jobSlotMinutes: int(fd, "jobSlotMinutes", definition.defaults.slotMinutes),
+      maxJobsPerDay: str(fd, "maxJobsPerDay"),
+    },
+    referral,
+    definition.emergencyTypes.map((e) => e.key),
+  );
+  if (!result.ok) return { ok: false, error: result.error };
+  const { referralPhone, referralName, emergencyTypes, jobSlotMinutes, maxJobsPerDay } = result.value;
 
   await prisma.account.update({
     where: { id: account.id },
@@ -44,8 +43,8 @@ export async function saveShopHandoffs(_prev: ActionState, fd: FormData): Promis
       emergencyTypes,
       jobSlotMinutes,
       maxJobsPerDay,
-      [referral.field]: phone,
-      ...(referral.nameField ? { [referral.nameField]: optStr(fd, "referralName") } : {}),
+      [referral.field]: referralPhone,
+      ...(referral.nameField ? { [referral.nameField]: referralName } : {}),
     },
   });
 
