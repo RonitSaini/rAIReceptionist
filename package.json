@@ -21,8 +21,10 @@
   },
   "dependencies": {
     "@prisma/client": "^6.19.3",
+    "@types/papaparse": "^5.5.2",
     "next": "^16.3.3",
     "next-auth": "^4.24.15",
+    "papaparse": "^5.7.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "retell-client-js-sdk": "^2.0.8",

@@ -31,8 +31,11 @@ export async function FieldServiceHome({ account, previousSeenAt, changed }: { a
   const words = vocabularyFor(account);
   // A trade that books nothing has no diary. Its today-list and its queue link go to Dispatch.
   const definition = verticalFor(account);
-  const queueHref = definition.dispatchFirst && !account.takesScheduledWork ? "/dispatch" : "/schedule";
-  const queueLabel = queueHref === "/dispatch" ? "Dispatch" : "Schedule";
+  // Where "today's work" lives differs by archetype: a diary for a trade, a live queue for a tow
+  // truck, a work-order list for a property manager who schedules nothing from this screen.
+  const queueHref =
+    definition.archetype === "property_management" ? "/work-orders" : definition.dispatchFirst && !account.takesScheduledWork ? "/dispatch" : "/schedule";
+  const queueLabel = queueHref === "/dispatch" ? "Dispatch" : queueHref === "/work-orders" ? words.booking.Many : "Schedule";
 
   const [sinceItems, unacknowledged, dash, jobs] = await Promise.all([
     prisma.notification.findMany({

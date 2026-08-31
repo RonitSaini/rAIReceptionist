@@ -5,10 +5,12 @@ import { distanceMiles, extractZip, formatRestaurantAddress, geocodeAddress } fr
 import { accountCountry, displayDistance, formatDistance, KM_PER_MILE, postalLabel, unitWord } from "./locale";
 import { dayOfWeekOf, formatDateString, formatClock, isValidDateString, timeToMinutes, todayString, zonedToUtc, formatDateTime } from "./time";
 import { formatUsPhone } from "./form";
-import { MESSAGE_REASONS, type FunctionName } from "./agent-config";
-import { vocabularyFor } from "@/verticals";
+import { type FunctionName } from "./agent-config";
+import { messageReasonsFor } from "@/verticals/types";
+import { verticalFor, vocabularyFor } from "@/verticals";
 import { FIELD_SERVICE_HANDLERS } from "./field-service-handlers";
 import { SHOP_HANDLERS } from "./shop-handlers";
+import { PM_HANDLERS, pmDispatchEmergencyHandler } from "./pm-handlers";
 import { int, normalizeTime, phoneOrCaller, str, tagCall, type Args, type HandlerContext, type HandlerResult } from "./handler-utils";
 import { afterEscalation, afterMessageTaken, afterReservationBooked, afterTakeoutOrdered } from "./outcomes";
 import { syncReservationToGoogle } from "./google-calendar";
@@ -243,7 +245,7 @@ export async function takeMessageHandler(ctx: HandlerContext, args: Args): Promi
   const callerPhone = phoneOrCaller(args.caller_phone, ctx);
   const message = str(args.message);
   const reasonRaw = str(args.reason);
-  const reason = (MESSAGE_REASONS as readonly string[]).includes(reasonRaw) ? reasonRaw : "other";
+  const reason = messageReasonsFor(verticalFor(a).archetype).includes(reasonRaw) ? reasonRaw : "other";
   const escalate = a.escalatesToManager && (args.escalate === true || str(args.escalate).toLowerCase() === "true");
   if (!message) return { success: false, message: "Ask what the message is about." };
 
@@ -285,4 +287,11 @@ export const HANDLERS: Record<FunctionName, (ctx: HandlerContext, args: Args) =>
   take_message: takeMessageHandler,
   ...FIELD_SERVICE_HANDLERS,
   ...SHOP_HANDLERS,
+  ...PM_HANDLERS,
+  // Two archetypes own dispatch_emergency and they write different rows: a trade creates a job for
+  // its own engineer, a manager creates one against a unit and flags it when the address is only
+  // the caller's word for it. The name is shared, so the routing happens here rather than by one
+  // handler quietly checking the archetype halfway down.
+  dispatch_emergency: (ctx, args) =>
+    verticalFor(ctx.account).archetype === "property_management" ? pmDispatchEmergencyHandler(ctx, args) : FIELD_SERVICE_HANDLERS.dispatch_emergency(ctx, args),
 };

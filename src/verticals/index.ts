@@ -9,6 +9,7 @@ import { locksmith } from "./locksmith";
 import { towing } from "./towing";
 import { auto_repair } from "./auto_repair";
 import { veterinary } from "./veterinary";
+import { property_management } from "./property_management";
 
 /**
  * The vertical registry — the only place professions are enumerated.
@@ -32,6 +33,7 @@ const VERTICALS = {
   towing,
   auto_repair,
   veterinary,
+  property_management,
 } as const satisfies Partial<Record<Vertical, VerticalDefinition>>;
 
 type CatalogSeed = Omit<VerticalCatalogEntry, "available">;

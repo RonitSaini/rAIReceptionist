@@ -34,6 +34,12 @@ export const SHOP_STEP = {
   handoffs: { id: "handoffs", title: "Urgent cases & referrals", short: "Urgent" },
 } as const satisfies Record<string, OnboardingStep>;
 
+/** Property-management steps: the portfolio, and how maintenance is handled. */
+export const PM_STEP = {
+  portfolio: { id: "portfolio", title: "Properties & units", short: "Portfolio" },
+  maintenance: { id: "maintenance", title: "Maintenance & emergencies", short: "Urgent" },
+} as const satisfies Record<string, OnboardingStep>;
+
 /** Restaurant-only steps. They live here beside the shared set so every step id is greppable in one file. */
 export const RESTAURANT_STEP = {
   menuPolicies: { id: "menu-policies", title: "Menu & policies", short: "Menu" },

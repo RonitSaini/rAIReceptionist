@@ -194,6 +194,95 @@ model Account {
   customers           Customer[]
   jobs                Job[]
   serviceOfferings    ServiceOffering[]
+  properties          Property[]
+  vendors             Vendor[]
+}
+
+// ---------- Property management ----------
+
+/// A building or site. The unit of "where", one level above the door someone knocks on.
+model Property {
+  id        String  @id @default(cuid())
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  name    String
+  address String?
+  notes   String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  units Unit[]
+  jobs  Job[]
+
+  @@index([accountId, name])
+}
+
+/// A door. `label` is whatever the manager calls it - "3B", "Rear cottage", "Unit 12".
+model Unit {
+  id         String   @id @default(cuid())
+  propertyId String
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  label String
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenants Tenant[]
+  jobs    Job[]
+
+  /// One "3B" per building. The import dedupes on this.
+  @@unique([propertyId, label])
+  @@index([propertyId])
+}
+
+/// Who lives behind a door.
+///
+/// Points at Customer rather than duplicating a name and a number, so the phone lookup that every
+/// other vertical already does works here too and a tenant who moves between units keeps one
+/// identity. Several tenants per unit is normal and allowed; a unit with none is a vacancy.
+model Tenant {
+  id     String @id @default(cuid())
+  unitId String
+  unit   Unit   @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  leaseStart DateTime?
+  leaseEnd   DateTime?
+
+  /// Standing answers, so the agent does not have to ask them on every call. Both are on the
+  /// tenancy rather than the work order because they are facts about the home, not the fault.
+  permissionToEnter Boolean @default(false)
+  petOnPremises     Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([unitId, customerId])
+  @@index([customerId])
+  @@index([unitId])
+}
+
+/// Someone the manager sends out. Deliberately thin: a name, a trade and a number is what a work
+/// order needs to name who is attending. No portal, no automated messaging.
+model Vendor {
+  id        String  @id @default(cuid())
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  name  String
+  trade String?
+  phone String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([accountId, name])
 }
 
 // ---------- People who call ----------
@@ -225,6 +314,7 @@ model Customer {
 
   reservations  Reservation[]
   takeoutOrders TakeoutOrder[]
+  tenancies     Tenant[]
   jobs          Job[]
 
   @@unique([accountId, phone])
@@ -293,8 +383,12 @@ model Job {
   details Json?
 
   /// Property management only; unused by the other archetypes.
+  /// Where the work is, once property management knows. SetNull rather than Cascade: deleting a
+  /// building must not erase the history of what was ever wrong with it.
   propertyId String?
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
   unitId     String?
+  unit       Unit?     @relation(fields: [unitId], references: [id], onDelete: SetNull)
 
   googleEventId  String?
   smsConfirmedAt DateTime?

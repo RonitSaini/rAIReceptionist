@@ -35,6 +35,11 @@ const MODULE_NAV: Record<DashboardModule, { href: string; icon: IconName; label:
   dispatch: { href: "/dispatch", icon: "siren", label: () => "Dispatch" },
   // shop_appointment: a vet sees "Patients", a garage "Vehicles" — the noun is the point.
   subjects: { href: "/subjects", icon: "clipboard", label: (v) => v.subject?.Many ?? "Records" },
+  // property_management
+  workorders: { href: "/work-orders", icon: "clipboard", label: (v) => v.booking.Many },
+  properties: { href: "/properties", icon: "home", label: () => "Properties" },
+  tenants: { href: "/tenants", icon: "users", label: (v) => v.customer.Many },
+  vendors: { href: "/vendors", icon: "wrench", label: () => "Vendors" },
 };
 
 /**

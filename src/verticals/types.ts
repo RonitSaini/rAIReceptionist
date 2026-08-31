@@ -120,6 +120,9 @@ export const AGENT_FUNCTIONS = [
   "dispatch_emergency",
   // shop_appointment (auto repair, veterinary)
   "book_appointment",
+  // property_management
+  "lookup_tenant",
+  "create_work_order",
   // field_service, dispatch-first (locksmith, towing)
   "request_immediate_dispatch",
   // every archetype
@@ -133,6 +136,20 @@ export type AgentFunctionName = (typeof AGENT_FUNCTIONS)[number];
  * through `escalationTriggers`.
  */
 export const MESSAGE_REASONS = ["general_question", "large_party", "private_event", "catering", "complaint", "allergy", "press_vendor", "callback_request", "other"] as const;
+
+/**
+ * Property management adds one reason and takes none away.
+ *
+ * Its own list rather than an extra entry on the shared one, because "leasing" offered to a plumber
+ * is a category that can never be right — and adding it to the shared enum moved every existing
+ * vertical's take_message tool, which is exactly the kind of quiet blast radius the goldens exist
+ * to catch.
+ */
+export const PM_MESSAGE_REASONS = [...MESSAGE_REASONS.slice(0, -1), "leasing", "other"] as const;
+
+export function messageReasonsFor(archetype: Archetype): readonly string[] {
+  return archetype === "property_management" ? PM_MESSAGE_REASONS : MESSAGE_REASONS;
+}
 export type MessageReason = (typeof MESSAGE_REASONS)[number];
 
 /**
@@ -149,9 +166,13 @@ export const FIELD_SERVICE_CLASSIFICATION_CHOICES = ["service_call", "estimate",
 /** A shop books appointments and takes messages; nothing is dispatched anywhere. */
 export const SHOP_CLASSIFICATION_CHOICES = ["service_call", "emergency", "question", "message", "escalation", "other"] as const;
 
+/** A manager's line takes work orders, emergencies, leasing enquiries and messages. */
+export const PM_CLASSIFICATION_CHOICES = ["service_call", "emergency", "question", "message", "escalation", "other"] as const;
+
 export function classificationChoicesFor(archetype: Archetype): readonly string[] {
   if (archetype === "restaurant") return CLASSIFICATION_CHOICES;
   if (archetype === "shop_appointment") return SHOP_CLASSIFICATION_CHOICES;
+  if (archetype === "property_management") return PM_CLASSIFICATION_CHOICES;
   return FIELD_SERVICE_CLASSIFICATION_CHOICES;
 }
 
@@ -180,6 +201,11 @@ export const DASHBOARD_MODULES = [
   "dispatch",
   // shop_appointment: the vehicles or pets on file, grouped by who owns them
   "subjects",
+  // property_management
+  "workorders",
+  "properties",
+  "tenants",
+  "vendors",
 ] as const;
 export type DashboardModule = (typeof DASHBOARD_MODULES)[number];
 
@@ -315,6 +341,9 @@ export type VerticalDefinition = {
    * hospital. Only shop_appointment sets it; onboarding reads `required` to decide whether the
    * account may finish without one.
    */
+  /** Issue categories a property manager's work orders are filed under. */
+  categories?: readonly string[];
+
   referral?: {
     field: "towingPartnerPhone" | "emergencyReferralPhone";
     nameField?: "towingPartnerName";
