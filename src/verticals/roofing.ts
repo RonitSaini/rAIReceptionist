@@ -1,7 +1,6 @@
 import { z } from "zod";
 import type { ClassifiedReason } from "./types";
-import { fieldServiceVertical } from "./field-service";
-import { roofingSmsTemplates } from "./roofing.sms";
+import { fieldServiceVertical } from "./archetypes/field-service";
 
 /**
  * Roofing — the vertical that made `bookingKind` necessary.
@@ -55,6 +54,8 @@ export const roofing = fieldServiceVertical({
     business: { one: "business", many: "businesses", One: "Business", Many: "Businesses" },
   },
 
+  tradeWords: { staff: "roofer", visit: "estimate" },
+
   emergencies: ROOFING_EMERGENCIES,
   escalations: ROOFING_ESCALATIONS,
   guardrails: ROOFING_GUARDRAILS,
@@ -80,7 +81,6 @@ export const roofing = fieldServiceVertical({
   visitNoun: "Estimate visits",
   bookingToolDescription: "Book a roofing estimate after the caller has confirmed the address and the time. Only call with a window get_available_slots reported as free.",
 
-  smsTemplates: roofingSmsTemplates,
   // Three hours, not two: getting on a roof and measuring it takes longer than a repair call.
   defaults: { slotMinutes: 180, intervalMinutes: 180, maxPerDay: 4 },
 });

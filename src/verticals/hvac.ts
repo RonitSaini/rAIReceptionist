@@ -1,7 +1,6 @@
 import { z } from "zod";
 import type { ClassifiedReason } from "./types";
-import { fieldServiceVertical } from "./field-service";
-import { hvacSmsTemplates } from "./hvac.sms";
+import { fieldServiceVertical } from "./archetypes/field-service";
 
 /**
  * HVAC — heating, ventilation and air conditioning.
@@ -55,6 +54,8 @@ export const hvac = fieldServiceVertical({
     business: { one: "business", many: "businesses", One: "Business", Many: "Businesses" },
   },
 
+  tradeWords: { staff: "engineer", visit: "visit" },
+
   emergencies: HVAC_EMERGENCIES,
   escalations: HVAC_ESCALATIONS,
   guardrails: HVAC_GUARDRAILS,
@@ -76,6 +77,5 @@ export const hvac = fieldServiceVertical({
   bookingKind: "service_call",
   bookingToolDescription: "Book an HVAC visit after the caller has confirmed the address and the time. Only call with a window get_available_slots reported as free.",
 
-  smsTemplates: hvacSmsTemplates,
   defaults: { slotMinutes: 120, intervalMinutes: 120, maxPerDay: 6 },
 });

@@ -8,15 +8,25 @@ const here = dirname(fileURLToPath(import.meta.url));
 const VERTICALS_DIR = resolve(here, "../src/verticals");
 
 /**
- * Every file that can put text into a guest's phone.
+ * Every file that can put text into a customer's phone.
  *
- * Each vertical keeps its templates in `src/verticals/<slug>.sms.ts` — a file containing nothing
- * but sendable text — so this check stays mechanical as professions are added: a new vertical is
- * covered the moment its SMS file exists, with nothing to remember to register here. Prompt files
- * are deliberately excluded; a system prompt is never transmitted over SMS and is free to use
- * em dashes.
+ * Templates live either in `src/verticals/<slug>.sms.ts` or, where an archetype's trades share one
+ * set, in `src/verticals/archetypes/<archetype>/sms.ts`. Both are files containing nothing but
+ * sendable text, and the walk below finds them wherever they sit, so this stays mechanical as
+ * professions are added: there is nothing to remember to register here. Prompt files are
+ * deliberately excluded; a system prompt is never transmitted over SMS and is free to use em dashes.
  */
-const SMS_SOURCES = [resolve(here, "../src/lib/sms.ts"), ...readdirSync(VERTICALS_DIR).filter((f) => f.endsWith(".sms.ts")).map((f) => resolve(VERTICALS_DIR, f))];
+function smsFilesUnder(dir) {
+  const found = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const p = resolve(dir, entry.name);
+    if (entry.isDirectory()) found.push(...smsFilesUnder(p));
+    else if (entry.name.endsWith(".sms.ts") || entry.name === "sms.ts") found.push(p);
+  }
+  return found;
+}
+
+const SMS_SOURCES = [resolve(here, "../src/lib/sms.ts"), ...smsFilesUnder(VERTICALS_DIR)];
 
 /**
  * Guest SMS must stay inside GSM-7.
@@ -142,8 +152,8 @@ function describeChar(ch) {
 
 test("every SMS string literal is encodable in GSM-7", () => {
   assert.ok(
-    SMS_SOURCES.some((f) => f.endsWith(".sms.ts")),
-    "no per-vertical SMS file found — every vertical's templates must be scanned, so this test failing open is itself the bug",
+    SMS_SOURCES.length >= 3,
+    "expected src/lib/sms.ts plus the vertical and archetype template files; a scan that finds nothing passes for the wrong reason",
   );
 
   const offenders = [];
@@ -193,4 +203,53 @@ test("GSM-7 alphabet includes the characters the templates rely on", () => {
   for (const ch of ["—", "–", "…", "’", "“", "🍕"]) {
     assert.ok(!GSM7.has(ch), `expected ${describeChar(ch)} to be rejected`);
   }
+});
+
+/**
+ * The scan above reads string literals out of the template files. That was enough while every
+ * vertical owned its own templates, but the field_service trades now share one set and supply only
+ * their nouns, and those nouns live in the definition file rather than in anything called `.sms.ts`.
+ * A roofer whose staff noun contained a curly apostrophe would sail straight past the scan and
+ * double the cost of every text the account sends.
+ *
+ * So: render every registered vertical's templates for real and check the output. Slower and less
+ * precise about WHERE a bad character came from, but it cannot be dodged by moving a string.
+ */
+test("every registered vertical renders GSM-7 SMS", async () => {
+  const { AVAILABLE_VERTICALS, verticalFor } = await import("../src/verticals/index.ts");
+  const definitions = AVAILABLE_VERTICALS.map((slug) => verticalFor(slug));
+  assert.ok(definitions.length >= 2, "expected several verticals; a failing-open check is itself the bug");
+
+  const account = {
+    businessName: "Ridgeway Plumbing & Sons",
+    timeZone: "America/New_York",
+    twilioNumber: "+12125550111",
+  };
+  const when = new Date("2026-09-02T14:00:00.000Z");
+  const booking = { kind: "job", customerName: "Elena Rossi", when, address: "12 Oak Street, Newark, NJ 07102", technician: "Mike", isEmergency: false };
+
+  const offenders = [];
+  let rendered = 0;
+  for (const definition of definitions) {
+    const t = definition.smsTemplates;
+    const messages = [
+      t.bookingConfirmation(account, booking),
+      t.bookingConfirmation(account, { ...booking, isEmergency: true, when: null }),
+      t.bookingConfirmation(account, { ...booking, when: null, technician: null }),
+      t.bookingConfirmation({ ...account, twilioNumber: null }, booking),
+      t.escalationFollowUp(account, "Monday 8:00 AM"),
+      t.escalationFollowUp(account, null),
+      t.cancellationReply(account, "job", when),
+      t.cancellationReply(account, "reservation", when),
+    ];
+    for (const message of messages) {
+      rendered++;
+      for (const ch of message) {
+        if (!GSM7.has(ch)) offenders.push(`${definition.slug}: ${describeChar(ch)} in ${JSON.stringify(message)}`);
+      }
+    }
+  }
+
+  assert.ok(rendered > 0, "no messages rendered");
+  assert.deepEqual(offenders, [], `Non-GSM-7 characters in rendered SMS:\n  ${offenders.join("\n  ")}`);
 });

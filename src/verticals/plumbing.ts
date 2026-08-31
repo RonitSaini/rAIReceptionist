@@ -1,12 +1,11 @@
 import { z } from "zod";
 import type { ClassifiedReason } from "./types";
-import { fieldServiceVertical } from "./field-service";
-import { plumbingSmsTemplates } from "./plumbing.sms";
+import { fieldServiceVertical } from "./archetypes/field-service";
 
 /**
  * Plumbing — the first field_service vertical, and the one the archetype was extracted from.
  *
- * Everything structural now lives in ./field-service. What is left here is what actually makes a
+ * Everything structural now lives in ./archetypes/field-service. What is left here is what makes a
  * plumber a plumber: what counts as an emergency, what the agent must never say, and the two
  * questions worth asking that are not columns on Job.
  */
@@ -55,6 +54,8 @@ export const plumbing = fieldServiceVertical({
     business: { one: "business", many: "businesses", One: "Business", Many: "Businesses" },
   },
 
+  tradeWords: { staff: "plumber", visit: "visit" },
+
   emergencies: PLUMBING_EMERGENCIES,
   escalations: PLUMBING_ESCALATIONS,
   guardrails: PLUMBING_GUARDRAILS,
@@ -76,6 +77,5 @@ export const plumbing = fieldServiceVertical({
   bookingKind: "service_call",
   bookingToolDescription: "Book a plumbing visit after the caller has confirmed the address and the time. Only call with a window get_available_slots reported as free.",
 
-  smsTemplates: plumbingSmsTemplates,
   defaults: { slotMinutes: 120, intervalMinutes: 120, maxPerDay: 6 },
 });

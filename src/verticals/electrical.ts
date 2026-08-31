@@ -1,7 +1,6 @@
 import { z } from "zod";
 import type { ClassifiedReason } from "./types";
-import { fieldServiceVertical } from "./field-service";
-import { electricalSmsTemplates } from "./electrical.sms";
+import { fieldServiceVertical } from "./archetypes/field-service";
 
 /**
  * Electrical.
@@ -53,6 +52,8 @@ export const electrical = fieldServiceVertical({
     business: { one: "business", many: "businesses", One: "Business", Many: "Businesses" },
   },
 
+  tradeWords: { staff: "electrician", visit: "visit" },
+
   emergencies: ELECTRICAL_EMERGENCIES,
   escalations: ELECTRICAL_ESCALATIONS,
   guardrails: ELECTRICAL_GUARDRAILS,
@@ -74,6 +75,5 @@ export const electrical = fieldServiceVertical({
   bookingKind: "service_call",
   bookingToolDescription: "Book an electrical visit after the caller has confirmed the address and the time. Only call with a window get_available_slots reported as free.",
 
-  smsTemplates: electricalSmsTemplates,
   defaults: { slotMinutes: 120, intervalMinutes: 120, maxPerDay: 6 },
 });

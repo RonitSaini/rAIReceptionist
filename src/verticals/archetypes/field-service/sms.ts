@@ -1,26 +1,21 @@
 import { formatDateTime } from "@/lib/time";
 import { formatUsPhone } from "@/lib/form";
-import type { BookingSummary, CancellationKind, SmsAccount, SmsTemplates } from "./types";
+import type { BookingSummary, CancellationKind, SmsAccount, SmsTemplates } from "../../types";
+import type { TradeWords } from "./index";
 
 /**
  * Customer-facing SMS for every field_service trade.
  *
  * Everything in this file is transmitted, so everything in it must be GSM-7 — no em dashes, no
- * curly quotes, no ellipsis characters. tests/sms-gsm7.test.mjs scans every `*.sms.ts` file and
- * fails on the first character outside the alphabet, because one of them re-encodes the whole
- * message as UCS-2 and cuts the segment size from 160 characters to 70.
+ * curly quotes, no ellipsis characters. tests/sms-gsm7.test.mjs scans every `*.sms.ts` and every
+ * archetype's `sms.ts`, and separately renders every registered vertical's templates and checks the
+ * output, because a trade noun that is not GSM-7 would slip past a scan of this file alone. One
+ * such character re-encodes the whole message as UCS-2 and cuts the segment from 160 to 70.
  *
- * The trades differ by two words: what you call the person who turns up, and what you call the
- * thing that was booked. A roofer books an estimate, not a visit, and saying "visit" to their
- * customer is a small wrongness that a shared template has no excuse for.
+ * The trades differ by two words: what you call the person who turns up, and what the customer had
+ * booked. A roofer books an estimate, not a visit, and saying "visit" to their customer is a small
+ * wrongness a shared template has no excuse for.
  */
-
-export type TradeWords = {
-  /** "plumber", "engineer", "electrician", "roofer" */
-  staff: string;
-  /** What the customer had booked: "visit" for most, "estimate" for a roofer. */
-  visit: string;
-};
 
 const callUs = (account: SmsAccount) => (account.twilioNumber ? ` Questions? Call ${formatUsPhone(account.twilioNumber)}.` : "");
 
