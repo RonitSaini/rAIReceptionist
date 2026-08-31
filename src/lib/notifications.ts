@@ -10,6 +10,7 @@ export type CreateNotificationInput = {
   priority?: NotificationPriority;
   reservationId?: string | null;
   takeoutOrderId?: string | null;
+  jobId?: string | null;
   callId?: string | null;
 };
 
@@ -24,6 +25,7 @@ export function createNotification(input: CreateNotificationInput) {
       body: input.body,
       reservationId: input.reservationId ?? null,
       takeoutOrderId: input.takeoutOrderId ?? null,
+      jobId: input.jobId ?? null,
       callId: input.callId ?? null,
     },
   });
@@ -34,7 +36,8 @@ export function countUnread(accountId: string) {
 }
 
 /** Where a notification links to. Falls back to the inbox. */
-export function notificationHref(n: Pick<Notification, "reservationId" | "takeoutOrderId" | "callId">): string {
+export function notificationHref(n: Pick<Notification, "reservationId" | "takeoutOrderId" | "jobId" | "callId">): string {
+  if (n.jobId) return `/jobs/${n.jobId}`;
   if (n.reservationId) return `/reservations/${n.reservationId}`;
   if (n.takeoutOrderId) return `/takeout/${n.takeoutOrderId}`;
   if (n.callId) return `/calls/${n.callId}`;
@@ -42,7 +45,7 @@ export function notificationHref(n: Pick<Notification, "reservationId" | "takeou
 }
 
 // Labels/icons live in a client-safe module (no prisma import) so the bell popover can use them.
-export { NOTIFICATION_TYPE_LABEL, NOTIFICATION_TYPE_ICON } from "./notification-ui";
+export { NOTIFICATION_TYPE_LABEL, NOTIFICATION_TYPE_ICON, notificationLabel, notificationIcon } from "./notification-ui";
 export type { BellNotification } from "./notification-ui";
 
 /** Compact, serializable shape for the bell popover. */

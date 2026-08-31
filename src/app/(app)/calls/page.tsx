@@ -5,18 +5,25 @@ import { prisma } from "@/lib/prisma";
 import { isCallLive } from "@/lib/calls";
 import { formatDateTime, formatDuration } from "@/lib/time";
 import { formatUsPhone } from "@/lib/form";
-import { humanize } from "@/lib/constants";
+import { classificationLabel } from "@/lib/constants";
+import { verticalFor, vocabularyFor } from "@/verticals";
 import { Badge, EmptyState, PageHeader, StatusDot, classificationTone } from "@/components/ui";
 import { Reveal } from "@/components/reveal";
 
 export const metadata = { title: "Calls" };
 
 const CLASSIFICATIONS: CallClassification[] = ["reservation", "takeout", "question", "waitlist", "message", "escalation", "missed", "other"];
+// A trade takes no takeout orders and runs no waitlist, so those two chips could only ever come
+// back empty.
+const FIELD_SERVICE_CLASSIFICATIONS: CallClassification[] = ["reservation", "question", "message", "escalation", "missed", "other"];
 
 export default async function CallsPage({ searchParams }: { searchParams: Promise<{ type?: string }> }) {
   const { account } = await requireAccount();
   const { type } = await searchParams;
   const filter = CLASSIFICATIONS.includes(type as CallClassification) ? (type as CallClassification) : null;
+  const words = vocabularyFor(account);
+  const choices = verticalFor(account).archetype === "restaurant" ? CLASSIFICATIONS : FIELD_SERVICE_CLASSIFICATIONS;
+  const label = (c: string) => classificationLabel(c, words);
 
   const calls = await prisma.call.findMany({
     where: { accountId: account.id, ...(filter ? { classification: filter } : {}) },
@@ -32,16 +39,16 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
         <Link href="/calls" className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${!filter ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 bg-surface text-gray-700"}`}>
           All
         </Link>
-        {CLASSIFICATIONS.map((c) => (
+        {choices.map((c) => (
           <Link key={c} href={`/calls?type=${c}`} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${filter === c ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 bg-surface text-gray-700"}`}>
-            {humanize(c)}
+            {label(c)}
           </Link>
         ))}
       </div>
 
       {calls.length === 0 ? (
         <EmptyState
-          title={filter ? `No ${humanize(filter).toLowerCase()} calls` : "No calls yet"}
+          title={filter ? `No ${label(filter).toLowerCase()} calls` : "No calls yet"}
           body={account.twilioNumber ? "Every call your AI host answers will appear here with a recording and transcript." : "Connect your phone number in Settings → Phone to start taking calls."}
         />
       ) : (
@@ -52,7 +59,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
               <Reveal as="li" index={i} key={c.id} className="lift overflow-hidden rounded-2xl border border-gray-200 bg-surface">
                 <Link href={`/calls/${c.id}`} className="block h-full p-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge tone={classificationTone[c.classification]}>{humanize(c.classification)}</Badge>
+                    <Badge tone={classificationTone[c.classification]}>{label(c.classification)}</Badge>
                     {live ? (
                       <Badge tone="green" className="gap-1.5">
                         <StatusDot /> Live

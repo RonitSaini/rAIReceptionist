@@ -1,3 +1,5 @@
+import type { Vocabulary } from "@/verticals/types";
+
 export const APP_NAME = "FrontDesk AI";
 
 // Onboarding numbering, escalation triggers and the agent vocabulary are per-profession and live
@@ -95,4 +97,16 @@ export const NOTIFICATION_POLL_MS = 30_000;
 
 export function humanize(value: string): string {
   return value.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/**
+ * What to call a call's outcome.
+ *
+ * CallClassification is restaurant-flavoured for the same reason NotificationType is: it predates
+ * verticals, and a booking taken for a plumber is still stored as `reservation`. A restaurant reads
+ * exactly what it always did, because its booking noun IS "reservation".
+ */
+export function classificationLabel(value: string, words?: Vocabulary): string {
+  if (words && value === "reservation") return words.booking.One;
+  return humanize(value);
 }

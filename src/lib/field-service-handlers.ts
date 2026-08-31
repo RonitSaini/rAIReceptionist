@@ -1,4 +1,5 @@
 import type { Account, Prisma } from "@prisma/client";
+import { safeParse } from "zod";
 import { prisma } from "./prisma";
 import { distanceMiles, extractZip, formatRestaurantAddress, geocodeAddress } from "./geo";
 import { accountCountry, displayDistance, formatDistance, postalLabel, unitWord } from "./locale";
@@ -189,11 +190,23 @@ export async function bookServiceCallHandler(ctx: HandlerContext, args: Args): P
  *
  * A model will happily invent a field. Parsing rather than trusting means a bad key is dropped
  * instead of being persisted into `details` where a later page would render it.
+ *
+ * Validated one field at a time, deliberately. Parsing the object as a whole makes a single bad
+ * value discard every other answer with it — a caller who says "I rent the upstairs flat" instead
+ * of "tenant" would take `water_shut_off` down too, and whether the water is off is the one thing
+ * the plumber needs to know before setting off. Each field stands or falls on its own.
  */
 function intakeDetails(a: Account, args: Args): Prisma.InputJsonValue | undefined {
-  const parsed = verticalFor(a).intakeSchema.safeParse(args);
-  if (!parsed.success) return undefined;
-  const value = parsed.data as Record<string, unknown>;
+  const value: Record<string, unknown> = {};
+
+  for (const [key, field] of Object.entries(verticalFor(a).intakeSchema.shape)) {
+    if (args[key] === undefined) continue;
+    // z.safeParse(schema, value) rather than field.safeParse(value): `.shape` is typed as the core
+    // $ZodType, and the top-level form is the API that accepts it.
+    const parsed = safeParse(field, args[key]);
+    if (parsed.success && parsed.data !== undefined) value[key] = parsed.data;
+  }
+
   return Object.keys(value).length ? (value as Prisma.InputJsonValue) : undefined;
 }
 

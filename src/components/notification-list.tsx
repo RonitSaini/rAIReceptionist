@@ -2,12 +2,13 @@ import { ArrowRightIcon } from "@/components/icons";
 import { DrawIcon } from "@/components/draw-icon";
 import type { Notification } from "@prisma/client";
 import { acknowledgeNotification, markNotificationRead, openNotification } from "@/actions/notifications";
-import { NOTIFICATION_TYPE_ICON, NOTIFICATION_TYPE_LABEL, notificationHref } from "@/lib/notifications";
+import { notificationHref, notificationIcon, notificationLabel } from "@/lib/notifications";
+import type { Vocabulary } from "@/verticals/types";
 import { timeAgo } from "@/lib/time";
 import { Badge, StatusDot, notificationTone } from "@/components/ui";
 import { Reveal } from "@/components/reveal";
 
-export function NotificationList({ items, compact = false, grid = false }: { items: Notification[]; compact?: boolean; grid?: boolean }) {
+export function NotificationList({ items, compact = false, grid = false, words }: { items: Notification[]; compact?: boolean; grid?: boolean; words?: Vocabulary }) {
   const now = new Date();
   return (
     <ul className={grid ? "grid gap-3 xl:grid-cols-2 3xl:grid-cols-3" : "divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-surface"}>
@@ -17,10 +18,10 @@ export function NotificationList({ items, compact = false, grid = false }: { ite
         const href = notificationHref(n);
         return (
           <Reveal as="li" index={i} key={n.id} className={`flex gap-3 p-4 ${grid ? "lift rounded-2xl border border-gray-200 bg-surface" : ""} ${unread ? "bg-brand-50/40" : ""} ${needsAck ? "border-l-4 border-l-red-500" : ""}`}>
-            <DrawIcon name={NOTIFICATION_TYPE_ICON[n.type]} size={20} draw={false} className={`mt-0.5 shrink-0 ${needsAck ? "text-red-600" : "text-gray-400"}`} />
+            <DrawIcon name={notificationIcon(n)} size={20} draw={false} className={`mt-0.5 shrink-0 ${needsAck ? "text-red-600" : "text-gray-400"}`} />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge tone={notificationTone[n.type]}>{NOTIFICATION_TYPE_LABEL[n.type]}</Badge>
+                <Badge tone={notificationTone[n.type]}>{notificationLabel(n, words)}</Badge>
                 {n.priority === "urgent" ? <Badge tone="red">Urgent</Badge> : null}
                 {unread ? <StatusDot className="text-brand-600" label="Unread" /> : null}
                 <span className="ml-auto text-xs text-gray-500">{timeAgo(n.createdAt, now)}</span>

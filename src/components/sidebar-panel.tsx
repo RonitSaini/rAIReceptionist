@@ -8,6 +8,9 @@ import { formatUsPhone } from "@/lib/form";
 import { stripeConfigured } from "@/lib/env";
 import { subscriptionActive } from "@/lib/billing-ui";
 import { humanize } from "@/lib/constants";
+import { ACTIVE_JOB_STATUSES } from "@/lib/job-availability";
+import { verticalFor, vocabularyFor } from "@/verticals";
+import type { IconName } from "@/components/icon-paths";
 import { Badge, LinkButton, StatusDot, classificationTone } from "@/components/ui";
 import { CountUp } from "@/components/count-up";
 import { DrawIcon } from "@/components/draw-icon";
@@ -27,6 +30,9 @@ function SectionTitle({ children, href }: { children: React.ReactNode; href?: st
   );
 }
 
+/** One upcoming thing, whatever kind of business this is. */
+type NextUp = { id: string; href: string; time: Date; who: string; trailing?: string };
+
 /** Desktop sidebar content below the nav: today's numbers, what's next, quick actions, hours, host status, recent calls. */
 export async function SidebarPanel({ account }: { account: Account }) {
   const tz = account.timeZone;
@@ -36,18 +42,41 @@ export async function SidebarPanel({ account }: { account: Account }) {
   const twoHoursAgo = liveCallCutoff();
   const nowCutoff = new Date(now.getTime() - 30 * 60_000); // 30-minute grace so a party being seated still shows
 
-  const [todayRes, openOrders, unread, liveCalls, callsToday, nextUp, hours, recentCalls] = await Promise.all([
-    prisma.reservation.findMany({ where: { accountId: account.id, startTime: { gte: start, lt: end }, isWaitlist: false, status: { notIn: ["cancelled", "no_show"] } }, select: { partySize: true } }),
-    prisma.takeoutOrder.count({ where: { accountId: account.id, status: { in: ["new", "confirmed", "ready"] } } }),
+  // The sidebar is on every page, so it asks its questions in the vocabulary of the business it is
+  // rendering for. Only the top three blocks differ; hours, the AI host and recent calls are the
+  // same job whoever is looking at them.
+  const words = vocabularyFor(account);
+  const isRestaurant = verticalFor(account).archetype === "restaurant";
+
+  // Everything is asked for in one Promise.all, including the half that this archetype will throw
+  // away. Awaiting a second time further down would give React a second suspension point and split
+  // the sidebar into an extra streaming chunk, which changes the HTML a restaurant is served.
+  const [todayRes, openOrders, upcomingRes, todayJobs, upcomingJobs, emergencies, unread, liveCalls, callsToday, hours, recentCalls] = await Promise.all([
+    isRestaurant
+      ? prisma.reservation.findMany({ where: { accountId: account.id, startTime: { gte: start, lt: end }, isWaitlist: false, status: { notIn: ["cancelled", "no_show"] } }, select: { partySize: true } })
+      : [],
+    isRestaurant ? prisma.takeoutOrder.count({ where: { accountId: account.id, status: { in: ["new", "confirmed", "ready"] } } }) : 0,
+    isRestaurant
+      ? prisma.reservation.findMany({
+          where: { accountId: account.id, startTime: { gte: nowCutoff, lt: end }, isWaitlist: false, status: { in: ["booked", "confirmed"] } },
+          orderBy: { startTime: "asc" },
+          take: 3,
+          select: { id: true, guestName: true, partySize: true, startTime: true, status: true },
+        })
+      : [],
+    isRestaurant ? 0 : prisma.job.count({ where: { accountId: account.id, scheduledStart: { gte: start, lt: end }, status: { notIn: ["cancelled"] } } }),
+    isRestaurant
+      ? []
+      : prisma.job.findMany({
+          where: { accountId: account.id, scheduledStart: { gte: nowCutoff, lt: end }, status: { in: [...ACTIVE_JOB_STATUSES] } },
+          orderBy: { scheduledStart: "asc" },
+          take: 3,
+          select: { id: true, customerName: true, scheduledStart: true, isEmergency: true },
+        }),
+    isRestaurant ? 0 : prisma.job.count({ where: { accountId: account.id, isEmergency: true, status: { in: [...ACTIVE_JOB_STATUSES] } } }),
     prisma.notification.count({ where: { accountId: account.id, readAt: null } }),
     prisma.call.count({ where: { accountId: account.id, callStatus: { in: ["ongoing", "registered"] }, startedAt: { gte: twoHoursAgo } } }),
     prisma.call.count({ where: { accountId: account.id, startedAt: { gte: start, lt: end } } }),
-    prisma.reservation.findMany({
-      where: { accountId: account.id, startTime: { gte: nowCutoff, lt: end }, isWaitlist: false, status: { in: ["booked", "confirmed"] } },
-      orderBy: { startTime: "asc" },
-      take: 3,
-      select: { id: true, guestName: true, partySize: true, startTime: true, status: true },
-    }),
     prisma.businessHours.findMany({ where: { accountId: account.id } }),
     prisma.call.findMany({ where: { accountId: account.id }, orderBy: { startedAt: "desc" }, take: 8, select: { id: true, callerName: true, callerPhone: true, classification: true, startedAt: true } }),
   ]);
@@ -55,14 +84,45 @@ export async function SidebarPanel({ account }: { account: Account }) {
   const service = todayServiceStatus(hours, tz);
 
   // `live`: values that change while the layout stays mounted (after actions refresh it) — animate the digits, not a re-tween.
-  const stats: { label: string; value: number; href: string; live?: boolean; dot?: boolean }[] = [
-    { label: "Reservations", value: todayRes.length, href: "/reservations" },
-    { label: "Covers", value: covers, href: "/reservations" },
-    { label: "Open orders", value: openOrders, href: "/takeout" },
+  const stats: { label: string; value: number; href: string; live?: boolean; dot?: boolean }[] = [];
+  let nextUp: NextUp[];
+  let nextUpHref: string;
+  let quickActions: { href: string; icon: IconName; label: string; title: string }[];
+
+  if (isRestaurant) {
+    nextUp = upcomingRes.map((r) => ({ id: r.id, href: `/reservations/${r.id}`, time: r.startTime, who: r.guestName, trailing: `×${r.partySize}` }));
+    nextUpHref = `/reservations?date=${today}`;
+    stats.push(
+      { label: "Reservations", value: todayRes.length, href: "/reservations" },
+      { label: "Covers", value: covers, href: "/reservations" },
+      { label: "Open orders", value: openOrders, href: "/takeout" },
+    );
+    quickActions = [
+      { href: "/reservations/new", icon: "calendar", label: "reservation", title: "New reservation" },
+      { href: "/takeout/new", icon: "bag", label: "takeout", title: "New takeout order" },
+    ];
+  } else {
+    // flatMap rather than filter+map: the truthiness check narrows scheduledStart to a Date inside
+    // the branch, which a type predicate cannot do through the conditional query above.
+    nextUp = upcomingJobs.flatMap((j) =>
+      j.scheduledStart ? [{ id: j.id, href: `/jobs/${j.id}`, time: j.scheduledStart, who: j.customerName, trailing: j.isEmergency ? "!" : undefined }] : [],
+    );
+    nextUpHref = "/schedule";
+    stats.push(
+      { label: words.booking.Many, value: todayJobs, href: "/schedule" },
+      { label: "Emergencies", value: emergencies, href: "/jobs", dot: emergencies > 0 },
+    );
+    quickActions = [
+      { href: "/jobs/new", icon: "wrench", label: words.booking.one, title: `New ${words.booking.one}` },
+      { href: "/customers", icon: "users", label: words.customer.many, title: words.customer.Many },
+    ];
+  }
+
+  stats.push(
     { label: "Unread", value: unread, href: "/notifications", live: true },
     { label: "Calls today", value: callsToday, href: "/calls", live: true },
     { label: "Live now", value: liveCalls, href: "/calls", live: true, dot: liveCalls > 0 },
-  ];
+  );
 
   return (
     <div className="flex h-full flex-col gap-3 px-3 pt-2 short:gap-2 short:pt-1">
@@ -82,18 +142,18 @@ export async function SidebarPanel({ account }: { account: Account }) {
       </Reveal>
 
       <Reveal index={2} className="rounded-2xl border border-gray-200 bg-surface p-3 short:p-2.5 micro:hidden">
-        <SectionTitle href={`/reservations?date=${today}`}>Next up</SectionTitle>
+        <SectionTitle href={nextUpHref}>Next up</SectionTitle>
         {nextUp.length === 0 ? (
-          <p className="mt-2 text-sm text-gray-500">No more reservations today.</p>
+          <p className="mt-2 text-sm text-gray-500">No more {words.booking.many} today.</p>
         ) : (
           <ul className="mt-2 space-y-1">
             {nextUp.map((r, i) => (
               <li key={r.id} className={i >= 2 ? "tiny:hidden" : ""}>
-                <Link href={`/reservations/${r.id}`} className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg px-1 py-1 text-sm transition-colors hover:bg-gray-50">
+                <Link href={r.href} className="flex w-full min-w-0 items-center justify-between gap-2 rounded-lg px-1 py-1 text-sm transition-colors hover:bg-gray-50">
                   <span className="min-w-0 flex-1 truncate">
-                    <span className="font-semibold tabular-nums">{formatTime(r.startTime, tz)}</span> <span className="text-gray-700">{r.guestName}</span>
+                    <span className="font-semibold tabular-nums">{formatTime(r.time, tz)}</span> <span className="text-gray-700">{r.who}</span>
                   </span>
-                  <span className="shrink-0 text-xs text-gray-500">×{r.partySize}</span>
+                  {r.trailing ? <span className="shrink-0 text-xs text-gray-500">{r.trailing}</span> : null}
                 </Link>
               </li>
             ))}
@@ -105,12 +165,12 @@ export async function SidebarPanel({ account }: { account: Account }) {
         <div className="short:hidden">
           <SectionTitle>Quick actions</SectionTitle>
         </div>
-        <LinkButton href="/reservations/new" variant="secondary" size="sm" full className="justify-start short:flex-1 short:justify-center" title="New reservation">
-          <DrawIcon name="calendar" size={16} draw={false} /> <span className="short:sr-only">New </span>reservation
-        </LinkButton>
-        <LinkButton href="/takeout/new" variant="secondary" size="sm" full className="justify-start short:flex-1 short:justify-center" title="New takeout order">
-          <DrawIcon name="bag" size={16} draw={false} /> <span className="short:sr-only">New </span>takeout
-        </LinkButton>
+        {quickActions.map((a) => (
+          <LinkButton key={a.href} href={a.href} variant="secondary" size="sm" full className="justify-start short:flex-1 short:justify-center" title={a.title}>
+            <DrawIcon name={a.icon} size={16} draw={false} /> <span className="short:sr-only">New </span>
+            {a.label}
+          </LinkButton>
+        ))}
       </Reveal>
 
       <Reveal index={4} className="rounded-2xl border border-gray-200 bg-surface p-3 short:p-2.5 micro:hidden">

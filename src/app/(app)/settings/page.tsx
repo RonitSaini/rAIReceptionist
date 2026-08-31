@@ -19,10 +19,14 @@ import { AccountActions } from "@/components/account-actions";
 import { Reveal } from "@/components/reveal";
 import { getGoogleCalendarView } from "@/lib/google-calendar-view";
 import { verticalFor } from "@/verticals";
+import { serializeServiceOffering } from "@/lib/serialize";
+import { ServiceAreaForm } from "@/components/forms/service-area-form";
+import { ServicesForm } from "@/components/forms/services-form";
+import { EmergenciesForm } from "@/components/forms/emergencies-form";
 
 export const metadata = { title: "Settings" };
 
-const TABS = [
+const RESTAURANT_TABS = [
   { key: "business", label: "Business" },
   { key: "hours", label: "Hours" },
   { key: "menu", label: "Menu & policies" },
@@ -32,11 +36,28 @@ const TABS = [
   { key: "billing", label: "Billing" },
 ] as const;
 
-type TabKey = (typeof TABS)[number]["key"];
+/**
+ * A trade has no menu and no reservation book; it has a patch it will drive to, a price list and
+ * a definition of what counts as an emergency. Same three settings the onboarding steps collect,
+ * reachable again afterwards - which is the whole point of Settings.
+ */
+const FIELD_SERVICE_TABS = [
+  { key: "business", label: "Business" },
+  { key: "hours", label: "Hours" },
+  { key: "area", label: "Service area" },
+  { key: "services", label: "Services & pricing" },
+  { key: "emergencies", label: "Emergencies" },
+  { key: "voice", label: "Voice" },
+  { key: "phone", label: "Phone" },
+  { key: "billing", label: "Billing" },
+] as const;
+
+type TabKey = (typeof RESTAURANT_TABS)[number]["key"] | (typeof FIELD_SERVICE_TABS)[number]["key"];
 
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ tab?: string; checkout?: string; google?: string; message?: string }> }) {
   const { account } = await requireAccount();
   const { tab: tabParam, checkout, google: googleStatus, message: googleMessage } = await searchParams;
+  const TABS: readonly { key: TabKey; label: string }[] = verticalFor(account).archetype === "restaurant" ? RESTAURANT_TABS : FIELD_SERVICE_TABS;
   const tab: TabKey = TABS.some((t) => t.key === tabParam) ? (tabParam as TabKey) : "business";
   const view = serializeAccount(account);
 
@@ -72,6 +93,20 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         {tab === "voice" ? (
           <Card title="Voice & greeting">
             <VoiceForm account={view} mode="settings" />
+          </Card>
+        ) : null}
+
+        {tab === "area" ? (
+          <Card title="Service area">
+            <ServiceAreaForm account={view} mode="settings" />
+          </Card>
+        ) : null}
+
+        {tab === "services" ? <ServicesTab accountId={account.id} view={view} /> : null}
+
+        {tab === "emergencies" ? (
+          <Card title="Emergencies">
+            <EmergenciesForm account={view} emergencyTypes={verticalFor(account).emergencyTypes} defaultSlotMinutes={verticalFor(account).defaults.slotMinutes} mode="settings" />
           </Card>
         ) : null}
 
@@ -118,6 +153,15 @@ async function MenuTab({ accountId, view }: { accountId: string; view: ReturnTyp
   return (
     <Card title="Menu & policies">
       <MenuPoliciesForm account={view} menu={items.map(serializeMenuItem)} mode="settings" />
+    </Card>
+  );
+}
+
+async function ServicesTab({ accountId, view }: { accountId: string; view: AccountView }) {
+  const services = await prisma.serviceOffering.findMany({ where: { accountId }, orderBy: { sortOrder: "asc" } });
+  return (
+    <Card title="Services & pricing">
+      <ServicesForm account={view} services={services.map(serializeServiceOffering)} mode="settings" />
     </Card>
   );
 }

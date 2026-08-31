@@ -5,6 +5,7 @@ import { FUNCTION_SECRET_HEADER, LEGACY_FUNCTION_SECRET_HEADER, functionSecretCa
 import { FUNCTION_NAMES, type FunctionName } from "@/lib/agent-config";
 import { HANDLERS, type HandlerContext } from "@/lib/call-handlers";
 import { findOrCreateCallFromRetell } from "@/lib/calls";
+import { verticalFor } from "@/verticals";
 import { retellConfigured } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
@@ -43,10 +44,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ nam
   const call = rc?.call_id ? await findOrCreateCallFromRetell(rc) : null;
   const metaAccountId = typeof rc?.metadata?.accountId === "string" ? rc.metadata.accountId : null;
   const accountId = call?.accountId ?? metaAccountId;
-  if (!accountId) return NextResponse.json({ success: false, message: "I couldn't find the restaurant for this call. Take a message instead." });
+  if (!accountId) return NextResponse.json({ success: false, message: "I couldn't find the business for this call. Take a message instead." });
 
   const account = await prisma.account.findUnique({ where: { id: accountId } });
-  if (!account) return NextResponse.json({ success: false, message: "Restaurant not found. Take a message instead." });
+  if (!account) return NextResponse.json({ success: false, message: "Business not found. Take a message instead." });
+
+  // Being in the global registry only means the function exists somewhere in the product; it does
+  // not mean this account may call it. Without this, a stale agent configuration left over from a
+  // vertical change could still reach take_takeout_order on a plumbing account and get restaurant
+  // wording back. The agent is only ever offered its own vertical's tools, so this is the backstop.
+  if (!(verticalFor(account).agentFunctions as readonly string[]).includes(name)) {
+    return NextResponse.json({ success: false, message: `That is not something this business does. Take a message instead.` }, { status: 404 });
+  }
 
   const ctx: HandlerContext = { account, call, callerPhone: call?.callerPhone ?? (rc?.direction === "outbound" ? rc?.to_number : rc?.from_number) ?? null };
 

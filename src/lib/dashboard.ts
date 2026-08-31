@@ -3,6 +3,7 @@ import { prisma } from "./prisma";
 import { addDays, dayBoundsUtc, dayOfWeekOf, formatDateString, getParts, toDateString, todayString } from "./time";
 import { DAYS_SHORT } from "./constants";
 import { liveCallCutoff } from "./calls";
+import { verticalFor } from "@/verticals";
 
 /** Everything the Home page needs, gathered in one place (keeps the page lint-pure and readable). */
 
@@ -12,6 +13,25 @@ export const CALL_SERIES = [
   { key: "questions", label: "Questions & messages", color: "var(--viz-series-3)" },
   { key: "attention", label: "Escalations & missed", color: "var(--viz-series-4)" },
 ] as const;
+
+/**
+ * The same four buckets, named for the business looking at them.
+ *
+ * A trade never takes a takeout order, so that series would be a permanently empty legend entry and
+ * is dropped rather than relabelled. The restaurant list is returned untouched and in its original
+ * order, because its chart must not move.
+ */
+export function callSeriesFor(account: Account): readonly { key: string; label: string; color: string }[] {
+  const definition = verticalFor(account);
+  if (definition.archetype === "restaurant") return CALL_SERIES;
+
+  const words = definition.vocabulary;
+  return [
+    { key: "booked", label: words.booking.Many, color: "var(--viz-series-1)" },
+    { key: "questions", label: "Questions & messages", color: "var(--viz-series-3)" },
+    { key: "attention", label: "Escalations & missed", color: "var(--viz-series-4)" },
+  ];
+}
 
 export function seriesKeyFor(c: CallClassification): (typeof CALL_SERIES)[number]["key"] {
   switch (c) {
@@ -40,18 +60,27 @@ export async function loadDashboard(account: Account) {
   const { start: monthStart } = dayBoundsUtc(addDays(today, -29), tz);
   const liveSince = liveCallCutoff();
 
+  // Covers and takeout are restaurant columns. A trade's home page still wants everything else in
+  // here — calls, unread, callbacks, how the AI is doing — so rather than duplicating that half,
+  // the three reservation/takeout queries are simply not issued and their tiles come back zero.
+  const isRestaurant = verticalFor(account).archetype === "restaurant";
+
   const [callsWeek, callsMonthHours, resTodayAndAhead, resYesterday, openOrders, unread, callbacks, liveCalls] = await Promise.all([
     prisma.call.findMany({
       where: { accountId: account.id, startedAt: { gte: weekStart, lt: todayEnd } },
       select: { id: true, startedAt: true, classification: true, duration: true, sentiment: true, callbackRequested: true, isTest: true },
     }),
     prisma.call.findMany({ where: { accountId: account.id, startedAt: { gte: monthStart } }, select: { startedAt: true } }),
-    prisma.reservation.findMany({
-      where: { accountId: account.id, startTime: { gte: todayStart, lt: weekAheadEnd }, isWaitlist: false, status: { notIn: ["cancelled", "no_show"] } },
-      select: { startTime: true, partySize: true, source: true },
-    }),
-    prisma.reservation.findMany({ where: { accountId: account.id, startTime: { gte: yStart, lt: todayStart }, isWaitlist: false, status: { notIn: ["cancelled", "no_show"] } }, select: { partySize: true } }),
-    prisma.takeoutOrder.count({ where: { accountId: account.id, status: { in: ["new", "confirmed", "ready"] } } }),
+    isRestaurant
+      ? prisma.reservation.findMany({
+          where: { accountId: account.id, startTime: { gte: todayStart, lt: weekAheadEnd }, isWaitlist: false, status: { notIn: ["cancelled", "no_show"] } },
+          select: { startTime: true, partySize: true, source: true },
+        })
+      : [],
+    isRestaurant
+      ? prisma.reservation.findMany({ where: { accountId: account.id, startTime: { gte: yStart, lt: todayStart }, isWaitlist: false, status: { notIn: ["cancelled", "no_show"] } }, select: { partySize: true } })
+      : [],
+    isRestaurant ? prisma.takeoutOrder.count({ where: { accountId: account.id, status: { in: ["new", "confirmed", "ready"] } } }) : 0,
     prisma.notification.count({ where: { accountId: account.id, readAt: null } }),
     prisma.call.findMany({
       where: { accountId: account.id, callbackRequested: true, startedAt: { gte: weekStart } },

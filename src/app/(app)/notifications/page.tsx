@@ -4,6 +4,7 @@ import { requireAccount } from "@/lib/current-account";
 import { prisma } from "@/lib/prisma";
 import { NOTIFICATION_TYPES } from "@/lib/constants";
 import { NOTIFICATION_TYPE_LABEL } from "@/lib/notifications";
+import { verticalFor, vocabularyFor } from "@/verticals";
 import { markAllNotificationsRead } from "@/actions/notifications";
 import { Button, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { NotificationList } from "@/components/notification-list";
@@ -35,12 +36,25 @@ export default async function NotificationsPage({ searchParams }: { searchParams
   };
 
   const chip = (active: boolean) => `shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${active ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 bg-surface text-gray-700"}`;
-  const typeLabel = typeFilter ? NOTIFICATION_TYPE_LABEL[typeFilter] : null;
+
+  // A trade never gets a takeout or waitlist notification, so offering those as filters would be
+  // offering two chips that can only ever return nothing. The reservation type is kept but read out
+  // in the vocabulary, since that is the row a service call is stored on.
+  const words = vocabularyFor(account);
+  const isRestaurant = verticalFor(account).archetype === "restaurant";
+  const filterTypes: readonly NotificationType[] = isRestaurant ? NOTIFICATION_TYPES : ["reservation", "message", "escalation", "missed_call", "system"];
+  const labelFor = (t: NotificationType) => (isRestaurant || t !== "reservation" ? NOTIFICATION_TYPE_LABEL[t] : words.booking.Many);
+  const typeLabel = typeFilter ? labelFor(typeFilter) : null;
 
   // Explain an empty result in terms of the active filters, with one-click ways out.
   let empty: { title: string; body?: string; action?: React.ReactNode };
   if (totalCount === 0) {
-    empty = { title: "No notifications yet", body: "New reservations, orders, messages and escalations will show up here." };
+    empty = {
+      title: "No notifications yet",
+      body: isRestaurant
+        ? "New reservations, orders, messages and escalations will show up here."
+        : `New ${words.booking.many}, messages and escalations will show up here.`,
+    };
   } else if (unreadOnly && typeFilter) {
     empty = {
       title: `No unread ${typeLabel!.toLowerCase()} notifications`,
@@ -88,9 +102,9 @@ export default async function NotificationsPage({ searchParams }: { searchParams
         <Link href={filterHref(null, unreadOnly)} aria-pressed={!typeFilter} className={chip(!typeFilter)}>
           All types
         </Link>
-        {NOTIFICATION_TYPES.map((t) => (
+        {filterTypes.map((t) => (
           <Link key={t} href={filterHref(t, unreadOnly)} aria-pressed={typeFilter === t} className={chip(typeFilter === t)}>
-            {NOTIFICATION_TYPE_LABEL[t]}
+            {labelFor(t)}
           </Link>
         ))}
       </div>
@@ -110,7 +124,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
         </p>
       ) : null}
 
-      {items.length === 0 ? <EmptyState title={empty.title} body={empty.body} action={empty.action} /> : <NotificationList items={items} grid />}
+      {items.length === 0 ? <EmptyState title={empty.title} body={empty.body} action={empty.action} /> : <NotificationList items={items} grid words={vocabularyFor(account)} />}
     </div>
   );
 }

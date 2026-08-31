@@ -6,6 +6,7 @@ import { accountCountry, displayDistance, formatDistance, KM_PER_MILE, postalLab
 import { dayOfWeekOf, formatDateString, formatClock, isValidDateString, timeToMinutes, todayString, zonedToUtc, formatDateTime } from "./time";
 import { formatUsPhone } from "./form";
 import { MESSAGE_REASONS, type FunctionName } from "./agent-config";
+import { vocabularyFor } from "@/verticals";
 import { FIELD_SERVICE_HANDLERS } from "./field-service-handlers";
 import { int, normalizeTime, phoneOrCaller, str, tagCall, type Args, type HandlerContext, type HandlerResult } from "./handler-utils";
 import { afterEscalation, afterMessageTaken, afterReservationBooked, afterTakeoutOrdered } from "./outcomes";
@@ -251,12 +252,17 @@ export async function takeMessageHandler(ctx: HandlerContext, args: Args): Promi
   if (escalate) await afterEscalation(a, ctx.call, { callerName, callerPhone, message, reason });
   else await afterMessageTaken(a, ctx.call, { callerName, callerPhone, message, reason });
 
+  // take_message is the one tool every archetype gets, so the wording has to come from the
+  // vocabulary rather than being hardcoded. `business.one` is "restaurant" for a restaurant, which
+  // is why this substitution leaves the restaurant's output byte-for-byte identical.
+  const business = vocabularyFor(a).business.one;
+
   return {
     success: true,
     escalated: escalate,
     message: escalate
-      ? `Message recorded and flagged for the manager. Tell ${callerName} a manager will call ${callerPhone ? formatUsPhone(callerPhone) : "them"} back within 15 minutes if it's during manager hours, otherwise when the restaurant next opens.`
-      : `Message recorded. Tell ${callerName} the restaurant will call ${callerPhone ? formatUsPhone(callerPhone) : "them"} back.`,
+      ? `Message recorded and flagged for the manager. Tell ${callerName} a manager will call ${callerPhone ? formatUsPhone(callerPhone) : "them"} back within 15 minutes if it's during manager hours, otherwise when the ${business} next opens.`
+      : `Message recorded. Tell ${callerName} the ${business} will call ${callerPhone ? formatUsPhone(callerPhone) : "them"} back.`,
   };
 }
 

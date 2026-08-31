@@ -1,4 +1,4 @@
-import type { ZodType } from "zod";
+import type { ZodObject, ZodRawShape } from "zod";
 import type { Account, BusinessHours, ManagerAvailability, MenuItem, ServiceOffering, Vertical } from "@prisma/client";
 import type { CustomTool, EndCallTool } from "@/lib/retell";
 
@@ -218,8 +218,11 @@ export type VerticalDefinition = {
    * Vertical-specific fields the agent collects, stored as JSON on the booking record and
    * validated before anything is written. Restaurants predate this and keep typed columns, so
    * their schema is deliberately empty rather than a duplicate of the Reservation table.
+   *
+   * An object schema specifically, not any ZodType: the handler validates one field at a time so
+   * a single bad answer cannot discard the others, and that needs `.shape`.
    */
-  intakeSchema: ZodType;
+  intakeSchema: ZodObject<ZodRawShape>;
 
   /** Life-safety or same-day situations the agent must treat as urgent. */
   emergencyTypes: readonly ClassifiedReason[];
