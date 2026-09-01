@@ -12,10 +12,10 @@ import { syncRetellAgentQuietly } from "@/lib/agent-sync";
 import { listVoices } from "@/lib/retell";
 import { retellConfigured } from "@/lib/env";
 import { requireAccount } from "@/lib/current-account";
-import { bool, int, json, list, normalizeUsPhone, optDecimal, optInt, optStr, str, type ActionState } from "@/lib/form";
+import { bool, int, json, normalizeUsPhone, optDecimal, optInt, optStr, str, type ActionState } from "@/lib/form";
 import { greetingHasDisclosure } from "@/lib/greeting";
 import { DIETARY_TAGS, timeZonesFor, US_STATES, VOICES } from "@/lib/constants";
-import { onboardingDoneStep, onboardingStepsFor, verticalFor } from "@/verticals";
+import { onboardingDoneStep, onboardingStepsFor } from "@/verticals";
 import { isValidTimeString, timeToMinutes } from "@/lib/time";
 
 type Mode = "onboarding" | "settings";
@@ -100,18 +100,13 @@ export async function saveBusinessBasics(_prev: ActionState, fd: FormData): Prom
   return finish(account, "business-basics", modeOf(fd));
 }
 
-// ---------- Step 3: Hours + escalation ----------
+// ---------- Step 3: Hours ----------
 
 type HoursRow = { dayOfWeek: number; periodName: string; open: string; close: string; isClosed: boolean };
-type ManagerRow = { dayOfWeek: number; start: string; end: string };
 
 export async function saveHours(_prev: ActionState, fd: FormData): Promise<ActionState> {
   const { account } = await requireAccount();
   const rows = json<HoursRow[]>(fd, "hours", []);
-  const managerRows = json<ManagerRow[]>(fd, "managerHours", []);
-  const escalatesToManager = bool(fd, "escalatesToManager");
-  const allowed = new Set(verticalFor(account).escalationTriggers.map((e) => e.key));
-  const escalationTypes = list(fd, "escalationTypes").filter((k) => allowed.has(k));
 
   const cleanHours: HoursRow[] = [];
   for (const r of rows) {
@@ -126,20 +121,9 @@ export async function saveHours(_prev: ActionState, fd: FormData): Promise<Actio
     cleanHours.push({ dayOfWeek, periodName: (r.periodName || "Service").trim().slice(0, 40), open: r.open, close: r.close, isClosed: false });
   }
 
-  const cleanManager: ManagerRow[] = [];
-  for (const r of managerRows) {
-    const dayOfWeek = Number(r.dayOfWeek);
-    if (!Number.isInteger(dayOfWeek) || dayOfWeek < 0 || dayOfWeek > 6) continue;
-    if (!isValidTimeString(r.start) || !isValidTimeString(r.end)) continue;
-    cleanManager.push({ dayOfWeek, start: r.start, end: r.end });
-  }
-
   await prisma.$transaction([
     prisma.businessHours.deleteMany({ where: { accountId: account.id } }),
     prisma.businessHours.createMany({ data: cleanHours.map((h, i) => ({ ...h, accountId: account.id, sortOrder: i })) }),
-    prisma.managerAvailability.deleteMany({ where: { accountId: account.id } }),
-    prisma.managerAvailability.createMany({ data: cleanManager.map((m) => ({ ...m, accountId: account.id })) }),
-    prisma.account.update({ where: { id: account.id }, data: { escalatesToManager, escalationTypes } }),
   ]);
   return finish(account, "hours", modeOf(fd));
 }

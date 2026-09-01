@@ -104,7 +104,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           </Card>
         ) : null}
 
-        {tab === "hours" ? <HoursTab accountId={account.id} view={view} /> : null}
+        {tab === "hours" ? <HoursTab accountId={account.id} /> : null}
 
         {tab === "menu" ? <MenuTab accountId={account.id} view={view} /> : null}
 
@@ -179,14 +179,11 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   );
 }
 
-async function HoursTab({ accountId, view }: { accountId: string; view: ReturnType<typeof serializeAccount> }) {
-  const [hours, manager] = await Promise.all([
-    prisma.businessHours.findMany({ where: { accountId }, orderBy: [{ dayOfWeek: "asc" }, { sortOrder: "asc" }] }),
-    prisma.managerAvailability.findMany({ where: { accountId }, orderBy: { dayOfWeek: "asc" } }),
-  ]);
+async function HoursTab({ accountId }: { accountId: string }) {
+  const hours = await prisma.businessHours.findMany({ where: { accountId }, orderBy: [{ dayOfWeek: "asc" }, { sortOrder: "asc" }] });
   return (
-    <Card title="Hours & escalation">
-      <HoursForm account={view} hours={hours} managerHours={manager} mode="settings" escalationTypes={verticalFor(view).escalationTriggers} />
+    <Card title="Hours">
+      <HoursForm hours={hours} mode="settings" />
     </Card>
   );
 }

@@ -1,18 +1,15 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import type { BusinessHours, ManagerAvailability } from "@prisma/client";
+import type { BusinessHours } from "@prisma/client";
 import { saveHours } from "@/actions/onboarding";
-import type { AccountView } from "@/lib/serialize";
 import { DAYS_OF_WEEK } from "@/lib/constants";
-import type { ClassifiedReason } from "@/verticals/types";
-import { Button, Checkbox, Field, Toggle, inputClass } from "@/components/ui";
+import { Button, inputClass } from "@/components/ui";
 import { FormFooter, type FormMode } from "@/components/form-footer";
 import { ActionForm } from "@/components/action-form";
 
 type Period = { periodName: string; open: string; close: string };
 type DayState = { isClosed: boolean; periods: Period[] };
-type ManagerRow = { dayOfWeek: number; start: string; end: string };
 
 function buildDays(hours: BusinessHours[]): DayState[] {
   return DAYS_OF_WEEK.map((_, day) => {
@@ -23,15 +20,9 @@ function buildDays(hours: BusinessHours[]): DayState[] {
   });
 }
 
-/** `escalationTypes` is passed in rather than imported: it is per-vertical, and a client bundle
- * has no business pulling in the whole vertical registry (prompt text, Zod schemas) to read a label. */
-export function HoursForm({ account, hours, managerHours, mode, escalationTypes }: { account: AccountView; hours: BusinessHours[]; managerHours: ManagerAvailability[]; mode: FormMode; escalationTypes: readonly ClassifiedReason[] }) {
+export function HoursForm({ hours, mode }: { hours: BusinessHours[]; mode: FormMode }) {
   const [state, action, pending] = useActionState(saveHours, null);
   const [days, setDays] = useState<DayState[]>(() => buildDays(hours));
-  const [escalates, setEscalates] = useState(account.escalatesToManager);
-  const [manager, setManager] = useState<ManagerRow[]>(() =>
-    managerHours.length > 0 ? managerHours.map((m) => ({ dayOfWeek: m.dayOfWeek, start: m.start, end: m.end })) : DAYS_OF_WEEK.map((_, d) => ({ dayOfWeek: d, start: "10:00", end: "22:00" })),
-  );
 
   function updateDay(day: number, patch: Partial<DayState>) {
     setDays((prev) => prev.map((d, i) => (i === day ? { ...d, ...patch } : d)));
@@ -69,7 +60,6 @@ export function HoursForm({ account, hours, managerHours, mode, escalationTypes 
   return (
     <ActionForm action={action} className="space-y-6">
       <input type="hidden" name="hours" value={hoursJson} />
-      <input type="hidden" name="managerHours" value={JSON.stringify(escalates ? manager : [])} />
 
       <section className="space-y-3">
         <h2 className="text-base font-bold">Weekly hours</h2>
@@ -107,33 +97,6 @@ export function HoursForm({ account, hours, managerHours, mode, escalationTypes 
             ) : null}
           </div>
         ))}
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-base font-bold">Manager escalation</h2>
-        <Toggle name="escalatesToManager" label="Escalate to a manager" description="The AI takes the caller's details and calls the manager's cell." checked={escalates} onChange={setEscalates} />
-        {escalates ? (
-          <>
-            <Field label="When can a manager be reached?" hint="The AI promises a call-back within 15 minutes during these hours.">
-              <div className="space-y-2">
-                {manager.map((m, i) => (
-                  <div key={m.dayOfWeek} className="grid grid-cols-12 items-center gap-2">
-                    <span className="col-span-4 text-sm font-medium sm:col-span-3">{DAYS_OF_WEEK[m.dayOfWeek]}</span>
-                    <input aria-label="Reachable from" type="time" value={m.start} onChange={(e) => setManager((prev) => prev.map((r, j) => (j === i ? { ...r, start: e.target.value } : r)))} className={`${inputClass} col-span-4 min-h-11 px-2`} />
-                    <input aria-label="Reachable until" type="time" value={m.end} onChange={(e) => setManager((prev) => prev.map((r, j) => (j === i ? { ...r, end: e.target.value } : r)))} className={`${inputClass} col-span-4 min-h-11 px-2`} />
-                  </div>
-                ))}
-              </div>
-            </Field>
-            <Field label="Escalate these situations">
-              <div className="space-y-2">
-                {escalationTypes.map((t) => (
-                  <Checkbox key={t.key} name="escalationTypes" value={t.key} label={t.label} defaultChecked={account.escalationTypes.includes(t.key)} />
-                ))}
-              </div>
-            </Field>
-          </>
-        ) : null}
       </section>
 
       <FormFooter state={state} pending={pending} mode={mode} backHref="/onboarding/2" />

@@ -67,14 +67,11 @@ export default async function OnboardingStepPage({ params, searchParams }: { par
         </div>
       );
     case "hours": {
-      const [hours, manager] = await Promise.all([
-        prisma.businessHours.findMany({ where: { accountId: account.id }, orderBy: [{ dayOfWeek: "asc" }, { sortOrder: "asc" }] }),
-        prisma.managerAvailability.findMany({ where: { accountId: account.id }, orderBy: { dayOfWeek: "asc" } }),
-      ]);
+      const hours = await prisma.businessHours.findMany({ where: { accountId: account.id }, orderBy: [{ dayOfWeek: "asc" }, { sortOrder: "asc" }] });
       return (
         <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
           {progress}
-          <HoursForm account={view} hours={hours} managerHours={manager} mode="onboarding" escalationTypes={verticalFor(account).escalationTriggers} />
+          <HoursForm hours={hours} mode="onboarding" />
         </div>
       );
     }
