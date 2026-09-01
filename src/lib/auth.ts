@@ -46,14 +46,13 @@ export const authOptions: NextAuthOptions = {
         const email = user.email?.toLowerCase();
         if (!email) return false;
 
-        // Terms gate for the Google SIGNUP path. Consent was captured before the OAuth redirect as
-        // a signed cookie (recordTermsForGoogleSignup); a brand-new user arriving without it — a
-        // hand-crafted flow, or Google clicked on the login page by someone with no account — is
-        // sent to the signup screen to tick the box. Existing users are untouched here: the
-        // interstitial handles anyone who predates the current version.
-        const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+        // Consent on the Google path is captured either BEFORE the redirect — the signed cookie set
+        // when the box was already ticked on the signup form — or AFTER it, on onboarding step 1,
+        // which refuses to create an Account without it. Nobody is turned away here for arriving
+        // without the cookie: signing in creates a User row and nothing else, no service is provided
+        // until that step, and requireAccount() sends every account-less user straight to it. Asking
+        // before someone has even chosen their Google account is the wrong moment to ask.
         const accepted = await hasPendingTermsCookie();
-        if (!existing && !accepted) return "/signup?error=terms";
 
         const googleId = account.providerAccountId;
         const emailVerified = (profile as { email_verified?: boolean } | undefined)?.email_verified ? new Date() : null;

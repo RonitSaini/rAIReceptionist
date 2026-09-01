@@ -13,8 +13,8 @@ export const metadata = { title: "Sign up" };
 // reliably available during the build's static prerender on Vercel.
 export const dynamic = "force-dynamic";
 
-export default async function SignupPage({ searchParams }: { searchParams: Promise<{ deleted?: string; error?: string }> }) {
-  const { deleted, error } = await searchParams;
+export default async function SignupPage({ searchParams }: { searchParams: Promise<{ deleted?: string }> }) {
+  const { deleted } = await searchParams;
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-5 py-10">
       <BackToHome />
@@ -28,11 +28,6 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
       {deleted ? (
         <div className="mb-4">
           <Alert kind="info">Your account and all of its data were deleted. You can sign up again any time.</Alert>
-        </div>
-      ) : null}
-      {error === "terms" ? (
-        <div className="mb-4">
-          <Alert kind="info">To sign up with Google, first tick the box agreeing to the Terms of Service and Privacy Policy, then try again.</Alert>
         </div>
       ) : null}
       <SignupForm googleEnabled={googleEnabled} catalog={VERTICAL_CATALOG} />

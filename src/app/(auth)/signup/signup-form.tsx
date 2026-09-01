@@ -57,10 +57,11 @@ export function SignupForm({ googleEnabled, catalog }: { googleEnabled: boolean;
             or
             <span className="h-px flex-1 bg-gray-200" />
           </div>
-          {/* Consent is captured server-side (a signed cookie) BEFORE the browser leaves for
-              Google; the NextAuth callback refuses to create a user without it. */}
-          <GoogleButton callbackUrl="/onboarding/1" label="Sign up with Google" disabled={!agreed} beforeSignIn={() => recordTermsForGoogleSignup()} />
-          {!agreed ? <p className="mt-2 text-center text-xs text-gray-400">Tick the agreement box above to enable sign-up.</p> : null}
+          {/* Always clickable. If the box above is already ticked, consent is captured server-side
+              (a signed cookie) before the browser leaves for Google, and step 1 won't ask again;
+              otherwise step 1 asks once they are back, having chosen an account. Either way no
+              Account exists until it is given. */}
+          <GoogleButton callbackUrl="/onboarding/1" label="Sign up with Google" beforeSignIn={agreed ? () => recordTermsForGoogleSignup() : undefined} />
         </>
       ) : null}
     </div>
