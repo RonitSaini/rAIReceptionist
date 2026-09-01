@@ -41,7 +41,7 @@ export type JobAvailability = {
 
 const overlaps = (aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) => aStart < bEnd && bStart < aEnd;
 
-export async function getAvailableJobSlots(account: Account, date: string, hours?: BusinessHours[]): Promise<JobAvailability> {
+export async function getAvailableJobSlots(account: Account, date: string, hours?: BusinessHours[], opts?: { excludeJobId?: string | null }): Promise<JobAvailability> {
   const tz = account.timeZone;
   const slotMinutes = Math.max(15, account.jobSlotMinutes || 120);
   const maxPerDay = account.maxJobsPerDay ?? null;
@@ -56,7 +56,15 @@ export async function getAvailableJobSlots(account: Account, date: string, hours
   // rather than blocking the phone line — the built-in book stays the source of truth.
   const [existing, busy] = await Promise.all([
     prisma.job.findMany({
-      where: { accountId: account.id, status: { in: [...ACTIVE_JOB_STATUSES] }, scheduledStart: { gte: start, lt: end } },
+      where: {
+        accountId: account.id,
+        status: { in: [...ACTIVE_JOB_STATUSES] },
+        scheduledStart: { gte: start, lt: end },
+        // A booking made earlier in the same call must not block that caller from moving or
+        // correcting it: their own held window reads as free to them, and nobody else's call
+        // excludes anything.
+        ...(opts?.excludeJobId ? { id: { not: opts.excludeJobId } } : {}),
+      },
       select: { scheduledStart: true, scheduledEnd: true },
     }),
     googleBusyBlocks(account.id, start, end),

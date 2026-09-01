@@ -5,7 +5,7 @@ import { distanceMiles, extractZip, formatRestaurantAddress, geocodeAddress } fr
 import { accountCountry, displayDistance, formatDistance, postalLabel, unitWord } from "./locale";
 import { formatDateString, formatDateTime, isValidDateString, todayString, zonedToUtc } from "./time";
 import { formatUsPhone } from "./form";
-import { getAvailableJobSlots, openSlotLabels } from "./job-availability";
+import { ACTIVE_JOB_STATUSES, getAvailableJobSlots, openSlotLabels } from "./job-availability";
 import { afterEmergencyDispatched, afterJobBooked } from "./job-outcomes";
 import { verticalFor } from "@/verticals";
 import { bool, normalizeTime, phoneOrCaller, str, tagCall, upsertCustomer, type Args, type HandlerContext, type HandlerResult } from "./handler-utils";
@@ -94,7 +94,10 @@ export async function getAvailableSlotsHandler(ctx: HandlerContext, args: Args):
 
   if (date < todayString(a.timeZone)) return { success: false, message: "That date has passed. Ask for a day from today onwards." };
 
-  const availability = await getAvailableJobSlots(a, date);
+  // The window this call already booked stays offerable to its own caller — moving or correcting
+  // a booking mid-call must never be told "that slot has gone" about their own slot.
+  const ownJob = await amendableJobFor(ctx);
+  const availability = await getAvailableJobSlots(a, date, undefined, { excludeJobId: ownJob?.id });
   const dayLabel = formatDateString(date, { weekday: "long", month: "long", day: "numeric" });
 
   if (availability.closed) return { success: true, closed: true, available_times: [], message: `Nobody is working on ${dayLabel}. Offer another day.` };
@@ -120,6 +123,28 @@ export async function getAvailableSlotsHandler(ctx: HandlerContext, args: Args):
 
 // ---------- book_service_call ----------
 
+/**
+ * The visit this call already booked, if any — the job stays amendable until the caller hangs up.
+ *
+ * A caller whose address was misheard corrects it on the same breath, and the agent books again.
+ * Without this, the second book finds the window occupied by the first and turns the caller away
+ * from their own slot. Only a scheduled, non-emergency job the AI itself created qualifies: a
+ * dispatch or an emergency logged earlier in the call is a different piece of work, not a draft.
+ */
+async function amendableJobFor(ctx: HandlerContext) {
+  if (!ctx.call?.jobId) return null;
+  return prisma.job.findFirst({
+    where: {
+      id: ctx.call.jobId,
+      accountId: ctx.account.id,
+      source: "ai",
+      isEmergency: false,
+      kind: { not: "dispatch" },
+      status: { in: [...ACTIVE_JOB_STATUSES] },
+    },
+  });
+}
+
 export async function bookServiceCallHandler(ctx: HandlerContext, args: Args): Promise<HandlerResult> {
   const a = ctx.account;
   const words = verticalFor(a).vocabulary;
@@ -142,7 +167,8 @@ export async function bookServiceCallHandler(ctx: HandlerContext, args: Args): P
     return { success: false, message: `That address is outside the service area (${area.reason}). Do not book it; apologize and offer to take a message.` };
   }
 
-  const availability = await getAvailableJobSlots(a, date);
+  const ownJob = await amendableJobFor(ctx);
+  const availability = await getAvailableJobSlots(a, date, undefined, { excludeJobId: ownJob?.id });
   const slot = availability.slots.find((s) => s.time === time);
   if (availability.closed) return { success: false, message: "Nobody is working that day. Offer another day." };
   if (!slot) {
@@ -155,33 +181,41 @@ export async function bookServiceCallHandler(ctx: HandlerContext, args: Args): P
   }
 
   const customer = await upsertCustomer(a.id, customerPhone, customerName, address);
-  const job = await prisma.job.create({
-    data: {
-      accountId: a.id,
-      customerId: customer?.id ?? null,
-      kind: verticalFor(a).bookingKind ?? "service_call",
-      customerName,
-      customerPhone,
-      address,
-      description,
-      isEmergency: false,
-      scheduledStart: slot.startUtc,
-      scheduledEnd: slot.endUtc,
-      status: "scheduled",
-      assignedTo: a.technicianName,
-      source: "ai",
-      details: intakeDetails(a, args),
-    },
-  });
+  const fields = {
+    customerName,
+    customerPhone,
+    address,
+    description,
+    scheduledStart: slot.startUtc,
+    scheduledEnd: slot.endUtc,
+    details: intakeDetails(a, args),
+  };
+  const job = ownJob
+    ? // Same call, corrected details: the caller's own booking is rewritten, never duplicated.
+      await prisma.job.update({ where: { id: ownJob.id }, data: { ...fields, customerId: customer?.id ?? ownJob.customerId, status: "scheduled" } })
+    : await prisma.job.create({
+        data: {
+          accountId: a.id,
+          customerId: customer?.id ?? null,
+          kind: verticalFor(a).bookingKind ?? "service_call",
+          isEmergency: false,
+          status: "scheduled",
+          assignedTo: a.technicianName,
+          source: "ai",
+          ...fields,
+        },
+      });
 
   await tagCall(ctx, { classification: job.kind === "estimate" ? "estimate" : "service_call", jobId: job.id, callerName: customerName });
-  await afterJobBooked(a, job, ctx.call);
+  await afterJobBooked(a, job, ctx.call, { rebook: Boolean(ownJob) });
 
   const when = formatDateTime(slot.startUtc, a.timeZone);
   return {
     success: true,
     job_id: job.id,
-    message: `Booked for ${customerName} on ${when} at ${address}. Tell them ${a.technicianName || `the ${words.staff.one}`} will be out then, and that a confirmation text is on its way to ${formatUsPhone(customerPhone)}.`,
+    message: ownJob
+      ? `Updated — the earlier booking on this call is replaced. ${customerName} is now booked on ${when} at ${address}. Tell them it is corrected and a new confirmation text is on its way to ${formatUsPhone(customerPhone)}.`
+      : `Booked for ${customerName} on ${when} at ${address}. Tell them ${a.technicianName || `the ${words.staff.one}`} will be out then, and that a confirmation text is on its way to ${formatUsPhone(customerPhone)}.`,
   };
 }
 

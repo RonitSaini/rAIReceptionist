@@ -18,8 +18,14 @@ import { syncJobToGoogle } from "./google-calendar";
  * every vertical, so a fix to it fixes all of them.
  */
 
-/** Confirmation notification + customer text for a booked or requested job. */
-export async function afterJobBooked(account: Account, job: Job, call: Call | null): Promise<void> {
+/**
+ * Confirmation notification + customer text for a booked or requested job.
+ *
+ * `rebook` marks a booking the same call corrected before hanging up — the notification says so
+ * instead of announcing a second new job, and the customer gets a fresh text with the fixed
+ * details, because the first one may already have landed with the wrong address on it.
+ */
+export async function afterJobBooked(account: Account, job: Job, call: Call | null, opts?: { rebook?: boolean }): Promise<void> {
   // Mirror onto Google after the response is sent: the caller is on the phone, and a slow or down
   // Google must never stretch the pause after "you're booked". Failures land on Job.googleSyncError.
   after(() => syncJobToGoogle(job.id));
@@ -33,7 +39,7 @@ export async function afterJobBooked(account: Account, job: Job, call: Call | nu
     priority: job.isEmergency ? "urgent" : "normal",
     // An emergency is never the vertical's booking noun: a roofer books estimates, but "EMERGENCY
     // estimate" is not what water coming through a ceiling is. Same reason its Job.kind is dispatch.
-    title: job.isEmergency ? `EMERGENCY: ${job.customerName}` : `New ${words.booking.one}: ${job.customerName}`,
+    title: job.isEmergency ? `EMERGENCY: ${job.customerName}` : `${opts?.rebook ? "Updated" : "New"} ${words.booking.one}: ${job.customerName}`,
     body: [when, job.customerPhone ? formatUsPhone(job.customerPhone) : null, job.address, job.description, job.assignedTo ? `assigned to ${job.assignedTo}` : null, `booked by ${account.hostName}`]
       .filter(Boolean)
       .join(" · "),
