@@ -1,0 +1,4 @@
+# Golden snapshots are compared byte-for-byte by the test suite. Line-ending conversion must never
+# touch them on any machine — a checkout on Windows with core.autocrlf=true otherwise rewrites them
+# to CRLF and every field-service golden "fails" by a single \r per line.
+tests/snapshots/** -text
