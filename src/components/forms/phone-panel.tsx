@@ -10,6 +10,7 @@ import type { ActionState } from "@/lib/form";
 import { formatUsPhone } from "@/lib/form";
 import { Alert, Badge, Button, Card, Field, Input } from "@/components/ui";
 import type { FormMode } from "@/components/form-footer";
+import { vocabularyFor } from "@/verticals";
 import { WebTestCall } from "@/components/web-test-call";
 import { ActionForm } from "@/components/action-form";
 
@@ -114,7 +115,8 @@ export function PhonePanel({ account, mode, status }: { account: AccountView; mo
           </div>
         ) : null}
         <p className="text-sm text-gray-500">
-          We&apos;ll call {account.cellPhone ? formatUsPhone(account.cellPhone) : "your cell (add it in Business basics)"} from your FrontDesk AI number so you can hear the greeting and try booking a table.
+          We&apos;ll call {account.cellPhone ? formatUsPhone(account.cellPhone) : "your cell (add it in Business basics)"} from your FrontDesk AI number so you can hear the greeting and try booking{" "}
+          {`${/^[aeiou]/i.test(vocabularyFor(account).booking.one) ? "an" : "a"} ${vocabularyFor(account).booking.one}`}.
         </p>
         <Button type="button" variant="secondary" className="mt-3" disabled={!hasNumber || !account.cellPhone || pending} onClick={() => run(placeTestCall)}>
           <DrawIcon name="phone" size={16} draw={false} /> Call me to test

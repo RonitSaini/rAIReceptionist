@@ -194,7 +194,7 @@ export async function followUpUnacknowledgedEscalation(n: Notification & { call:
       followUpSentAt: new Date(),
       // A failed follow-up text already has its raw provider error persisted on the SmsMessage row
       // (linked to this call/job); the notification says what happened in the owner's language.
-      body: sms.ok ? `${n.body} · Guest texted: manager will call back ${nextOpen ?? "when we open"}.` : `${n.body} · CALLER NOT NOTIFIED — ${friendlyProviderError("sms", sms.error)}. Please call them.`,
+      body: sms.ok ? `${n.body} · Caller texted: manager will call back ${nextOpen ?? "when we open"}.` : `${n.body} · CALLER NOT NOTIFIED — ${friendlyProviderError("sms", sms.error)}. Please call them.`,
     },
   });
   return { sent: sms.ok, reason: sms.ok ? "sent" : sms.error };

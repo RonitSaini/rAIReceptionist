@@ -30,7 +30,7 @@ export function AccountActions({ businessName }: { businessName: string }) {
           <p className="font-semibold text-red-800 dark:text-red-300">This permanently deletes {businessName}.</p>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-red-800/90 dark:text-red-200/90">
             <li>Your subscription ends immediately — the rest of any paid month is not refunded — and your phone number is released.</li>
-            <li>Every reservation, order, call, recording link, message, and setting is erased.</li>
+            <li>Every booking, order, call, recording link, message, and setting is erased.</li>
             <li>Your login is removed — to use FrontDesk AI again you&apos;ll need to sign up from scratch.</li>
           </ul>
           <label htmlFor="delete-confirm" className="mt-4 block text-sm font-semibold">

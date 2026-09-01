@@ -37,11 +37,11 @@ export async function POST(req: NextRequest) {
     : await prisma.account.findUnique({ where: { twilioNumber: to } });
 
   if (!account || !account.retellAgentId) {
-    return twimlSay("Sorry, this restaurant's phone assistant isn't ready yet. Please call back later.");
+    return twimlSay("Sorry, this business's phone assistant isn't ready yet. Please call back later.");
   }
   // Phase 4: with BILLING_REQUIRED=true a lapsed subscription stops answering (the owner sees a banner in the app).
   if (!canTakeCalls(account)) {
-    return twimlSay("Sorry, this restaurant's phone assistant is currently unavailable. Please call back later.");
+    return twimlSay("Sorry, this business's phone assistant is currently unavailable. Please call back later.");
   }
 
   // Twilio may retry the webhook — reuse the registration if we already have one for this CallSid.

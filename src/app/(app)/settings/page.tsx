@@ -87,7 +87,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 
   return (
     <div className="space-y-4">
-      <PageHeader title="Settings" subtitle="Everything your AI host knows about your restaurant." />
+      <PageHeader title="Settings" subtitle={`Everything your AI host knows about your ${definition.vocabulary.business.one}.`} />
 
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
         {TABS.map((t) => (

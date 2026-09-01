@@ -63,6 +63,7 @@ export function BusinessBasicsForm({ account, mode }: { account: AccountView; mo
           <AddressFields
             key={addressKey}
             country={country}
+            legend={`${vocabularyFor(account).business.One} address`}
             initial={{
               addressLine1: account.addressLine1 ?? "",
               addressLine2: account.addressLine2 ?? "",

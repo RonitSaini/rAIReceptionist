@@ -81,8 +81,8 @@ export default async function CallDetailPage({ params }: { params: Promise<{ id:
                   {escalation.acknowledgedAt
                     ? `✅ Acknowledged ${formatDateTime(escalation.acknowledgedAt, account.timeZone)}`
                     : escalation.followUpSentAt
-                      ? `💬 Not acknowledged in time — guest was texted ${formatDateTime(escalation.followUpSentAt, account.timeZone)}`
-                      : "⏳ Waiting for a manager to acknowledge (guest is texted if the window lapses)"}
+                      ? `💬 Not acknowledged in time — caller was texted ${formatDateTime(escalation.followUpSentAt, account.timeZone)}`
+                      : "⏳ Waiting for a manager to acknowledge (caller is texted if the window lapses)"}
                 </li>
               ) : null}
             </ul>

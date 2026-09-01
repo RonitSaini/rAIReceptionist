@@ -51,7 +51,6 @@ export function HoursForm({ hours, mode }: { hours: BusinessHours[]; mode: FormM
 
       <section className="space-y-3">
         <h2 className="text-base font-bold">Weekly hours</h2>
-        <p className="text-sm text-gray-500">Add a second period for split service (lunch and dinner). The AI only books during these hours.</p>
         {days.map((d, day) => (
           <div key={day} className="rounded-2xl border border-gray-200 bg-surface p-4">
             <div className="flex items-center justify-between gap-3">

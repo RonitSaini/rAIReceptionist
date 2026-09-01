@@ -15,7 +15,7 @@ export type AddressValue = { addressLine1: string; addressLine2: string; city: s
  * field and pins the exact coordinates (hidden inputs); editing any field afterwards drops the pin so the
  * server re-geocodes on save. Without GOOGLE_MAPS_API_KEY the server answers 503 and this is a plain form.
  */
-export function AddressFields({ initial, country }: { initial: AddressValue; country: Country }) {
+export function AddressFields({ initial, country, legend = "Business address" }: { initial: AddressValue; country: Country; legend?: string }) {
   const [v, setV] = useState<AddressValue>(initial);
   const [query, setQuery] = useState(initial.addressLine1);
   const [items, setItems] = useState<Suggestion[]>([]);
@@ -99,7 +99,7 @@ export function AddressFields({ initial, country }: { initial: AddressValue; cou
 
   return (
     <fieldset className="space-y-3">
-      <legend className="text-sm font-semibold text-gray-800">Restaurant address <span className="font-normal text-gray-500">({country === "CA" ? "Canada" : "United States"})</span></legend>
+      <legend className="text-sm font-semibold text-gray-800">{legend} <span className="font-normal text-gray-500">({country === "CA" ? "Canada" : "United States"})</span></legend>
       <div className="relative">
         <Input
           ref={inputRef}
