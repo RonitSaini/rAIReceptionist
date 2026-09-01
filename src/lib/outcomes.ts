@@ -8,6 +8,7 @@ import { addDays, dayOfWeekOf, formatClock, formatDateString, formatDateTime, ge
 import { periodsForDay } from "./availability";
 import { verticalFor, vocabularyFor } from "@/verticals";
 import { markConfirmationSent, reservationConfirmationText, sendGuestSms, takeoutConfirmationText, unacknowledgedText } from "./sms";
+import { friendlyProviderError } from "./provider-errors";
 
 /**
  * Phase 3: what happens after the AI does something on a call.
@@ -129,7 +130,11 @@ export async function afterEscalation(account: Account, call: Call | null, input
     } catch (e) {
       const err = e instanceof Error ? e.message : String(e);
       console.warn("[escalation] manager call failed:", err);
-      await prisma.notification.update({ where: { id: notification.id }, data: { body: `${notification.body} (Couldn't ring the manager: ${err})` } }).catch(() => {});
+      // The owner reads plain language; the raw provider error lives on the Call for diagnostics.
+      await prisma.call.update({ where: { id: call.id }, data: { managerCallError: err.slice(0, 300) } }).catch(() => {});
+      await prisma.notification
+        .update({ where: { id: notification.id }, data: { body: `${notification.body} (We couldn't ring your cell — ${friendlyProviderError("call", err)}.)` } })
+        .catch(() => {});
     }
   }
   return notification;
@@ -187,7 +192,9 @@ export async function followUpUnacknowledgedEscalation(n: Notification & { call:
     where: { id: n.id },
     data: {
       followUpSentAt: new Date(),
-      body: sms.ok ? `${n.body} · Guest texted: manager will call back ${nextOpen ?? "when we open"}.` : `${n.body} · CALLER NOT NOTIFIED (${sms.error}).`,
+      // A failed follow-up text already has its raw provider error persisted on the SmsMessage row
+      // (linked to this call/job); the notification says what happened in the owner's language.
+      body: sms.ok ? `${n.body} · Guest texted: manager will call back ${nextOpen ?? "when we open"}.` : `${n.body} · CALLER NOT NOTIFIED — ${friendlyProviderError("sms", sms.error)}. Please call them.`,
     },
   });
   return { sent: sms.ok, reason: sms.ok ? "sent" : sms.error };

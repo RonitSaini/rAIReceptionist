@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { nowUtc, timeAgo } from "@/lib/time";
 import { formatUsPhone } from "@/lib/form";
 import { humanize } from "@/lib/constants";
+import { friendlyProviderError } from "@/lib/provider-errors";
 import { vocabularyFor } from "@/verticals";
 import { setJobStatus } from "@/actions/field-service";
 import { Badge, EmptyState, LinkButton, PageHeader } from "@/components/ui";
@@ -97,7 +98,8 @@ export default async function DispatchPage() {
 
                 {unreachable !== undefined ? (
                   <p className="mt-2 rounded-lg bg-red-100 px-3 py-2 text-sm font-semibold text-red-800">
-                    Caller not notified - our text to them failed{unreachable ? ` (${unreachable})` : ""}. They are still waiting and do not know. Call them.
+                    {/* Raw provider error stays on the SmsMessage row; the operator gets plain language. */}
+                    Caller not notified - our text to them failed{unreachable ? ` (${friendlyProviderError("sms", unreachable)})` : ""}. They are still waiting and do not know. Call them.
                   </p>
                 ) : null}
 

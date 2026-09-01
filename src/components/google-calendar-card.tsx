@@ -6,6 +6,7 @@ import type { GoogleCalendarView } from "@/lib/google-calendar-view";
 import type { ActionState } from "@/lib/form";
 import { Alert, Badge, Button, Field, LinkButton, Select, StatusDot } from "@/components/ui";
 import { ActionForm } from "@/components/action-form";
+import { friendlyProviderError } from "@/lib/provider-errors";
 
 /**
  * The "Connected calendar" card: connect, pick a calendar, resync, disconnect. Extracted from
@@ -104,7 +105,7 @@ export function GoogleCalendarCard({
                 </a>
               </Alert>
             ) : (
-              <Alert>Last sync problem: {google.lastError}</Alert>
+              <Alert>Last sync problem: {friendlyProviderError("calendar", google.lastError)}.</Alert>
             )
           ) : null}
 

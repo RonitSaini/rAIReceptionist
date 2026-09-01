@@ -688,6 +688,9 @@ model Call {
   notifiedAt          DateTime? // outcome notification created (idempotency for webhook retries)
   managerCallSid      String? // outbound Twilio call placed to the manager for an escalation
   managerCalledAt     DateTime?
+  /// Raw provider error when ringing the manager failed. Diagnostics only — the owner-facing
+  /// notification carries plain language (src/lib/provider-errors.ts), never this text.
+  managerCallError    String?
   reservationId       String?
   reservation         Reservation?       @relation(fields: [reservationId], references: [id], onDelete: SetNull)
   jobId               String?
