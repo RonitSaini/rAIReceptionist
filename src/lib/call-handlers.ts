@@ -251,7 +251,12 @@ export async function takeMessageHandler(ctx: HandlerContext, args: Args): Promi
 
   const classification: CallClassification = escalate ? "escalation" : "message";
   await tagCall(ctx, { classification, callerName, messageText: `${reason}: ${message}${callerPhone ? ` (call back ${formatUsPhone(callerPhone)})` : ""}`, escalationReason: escalate ? reason : null, callbackRequested: true });
-  if (ctx.call && callerPhone && !ctx.call.callerPhone) await prisma.call.update({ where: { id: ctx.call.id }, data: { callerPhone } }).catch(() => {});
+  // The number the owner will dial. A callback number the caller states explicitly always wins over
+  // the number they happened to ring from — the two differ whenever someone calls from one line but
+  // asks to be reached on another, and the old `!callerPhone` guard kept the ring-from number, so
+  // the Callbacks-owed card showed the wrong person's line. `phoneOrCaller` already resolves the
+  // stated number (falling back to the ring-from), so persisting it whenever it differs is the fix.
+  if (ctx.call && callerPhone && ctx.call.callerPhone !== callerPhone) await prisma.call.update({ where: { id: ctx.call.id }, data: { callerPhone } }).catch(() => {});
   if (escalate) await afterEscalation(a, ctx.call, { callerName, callerPhone, message, reason });
   else await afterMessageTaken(a, ctx.call, { callerName, callerPhone, message, reason });
 
