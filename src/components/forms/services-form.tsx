@@ -55,9 +55,8 @@ export function ServicesForm({ account, services, mode }: { account: AccountView
           {rows.map((r) => (
             <li key={r.key} className="rounded-xl border border-gray-200 bg-surface p-3">
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-12">
-                <Input aria-label="Service name" placeholder="Drain unblocking" value={r.name} onChange={(e) => update(r.key, { name: e.target.value })} className="sm:col-span-5" />
-                <Input aria-label="Category" placeholder="Drains" value={r.category} onChange={(e) => update(r.key, { category: e.target.value })} className="sm:col-span-3" />
-                <Input aria-label="Price from" inputMode="decimal" placeholder="From $" value={r.priceFrom} onChange={(e) => update(r.key, { priceFrom: e.target.value })} className="sm:col-span-2" />
+                <Input aria-label="Service name" placeholder="Service type" value={r.name} onChange={(e) => update(r.key, { name: e.target.value })} className="sm:col-span-7" />
+                <Input aria-label="Starting price" inputMode="decimal" placeholder="Price ($)" value={r.priceFrom} onChange={(e) => update(r.key, { priceFrom: e.target.value })} className="sm:col-span-3" />
                 <label className="flex items-center gap-2 text-xs font-semibold text-gray-600 sm:col-span-2">
                   <input type="checkbox" checked={r.canQuote} onChange={(e) => update(r.key, { canQuote: e.target.checked })} className="h-4 w-4" />
                   Quote it
