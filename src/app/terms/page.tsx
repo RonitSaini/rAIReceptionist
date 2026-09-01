@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { BackToHome } from "@/components/back-to-home";
 import { Logo } from "@/components/logo";
 import { AnimatedThemeToggle } from "@/components/ui/animated-theme-toggle";
 import { TERMS_EFFECTIVE } from "./terms-version";
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
  * on that business, and hiding them in boilerplate would be the dishonest version of this page.
  */
 
-const CONTACT = "mintchilled553@gmail.com";
+const CONTACT = "ssaibusiness101@gmail.com";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -33,6 +34,9 @@ export default function TermsPage() {
         <AnimatedThemeToggle />
       </div>
       <header className="mb-10">
+        <div className="mb-6">
+          <BackToHome inline />
+        </div>
         <Logo href="/" />
         <h1 className="mt-6 text-3xl font-extrabold tracking-tight">Terms of Service</h1>
         <p className="mt-2 text-sm text-gray-500">Effective {TERMS_EFFECTIVE}</p>

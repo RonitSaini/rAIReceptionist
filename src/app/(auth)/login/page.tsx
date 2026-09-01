@@ -2,6 +2,7 @@ import Link from "next/link";
 import { googleEnabled } from "@/lib/auth";
 import { LoginForm } from "./login-form";
 import { AnimatedThemeToggle } from "@/components/ui/animated-theme-toggle";
+import { BackToHome } from "@/components/back-to-home";
 import { Logo } from "@/components/logo";
 
 export const metadata = { title: "Log in" };
@@ -10,6 +11,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   const { callbackUrl, error } = await searchParams;
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-5 py-10">
+      <BackToHome />
       <div className="fixed right-4 top-4 z-10">
         <AnimatedThemeToggle />
       </div>
