@@ -34,6 +34,16 @@ export function billingRequired(): boolean {
   return process.env.BILLING_REQUIRED === "true";
 }
 
+/**
+ * "true" = an account must have an active subscription before a phone number is issued. A number
+ * rents real dollars every month, so this existed as a hard rule; it is a flag now — currently OFF
+ * at the owner's request (2026-09-01) so signups can connect a number before billing enforcement
+ * begins. Re-enable with PHONE_REQUIRES_SUBSCRIPTION=true and a redeploy — no code change.
+ */
+export function phoneRequiresSubscription(): boolean {
+  return process.env.PHONE_REQUIRES_SUBSCRIPTION === "true";
+}
+
 /** Both integrations present — the phone number can be provisioned and wired to an agent. */
 export function phoneStackConfigured(): boolean {
   return twilioConfigured() && retellConfigured();

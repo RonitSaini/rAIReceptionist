@@ -1,6 +1,6 @@
 import type { AccountView } from "@/lib/serialize";
 import { formatDateTime } from "@/lib/time";
-import { appUrl, appUrlIsPublic, retellConfigured, stripeConfigured, twilioConfigured } from "@/lib/env";
+import { appUrl, appUrlIsPublic, phoneRequiresSubscription, retellConfigured, stripeConfigured, twilioConfigured } from "@/lib/env";
 import { subscriptionActive } from "@/lib/billing-ui";
 import type { FormMode } from "@/components/form-footer";
 import { PhonePanel } from "@/components/forms/phone-panel";
@@ -15,7 +15,7 @@ export function PhoneStep({ account, mode }: { account: AccountView; mode: FormM
         twilio: twilioConfigured(),
         retell: retellConfigured(),
         publicUrl: appUrlIsPublic(),
-        subscribed: !stripeConfigured() || subscriptionActive(account),
+        subscribed: !phoneRequiresSubscription() || !stripeConfigured() || subscriptionActive(account),
         appUrl: appUrl(),
         lastSynced: account.agentSyncedAt ? formatDateTime(new Date(account.agentSyncedAt), account.timeZone) : null,
       }}
