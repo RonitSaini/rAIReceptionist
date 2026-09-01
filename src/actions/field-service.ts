@@ -11,6 +11,7 @@ import { isPostalCodeFor, normalizePostalCode, accountCountry, toMiles } from "@
 import { formatRestaurantAddress, geocodeAddress } from "@/lib/geo";
 import { jobWindow } from "@/lib/field-service-handlers";
 import { verticalFor } from "@/verticals";
+import { customEmergencyKey } from "@/lib/custom-emergencies";
 import { finish, modeOf } from "@/lib/onboarding-flow";
 
 /**
@@ -101,7 +102,9 @@ export async function saveServices(_prev: ActionState, fd: FormData): Promise<Ac
 export async function saveEmergencies(_prev: ActionState, fd: FormData): Promise<ActionState> {
   const { account } = await requireAccount();
   const allowed = new Set(verticalFor(account).emergencyTypes.map((e) => e.key));
-  const emergencyTypes = list(fd, "emergencyTypes").filter((k) => allowed.has(k));
+  // Owner-written emergencies ride along as "custom:<slug>" entries — deduped, capped at 10.
+  const custom = [...new Set(list(fd, "customEmergencies").map(customEmergencyKey).filter((k): k is string => k != null))].slice(0, 10);
+  const emergencyTypes = [...list(fd, "emergencyTypes").filter((k) => allowed.has(k)), ...custom];
   const technicianName = optStr(fd, "technicianName");
   const jobSlotMinutes = int(fd, "jobSlotMinutes", verticalFor(account).defaults.slotMinutes);
   const maxPerDayRaw = str(fd, "maxJobsPerDay");

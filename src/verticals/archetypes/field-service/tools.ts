@@ -1,4 +1,5 @@
 import type { CustomTool, EndCallTool } from "@/lib/retell";
+import { customEmergencySlug, isCustomEmergency } from "@/lib/custom-emergencies";
 import { MESSAGE_REASONS, type AgentSource } from "../../types";
 import { DATE, END_CALL_TOOL, PHONE, TIME, customTool } from "../../tools";
 import type { FieldServiceConfig } from "./index";
@@ -89,7 +90,12 @@ export function buildFieldServiceTools(cfg: FieldServiceConfig, src: AgentSource
         customer_name: { type: "string" },
         customer_phone: PHONE,
         address: ADDRESS,
-        emergency_type: { type: "string", enum: cfg.emergencies.map((e) => e.key), description: "Which emergency this is." },
+        emergency_type: {
+          type: "string",
+          // The owner's own emergencies join the enum as plain slugs, so the record says which one it was.
+          enum: [...cfg.emergencies.map((e) => e.key), ...src.account.emergencyTypes.filter(isCustomEmergency).map(customEmergencySlug)],
+          description: "Which emergency this is.",
+        },
         description: { type: "string", description: "What the caller said is happening." },
         ...(cfg.emergencyProperties ?? {}),
       },

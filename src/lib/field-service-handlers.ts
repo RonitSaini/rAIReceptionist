@@ -6,6 +6,7 @@ import { accountCountry, displayDistance, formatDistance, postalLabel, unitWord 
 import { formatDateString, formatDateTime, isValidDateString, todayString, zonedToUtc } from "./time";
 import { formatUsPhone } from "./form";
 import { ACTIVE_JOB_STATUSES, getAvailableJobSlots, openSlotLabels } from "./job-availability";
+import { customEmergencySlug, isCustomEmergency } from "./custom-emergencies";
 import { afterEmergencyDispatched, afterJobBooked } from "./job-outcomes";
 import { verticalFor } from "@/verticals";
 import { bool, normalizeTime, phoneOrCaller, str, tagCall, upsertCustomer, type Args, type HandlerContext, type HandlerResult } from "./handler-utils";
@@ -261,7 +262,7 @@ export async function dispatchEmergencyHandler(ctx: HandlerContext, args: Args):
   const address = str(args.address);
   const description = str(args.description);
   const typeRaw = str(args.emergency_type);
-  const known = definition.emergencyTypes.map((t) => t.key);
+  const known = [...definition.emergencyTypes.map((t) => t.key), ...a.emergencyTypes.filter(isCustomEmergency).map(customEmergencySlug)];
   const emergencyType = known.includes(typeRaw) ? typeRaw : "other";
 
   if (!address) return { success: false, message: "Ask where they are — the full street address — before dispatching." };

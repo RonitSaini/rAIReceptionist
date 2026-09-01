@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { saveEmergencies } from "@/actions/field-service";
 import type { AccountView } from "@/lib/serialize";
 import type { ClassifiedReason } from "@/verticals/types";
-import { Checkbox, Field, Input } from "@/components/ui";
+import { customEmergencyLabel, isCustomEmergency } from "@/lib/custom-emergencies";
+import { Button, Checkbox, Field, Input } from "@/components/ui";
 import { FormFooter, type FormMode } from "@/components/form-footer";
 import { ActionForm } from "@/components/action-form";
 
@@ -18,6 +19,7 @@ import { ActionForm } from "@/components/action-form";
  */
 export function EmergenciesForm({ account, emergencyTypes, defaultSlotMinutes, mode }: { account: AccountView; emergencyTypes: readonly ClassifiedReason[]; defaultSlotMinutes: number; mode: FormMode }) {
   const [state, action, pending] = useActionState(saveEmergencies, null);
+  const [custom, setCustom] = useState<string[]>(() => account.emergencyTypes.filter(isCustomEmergency).map(customEmergencyLabel));
 
   return (
     <ActionForm action={action} className="space-y-5">
@@ -26,6 +28,22 @@ export function EmergenciesForm({ account, emergencyTypes, defaultSlotMinutes, m
           {emergencyTypes.map((t) => (
             <Checkbox key={t.key} name="emergencyTypes" value={t.key} label={t.label} defaultChecked={account.emergencyTypes.includes(t.key)} />
           ))}
+        </div>
+      </Field>
+
+      <Field label="Your own emergencies" hint="Anything else the AI should treat as an emergency, in your own words.">
+        <div className="space-y-2">
+          {custom.map((label, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <Input aria-label="Emergency description" name="customEmergencies" value={label} onChange={(e) => setCustom((prev) => prev.map((l, j) => (j === i ? e.target.value : l)))} maxLength={60} />
+              <button type="button" onClick={() => setCustom((prev) => prev.filter((_, j) => j !== i))} className="shrink-0 text-xs font-semibold text-red-600">
+                Remove
+              </button>
+            </div>
+          ))}
+          <Button type="button" variant="secondary" size="sm" onClick={() => setCustom((prev) => [...prev, ""])}>
+            + Add an emergency
+          </Button>
         </div>
       </Field>
 

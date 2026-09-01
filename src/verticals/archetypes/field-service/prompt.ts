@@ -4,6 +4,7 @@ import { formatClock } from "@/lib/time";
 import { formatRestaurantAddress } from "@/lib/geo";
 import { accountCountry, formatDistance, formatMoneyMicros, postalLabel } from "@/lib/locale";
 import { DEFAULT_CLOSE, DEFAULT_OPEN } from "@/lib/availability";
+import { customEmergencyLabel, isCustomEmergency } from "@/lib/custom-emergencies";
 import { SHARED_GUARDRAILS } from "../../guardrails";
 import type { AgentSource } from "../../types";
 import type { FieldServiceConfig } from "./index";
@@ -80,7 +81,10 @@ function serviceAreaSection(a: Account): string {
 
 function emergencySection(a: Account, managerHours: ManagerAvailability[], cfg: FieldServiceConfig): string {
   const enabled = cfg.emergencies.filter((e) => a.emergencyTypes.includes(e.key));
-  const list = (enabled.length ? enabled : cfg.emergencies).map((e) => e.label.toLowerCase());
+  // The owner's own entries count as emergencies too; the built-in fallback (nothing ticked means
+  // treat everything as urgent) only applies when the owner selected nothing at all.
+  const custom = a.emergencyTypes.filter(isCustomEmergency).map(customEmergencyLabel);
+  const list = [...(enabled.length || custom.length ? enabled : cfg.emergencies).map((e) => e.label.toLowerCase()), ...custom];
   return [
     "EMERGENCIES: These are not booked into a normal slot. Confirm the address and a callback number, then call dispatch_emergency.",
     `Treat as an emergency: ${list.join("; ")}.`,
