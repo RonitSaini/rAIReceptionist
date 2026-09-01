@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { hashPassword } from "@/lib/password";
+import { hashPassword, verifyPassword } from "@/lib/password";
 import { auth } from "@/lib/auth";
 import { generateGreeting } from "@/lib/greeting";
 import { isEmail, str, type ActionState } from "@/lib/form";
@@ -172,4 +172,61 @@ export async function acceptCurrentTerms(formData: FormData): Promise<void> {
   if (!acceptedTerms(formData)) redirect("/accept-terms?error=1");
   await recordTermsAcceptance(session.user.id, await requestIp());
   redirect("/dashboard");
+}
+
+// ---------- Account credentials (Settings -> Account) ----------
+
+/**
+ * The signed-in user, provided their login is credential-based. Google-only users manage their
+ * email and password with Google; these actions must never touch their row (see signUp for the
+ * takeover shape that guards against).
+ */
+async function credentialUser(): Promise<{ ok: true; user: { id: string; email: string; passwordHash: string } } | { ok: false; error: string }> {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, error: "Please log in again." };
+  const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { id: true, email: true, passwordHash: true } });
+  if (!user) return { ok: false, error: "Please log in again." };
+  if (!user.passwordHash) return { ok: false, error: "You sign in with Google, so your email and password are managed there." };
+  return { ok: true, user: { id: user.id, email: user.email, passwordHash: user.passwordHash } };
+}
+
+export async function changeEmail(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const r = await credentialUser();
+  if (!r.ok) return { ok: false, error: r.error };
+
+  const email = str(formData, "email").toLowerCase();
+  const current = formData.get("currentPassword");
+  if (!isEmail(email)) return { ok: false, error: "Enter a valid email address." };
+  if (typeof current !== "string" || !(await verifyPassword(current, r.user.passwordHash))) {
+    return { ok: false, error: "Current password is incorrect." };
+  }
+  if (email === r.user.email) return { ok: true, message: "That is already your email." };
+
+  try {
+    // Verification (if ever added) starts over for the new address.
+    await prisma.user.update({ where: { id: r.user.id }, data: { email, emailVerified: null } });
+  } catch (e) {
+    if (typeof e === "object" && e !== null && (e as { code?: string }).code === "P2002") {
+      return { ok: false, error: "Another account already uses that email." };
+    }
+    throw e;
+  }
+  return { ok: true, message: "Email updated. Use the new address the next time you log in." };
+}
+
+export async function changePassword(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const r = await credentialUser();
+  if (!r.ok) return { ok: false, error: r.error };
+
+  const current = formData.get("currentPassword");
+  const next = formData.get("newPassword");
+  const confirm = formData.get("confirmPassword");
+  if (typeof current !== "string" || !(await verifyPassword(current, r.user.passwordHash))) {
+    return { ok: false, error: "Current password is incorrect." };
+  }
+  if (typeof next !== "string" || next.length < 8) return { ok: false, error: "The new password must be at least 8 characters." };
+  if (next !== confirm) return { ok: false, error: "The new passwords don't match." };
+
+  await prisma.user.update({ where: { id: r.user.id }, data: { passwordHash: await hashPassword(next) } });
+  return { ok: true, message: "Password updated." };
 }

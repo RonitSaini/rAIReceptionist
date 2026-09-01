@@ -17,6 +17,7 @@ import { PaymentStep } from "@/components/forms/payment-step";
 import { PortalButton } from "@/components/forms/billing-buttons";
 import { InvoicesCard } from "@/components/billing-invoices";
 import { AccountActions } from "@/components/account-actions";
+import { ChangeEmailForm, ChangePasswordForm } from "@/components/forms/account-credentials";
 import { Reveal } from "@/components/reveal";
 import { getGoogleCalendarView } from "@/lib/google-calendar-view";
 import { calendarBlurbFor } from "@/lib/calendar-sync-ui";
@@ -38,6 +39,7 @@ const RESTAURANT_TABS = [
   { key: "voice", label: "Voice" },
   { key: "phone", label: "Phone" },
   { key: "billing", label: "Billing" },
+  { key: "account", label: "Account" },
 ] as const;
 
 /**
@@ -54,6 +56,7 @@ const SHOP_TABS = [
   { key: "voice", label: "Voice" },
   { key: "phone", label: "Phone" },
   { key: "billing", label: "Billing" },
+  { key: "account", label: "Account" },
 ] as const;
 
 const FIELD_SERVICE_TABS = [
@@ -67,12 +70,13 @@ const FIELD_SERVICE_TABS = [
   { key: "voice", label: "Voice" },
   { key: "phone", label: "Phone" },
   { key: "billing", label: "Billing" },
+  { key: "account", label: "Account" },
 ] as const;
 
 type TabKey = (typeof RESTAURANT_TABS)[number]["key"] | (typeof FIELD_SERVICE_TABS)[number]["key"] | (typeof SHOP_TABS)[number]["key"];
 
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ tab?: string; checkout?: string; google?: string; message?: string }> }) {
-  const { account } = await requireAccount();
+  const { account, userId } = await requireAccount();
   const { tab: tabParam, checkout, google: googleStatus, message: googleMessage } = await searchParams;
   const definition = verticalFor(account);
   // Dispatch settings only exist for a trade that dispatches. A plumber's tab list is unchanged.
@@ -174,6 +178,8 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         {tab === "phone" ? <PhoneStep account={view} mode="settings" /> : null}
 
         {tab === "billing" ? <BillingTab account={account} view={view} checkout={parseCheckoutResult(checkout)} /> : null}
+
+        {tab === "account" ? <AccountTab userId={userId} businessName={account.businessName} /> : null}
       </Reveal>
     </div>
   );
@@ -199,8 +205,35 @@ async function BillingTab({ account, view, checkout }: { account: Account; view:
         </div>
       </Card>
       <InvoicesCard customerId={account.stripeCustomerId} timeZone={account.timeZone} />
-      <Card title="Account">
-        <AccountActions businessName={account.businessName} />
+    </div>
+  );
+}
+
+/** Login credentials + the delete-account action. The credential forms only render for password logins. */
+async function AccountTab({ userId, businessName }: { userId: string; businessName: string }) {
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, passwordHash: true } });
+  const hasPassword = Boolean(user?.passwordHash);
+  return (
+    <div className="space-y-4">
+      {user && hasPassword ? (
+        <>
+          <Card title="Email">
+            <p className="mb-3 text-sm text-gray-500">You log in as {user.email}.</p>
+            <ChangeEmailForm currentEmail={user.email} />
+          </Card>
+          <Card title="Password">
+            <ChangePasswordForm />
+          </Card>
+        </>
+      ) : (
+        <Card title="Login">
+          <p className="text-sm text-gray-500">
+            You sign in with Google{user ? ` (${user.email})` : ""}. Your email and password are managed in your Google account, so there is nothing to change here.
+          </p>
+        </Card>
+      )}
+      <Card title="Delete account">
+        <AccountActions businessName={businessName} />
       </Card>
     </div>
   );
