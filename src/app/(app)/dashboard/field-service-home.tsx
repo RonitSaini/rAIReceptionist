@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Account } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { formatDateLong, formatTime, nowUtc } from "@/lib/time";
+import { formatDateLong, formatDateTime, formatTime, nowUtc } from "@/lib/time";
 import { formatUsPhone } from "@/lib/form";
 import { humanize } from "@/lib/constants";
 import { loadDashboard } from "@/lib/dashboard";
@@ -15,21 +15,19 @@ import { Reveal } from "@/components/reveal";
 import { CountUp } from "@/components/count-up";
 import { StatTile } from "@/components/stat-tile";
 import { Columns } from "@/components/charts";
-import { CallsThisWeek, CardLink, NeedsYou, Quiet } from "./shared";
+import { DashboardMasonry, type DashCard } from "@/components/dashboard-layout";
+import { AttentionCard, CallbacksCard, CallsThisWeek, CardLink } from "./shared";
 
 /**
- * The home page for a trade: today's visits, anything the agent took but could not slot, and how
- * the week ahead is filling up.
- *
- * The second card is the one that earns its place. A restaurant's equivalent is takeout orders,
- * but a trade's real risk is the job that came in when the diary was full — booked to nobody, on no
- * day, quietly ageing. It is on the home page so it cannot be missed.
+ * The home page for every non-restaurant archetype: trades, dispatch-first operators, shops and
+ * property managers. The KPI tiles are the fixed top row; everything else is a DashCard whose
+ * declared state places it in the masonry — urgent first, content next, and anything empty
+ * collapsed to a compact row so it never holds a card-sized hole open.
  */
 export async function FieldServiceHome({ account, previousSeenAt, changed }: { account: Account; previousSeenAt: Date | null; changed?: string }) {
   const tz = account.timeZone;
   const now = nowUtc();
   const words = vocabularyFor(account);
-  // A trade that books nothing has no diary. Its today-list and its queue link go to Dispatch.
   const definition = verticalFor(account);
   // Where "today's work" lives differs by archetype: a diary for a trade, a live queue for a tow
   // truck, a work-order list for a property manager who schedules nothing from this screen.
@@ -54,42 +52,32 @@ export async function FieldServiceHome({ account, previousSeenAt, changed }: { a
   const fresh = sinceItems.filter((n) => !urgentIds.has(n.id));
   const weekCalls = dash.callsByDay.reduce((sum, d) => sum + Object.values(d.values as Record<string, number>).reduce((a, b) => a + b, 0), 0);
   const bookedAhead = jobs.jobsAhead.reduce((sum, d) => sum + d.value, 0);
-  const showWeek = weekCalls > 0 || bookedAhead > 0;
 
-  return (
-    <div className="space-y-5">
-      <PageHeader title="Home" subtitle={formatDateLong(now, tz)} action={<LinkButton href="/jobs/new" size="sm">+ {words.booking.One}</LinkButton>} />
+  // Declaration order is placement order within each state; attention first, so urgent = top-left.
+  const cards: DashCard[] = [];
 
-      {/* KPI row */}
-      <Reveal index={0} className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatTile label="Calls today" value={t.callsToday} icon="phone" live href="/calls" delta={{ value: t.callsDelta, label: "vs yesterday" }} note={t.liveCalls > 0 ? `${t.liveCalls} live now` : undefined} />
-        <StatTile label={`${words.booking.Many} today`} value={j.jobsToday} icon="wrench" href={queueHref} delta={{ value: j.jobsDelta, label: "vs yesterday" }} />
-        <StatTile label="Emergencies" value={j.openEmergencies} icon="siren" href="/jobs?status=emergency" note={j.openEmergencies === 0 ? "None open" : undefined} />
-        <StatTile label="Unread" value={t.unread} icon="bell" live href="/notifications" note={t.unread === 0 ? "All caught up" : undefined} />
-      </Reveal>
+  cards.push(
+    unacknowledged.length > 0 || fresh.length > 0
+      ? { key: "attention", state: unacknowledged.length > 0 ? "urgent" : "content", node: <AttentionCard unacknowledged={unacknowledged} fresh={fresh} account={account} /> }
+      : { key: "attention", state: "empty", empty: { text: <>Nothing new since you last signed in{previousSeenAt ? ` (${formatDateTime(previousSeenAt, tz)})` : ""}.</>, href: "/notifications", cta: "Inbox" } },
+  );
 
-      {/* What needs you — only rendered when there is something to act on */}
-      <NeedsYou unacknowledged={unacknowledged} fresh={fresh} callbacks={dash.callbacks} previousSeenAt={previousSeenAt} now={now} tz={tz} account={account} />
+  if (dash.callbacks.length > 0) cards.push({ key: "callbacks", state: "content", node: <CallbacksCard callbacks={dash.callbacks} now={now} /> });
 
-      {/* Today */}
-      <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
-        <Reveal index={2}>
-          <Card
-            title={
-              <>
-                Today&apos;s {words.booking.many} · <CountUp to={j.jobsToday} />
-              </>
-            }
-            action={<CardLink href={queueHref}>{queueLabel}</CardLink>}
-          >
-            {jobs.todaysJobs.length === 0 ? (
-              <Quiet>
-                No {words.booking.many} today.{" "}
-                <Link href="/jobs/new" className="font-semibold text-brand-700">
-                  Add one
-                </Link>
-              </Quiet>
-            ) : (
+  cards.push(
+    jobs.todaysJobs.length > 0
+      ? {
+          key: "today",
+          state: "content",
+          node: (
+            <Card
+              title={
+                <>
+                  Today&apos;s {words.booking.many} · <CountUp to={j.jobsToday} />
+                </>
+              }
+              action={<CardLink href={queueHref}>{queueLabel}</CardLink>}
+            >
               <ul className="divide-y divide-gray-100">
                 {jobs.todaysJobs.map((job, i) => (
                   <Reveal as="li" index={i + 1} key={job.id} className="flex items-center justify-between gap-3 py-3">
@@ -112,22 +100,26 @@ export async function FieldServiceHome({ account, previousSeenAt, changed }: { a
                   </Reveal>
                 ))}
               </ul>
-            )}
-          </Card>
-        </Reveal>
+            </Card>
+          ),
+        }
+      : { key: "today", state: "empty", empty: { text: `No ${words.booking.many} today.`, href: "/jobs/new", cta: "Add one" } },
+  );
 
-        <Reveal index={3}>
-          <Card
-            title={
-              <>
-                Waiting for a time · <CountUp to={j.unscheduled} />
-              </>
-            }
-            action={<CardLink href="/jobs">All {words.booking.many}</CardLink>}
-          >
-            {jobs.unscheduled.length === 0 ? (
-              <Quiet>Everything has a time booked.</Quiet>
-            ) : (
+  cards.push(
+    jobs.unscheduled.length > 0
+      ? {
+          key: "waiting",
+          state: "content",
+          node: (
+            <Card
+              title={
+                <>
+                  Waiting for a time · <CountUp to={j.unscheduled} />
+                </>
+              }
+              action={<CardLink href="/jobs">All {words.booking.many}</CardLink>}
+            >
               <ul className="divide-y divide-gray-100">
                 {jobs.unscheduled.map((job, i) => (
                   <Reveal as="li" index={i + 1} key={job.id} className="flex items-center justify-between gap-3 py-3">
@@ -144,18 +136,24 @@ export async function FieldServiceHome({ account, previousSeenAt, changed }: { a
                   </Reveal>
                 ))}
               </ul>
-            )}
-          </Card>
-        </Reveal>
-      </div>
+            </Card>
+          ),
+        }
+      : { key: "waiting", state: "empty", empty: { text: "Everything has a time booked." } },
+  );
 
-      {/* The week — hidden until there is something to chart */}
-      {showWeek ? (
-        <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
-          <Reveal index={4}>
-            <CallsThisWeek account={account} dash={dash} />
-          </Reveal>
-          <Reveal index={5}>
+  cards.push(
+    weekCalls > 0
+      ? { key: "week", state: "content", node: <CallsThisWeek account={account} dash={dash} /> }
+      : { key: "week", state: "empty", empty: { text: "No calls in the last 7 days." } },
+  );
+
+  cards.push(
+    bookedAhead > 0
+      ? {
+          key: "ahead",
+          state: "content",
+          node: (
             <Card
               title={`${words.booking.Many} ahead`}
               action={
@@ -166,9 +164,24 @@ export async function FieldServiceHome({ account, previousSeenAt, changed }: { a
             >
               <Columns items={jobs.jobsAhead} title={`${words.booking.Many} booked per day, next 7 days`} unit={` ${words.booking.many}`} />
             </Card>
-          </Reveal>
-        </div>
-      ) : null}
+          ),
+        }
+      : { key: "ahead", state: "empty", empty: { text: `No ${words.booking.many} booked in the next 7 days.`, href: "/jobs/new", cta: "Book" } },
+  );
+
+  return (
+    <div className="space-y-5">
+      <PageHeader title="Home" subtitle={formatDateLong(now, tz)} action={<LinkButton href="/jobs/new" size="sm">+ {words.booking.One}</LinkButton>} />
+
+      {/* KPI row — fixed, always first */}
+      <Reveal index={0} className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <StatTile label="Calls today" value={t.callsToday} icon="phone" live href="/calls" delta={{ value: t.callsDelta, label: "vs yesterday" }} note={t.liveCalls > 0 ? `${t.liveCalls} live now` : undefined} />
+        <StatTile label={`${words.booking.Many} today`} value={j.jobsToday} icon="wrench" href={queueHref} delta={{ value: j.jobsDelta, label: "vs yesterday" }} />
+        <StatTile label="Emergencies" value={j.openEmergencies} icon="siren" href="/jobs?status=emergency" note={j.openEmergencies === 0 ? "None open" : undefined} />
+        <StatTile label="Unread" value={t.unread} icon="bell" live href="/notifications" note={t.unread === 0 ? "All caught up" : undefined} />
+      </Reveal>
+
+      <DashboardMasonry cards={cards} />
     </div>
   );
 }

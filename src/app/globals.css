@@ -169,6 +169,27 @@ body {
   60% { transform: scale(1.25); }
   100% { transform: scale(1); }
 }
+/* ---------- Home masonry (layout only, no motion) ----------
+   Two independent column stacks on desktop: CSS multi-column packs each column separately with a
+   uniform gap, so a tall card never opens a hole beside a short one, and DOM order (urgent,
+   content, empty — sorted server-side in <DashboardMasonry>) is reading order, first card top-left.
+   One column on mobile. Nothing here animates, so no reduced-motion entry is needed. */
+.dash-masonry {
+  column-gap: 1.25rem;
+}
+@media (min-width: 64rem) {
+  .dash-masonry {
+    column-count: 2;
+  }
+}
+.dash-slot {
+  break-inside: avoid;
+  margin-bottom: 1.25rem;
+}
+.dash-masonry > .dash-slot:last-child {
+  margin-bottom: 0;
+}
+
 /* ---------- Motion system (subtle, everywhere) ---------- */
 
 /* Reveal: fade + lift + un-blur into view, staggered via --reveal-delay (set by <Reveal index>). */

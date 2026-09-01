@@ -13,12 +13,13 @@ import { Reveal } from "@/components/reveal";
 import { CountUp } from "@/components/count-up";
 import { StatTile } from "@/components/stat-tile";
 import { Columns } from "@/components/charts";
-import { CallsThisWeek, CardLink, NeedsYou, Quiet } from "./shared";
+import { DashboardMasonry, type DashCard } from "@/components/dashboard-layout";
+import { AttentionCard, CallbacksCard, CallsThisWeek, CardLink } from "./shared";
 
 /**
- * The restaurant home page, unchanged from before there were archetypes. It is a separate file only
- * so that dashboard/page.tsx can choose between it and the field-service one; the markup, the
- * ordering and the Reveal indices are all exactly what they were.
+ * The restaurant home. The KPI tiles are the fixed top row; everything below is a DashCard whose
+ * state — urgent, content, empty — decides its place in the masonry. Anything with nothing to show
+ * collapses to a compact row instead of holding a card-sized hole open.
  */
 export async function RestaurantHome({ account, previousSeenAt, changed }: { account: Account; previousSeenAt: Date | null; changed?: string }) {
   const tz = account.timeZone;
@@ -46,42 +47,33 @@ export async function RestaurantHome({ account, previousSeenAt, changed }: { acc
   const fresh = sinceItems.filter((n) => !urgentIds.has(n.id));
   const weekCalls = dash.callsByDay.reduce((sum, d) => sum + Object.values(d.values as Record<string, number>).reduce((a, b) => a + b, 0), 0);
   const coversAhead = dash.coversAhead.reduce((sum, d) => sum + d.value, 0);
-  const showWeek = weekCalls > 0 || coversAhead > 0;
 
-  return (
-    <div className="space-y-5">
-      <PageHeader title="Home" subtitle={formatDateLong(now, tz)} action={<LinkButton href="/reservations/new" size="sm">+ Reservation</LinkButton>} />
+  // Declaration order is placement order within each state; attention comes first so that an
+  // urgent one is always top-left.
+  const cards: DashCard[] = [];
 
-      {/* KPI row */}
-      <Reveal index={0} className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <StatTile label="Calls today" value={t.callsToday} icon="phone" live href="/calls" delta={{ value: t.callsDelta, label: "vs yesterday" }} note={t.liveCalls > 0 ? `${t.liveCalls} live now` : undefined} />
-        <StatTile label="Covers today" value={t.coversToday} icon="utensils" href={`/reservations?date=${today}`} delta={{ value: t.coversDelta, label: "vs yesterday" }} />
-        <StatTile label="Open orders" value={t.openOrders} icon="bag" href="/takeout" />
-        <StatTile label="Unread" value={t.unread} icon="bell" live href="/notifications" note={t.unread === 0 ? "All caught up" : undefined} />
-      </Reveal>
+  cards.push(
+    unacknowledged.length > 0 || fresh.length > 0
+      ? { key: "attention", state: unacknowledged.length > 0 ? "urgent" : "content", node: <AttentionCard unacknowledged={unacknowledged} fresh={fresh} account={account} /> }
+      : { key: "attention", state: "empty", empty: { text: <>Nothing new since you last signed in{previousSeenAt ? ` (${formatDateTime(previousSeenAt, tz)})` : ""}.</>, href: "/notifications", cta: "Inbox" } },
+  );
 
-      {/* What needs you — only rendered when there is something to act on */}
-      <NeedsYou unacknowledged={unacknowledged} fresh={fresh} callbacks={dash.callbacks} previousSeenAt={previousSeenAt} now={now} tz={tz} account={account} />
+  if (dash.callbacks.length > 0) cards.push({ key: "callbacks", state: "content", node: <CallbacksCard callbacks={dash.callbacks} now={now} /> });
 
-      {/* Today */}
-      <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
-        <Reveal index={2}>
-          <Card
-            title={
-              <>
-                Today&apos;s reservations · <CountUp to={t.coversToday} /> covers
-              </>
-            }
-            action={<CardLink href={`/reservations?date=${today}`}>Book</CardLink>}
-          >
-            {todaysReservations.length === 0 ? (
-              <Quiet>
-                No reservations today.{" "}
-                <Link href="/reservations/new" className="font-semibold text-brand-700">
-                  Add one
-                </Link>
-              </Quiet>
-            ) : (
+  cards.push(
+    todaysReservations.length > 0
+      ? {
+          key: "today",
+          state: "content",
+          node: (
+            <Card
+              title={
+                <>
+                  Today&apos;s reservations · <CountUp to={t.coversToday} /> covers
+                </>
+              }
+              action={<CardLink href={`/reservations?date=${today}`}>Book</CardLink>}
+            >
               <ul className="divide-y divide-gray-100">
                 {todaysReservations.map((r, i) => (
                   <Reveal as="li" index={i + 1} key={r.id} className="flex items-center justify-between gap-3 py-3">
@@ -102,27 +94,26 @@ export async function RestaurantHome({ account, previousSeenAt, changed }: { acc
                   </Reveal>
                 ))}
               </ul>
-            )}
-          </Card>
-        </Reveal>
+            </Card>
+          ),
+        }
+      : { key: "today", state: "empty", empty: { text: "No reservations today.", href: "/reservations/new", cta: "Add one" } },
+  );
 
-        <Reveal index={3}>
-          <Card
-            title={
-              <>
-                Takeout orders · <CountUp to={openOrders.length} /> open
-              </>
-            }
-            action={<CardLink href="/takeout">Takeout</CardLink>}
-          >
-            {openOrders.length === 0 ? (
-              <Quiet>
-                No open orders.{" "}
-                <Link href="/takeout/new" className="font-semibold text-brand-700">
-                  Add one
-                </Link>
-              </Quiet>
-            ) : (
+  cards.push(
+    openOrders.length > 0
+      ? {
+          key: "orders",
+          state: "content",
+          node: (
+            <Card
+              title={
+                <>
+                  Takeout orders · <CountUp to={openOrders.length} /> open
+                </>
+              }
+              action={<CardLink href="/takeout">Takeout</CardLink>}
+            >
               <ul className="divide-y divide-gray-100">
                 {openOrders.map((o, i) => (
                   <Reveal as="li" index={i + 1} key={o.id} className="flex items-center justify-between gap-3 py-3">
@@ -142,18 +133,24 @@ export async function RestaurantHome({ account, previousSeenAt, changed }: { acc
                   </Reveal>
                 ))}
               </ul>
-            )}
-          </Card>
-        </Reveal>
-      </div>
+            </Card>
+          ),
+        }
+      : { key: "orders", state: "empty", empty: { text: "No open takeout orders.", href: "/takeout/new", cta: "Add one" } },
+  );
 
-      {/* The week — hidden until there is something to chart */}
-      {showWeek ? (
-        <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
-          <Reveal index={4}>
-            <CallsThisWeek account={account} dash={dash} />
-          </Reveal>
-          <Reveal index={5}>
+  cards.push(
+    weekCalls > 0
+      ? { key: "week", state: "content", node: <CallsThisWeek account={account} dash={dash} /> }
+      : { key: "week", state: "empty", empty: { text: "No calls in the last 7 days." } },
+  );
+
+  cards.push(
+    coversAhead > 0
+      ? {
+          key: "ahead",
+          state: "content",
+          node: (
             <Card
               title="Covers ahead"
               action={
@@ -164,9 +161,24 @@ export async function RestaurantHome({ account, previousSeenAt, changed }: { acc
             >
               <Columns items={dash.coversAhead} title="Covers booked per day, next 7 days" unit=" covers" />
             </Card>
-          </Reveal>
-        </div>
-      ) : null}
+          ),
+        }
+      : { key: "ahead", state: "empty", empty: { text: "No covers booked in the next 7 days.", href: "/reservations/new", cta: "Book" } },
+  );
+
+  return (
+    <div className="space-y-5">
+      <PageHeader title="Home" subtitle={formatDateLong(now, tz)} action={<LinkButton href="/reservations/new" size="sm">+ Reservation</LinkButton>} />
+
+      {/* KPI row — fixed, always first */}
+      <Reveal index={0} className="grid grid-cols-2 gap-3 md:grid-cols-4">
+        <StatTile label="Calls today" value={t.callsToday} icon="phone" live href="/calls" delta={{ value: t.callsDelta, label: "vs yesterday" }} note={t.liveCalls > 0 ? `${t.liveCalls} live now` : undefined} />
+        <StatTile label="Covers today" value={t.coversToday} icon="utensils" href={`/reservations?date=${today}`} delta={{ value: t.coversDelta, label: "vs yesterday" }} />
+        <StatTile label="Open orders" value={t.openOrders} icon="bag" href="/takeout" />
+        <StatTile label="Unread" value={t.unread} icon="bell" live href="/notifications" note={t.unread === 0 ? "All caught up" : undefined} />
+      </Reveal>
+
+      <DashboardMasonry cards={cards} />
     </div>
   );
 }

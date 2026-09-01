@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { Account } from "@prisma/client";
 import { vocabularyFor } from "@/verticals";
 import { ArrowRightIcon } from "@/components/icons";
-import { formatDateTime, formatDuration, timeAgo } from "@/lib/time";
+import { formatDuration, timeAgo } from "@/lib/time";
 import { formatUsPhone } from "@/lib/form";
 import { humanize } from "@/lib/constants";
 import { callSeriesFor, type loadDashboard } from "@/lib/dashboard";
@@ -17,8 +17,8 @@ import { StackedColumns } from "@/components/charts";
  * The parts of the home page that are the same whatever the business is: what happened since you
  * last signed in, who is owed a call back, and how the phone has been this week. None of it is
  * reservation-shaped, so both archetypes render it from here rather than keeping two copies that
- * drift. The markup is deliberately unchanged from the single-vertical version it was lifted out
- * of — a restaurant's rendered page has to stay byte-for-byte what it was.
+ * drift. Each piece is one card for <DashboardMasonry> — the home decides its state (urgent /
+ * content / empty) and the masonry decides where it goes.
  */
 
 type Dash = Awaited<ReturnType<typeof loadDashboard>>;
@@ -33,10 +33,6 @@ export function CardLink({ href, children }: { href: string; children: ReactNode
   );
 }
 
-export function Quiet({ children }: { children: ReactNode }) {
-  return <p className="py-6 text-center text-sm text-gray-500">{children}</p>;
-}
-
 export function Stat({ label, value, sub }: { label: string; value: ReactNode; sub?: string }) {
   return (
     <div className="min-w-0">
@@ -47,88 +43,55 @@ export function Stat({ label, value, sub }: { label: string; value: ReactNode; s
   );
 }
 
-/** "Needs your attention" / "Since you last signed in" plus callbacks owed. Renders nothing to act on as a single line. */
-export function NeedsYou({
-  unacknowledged,
-  fresh,
-  callbacks,
-  previousSeenAt,
-  now,
-  tz,
-  account,
-}: {
-  unacknowledged: Notification[];
-  fresh: Notification[];
-  callbacks: Dash["callbacks"];
-  previousSeenAt: Date | null;
-  now: Date;
-  tz: string;
-  account: Account;
-}) {
-  const hasNews = unacknowledged.length > 0 || fresh.length > 0;
-  const hasCallbacks = callbacks.length > 0;
-
-  if (!hasNews && !hasCallbacks) {
-    return (
-      <Reveal index={1}>
-        <p className="text-sm text-gray-500">
-          Nothing new since you last signed in{previousSeenAt ? ` (${formatDateTime(previousSeenAt, tz)})` : ""}.{" "}
-          <Link href="/notifications" className="font-semibold text-brand-700">
-            Inbox
-          </Link>
-        </p>
-      </Reveal>
-    );
-  }
-
+/**
+ * "Needs your attention" / "Since you last signed in". The home declares this card first and marks
+ * it urgent whenever anything is unacknowledged, which is what guarantees it renders top-left.
+ */
+export function AttentionCard({ unacknowledged, fresh, account }: { unacknowledged: Notification[]; fresh: Notification[]; account: Account }) {
   return (
-    <div className={`grid gap-5 ${hasNews && hasCallbacks ? "lg:grid-cols-2 lg:items-start" : ""}`}>
-      {hasNews ? (
-        <Reveal index={1}>
-          <Card title={unacknowledged.length > 0 ? "Needs your attention" : "Since you last signed in"} className={unacknowledged.length > 0 ? "border-red-200" : undefined} action={<CardLink href="/notifications">Inbox</CardLink>}>
-            <NotificationList items={[...unacknowledged, ...fresh].slice(0, 6)} compact words={vocabularyFor(account)} />
-            {unacknowledged.length + fresh.length > 6 ? (
-              <Link href="/notifications" className="mt-3 flex items-center justify-center gap-1 text-sm font-semibold text-brand-700">
-                See all {unacknowledged.length + fresh.length} <ArrowRightIcon size={16} />
-              </Link>
-            ) : null}
-          </Card>
-        </Reveal>
+    <Card title={unacknowledged.length > 0 ? "Needs your attention" : "Since you last signed in"} className={unacknowledged.length > 0 ? "border-red-200" : undefined} action={<CardLink href="/notifications">Inbox</CardLink>}>
+      <NotificationList items={[...unacknowledged, ...fresh].slice(0, 6)} compact words={vocabularyFor(account)} />
+      {unacknowledged.length + fresh.length > 6 ? (
+        <Link href="/notifications" className="mt-3 flex items-center justify-center gap-1 text-sm font-semibold text-brand-700">
+          See all {unacknowledged.length + fresh.length} <ArrowRightIcon size={16} />
+        </Link>
       ) : null}
+    </Card>
+  );
+}
 
-      {hasCallbacks ? (
-        <Reveal index={hasNews ? 2 : 1}>
-          <Card
-            title={
-              <>
-                Callbacks owed · <CountUp to={callbacks.length} />
-              </>
-            }
-            action={<CardLink href="/calls?type=message">Messages</CardLink>}
-          >
-            <ul className="divide-y divide-gray-100">
-              {callbacks.map((c, i) => (
-                <Reveal as="li" index={i + 1} key={c.id} className="py-2.5">
-                  <Link href={`/calls/${c.id}`} className="lift -mx-2 flex items-start justify-between gap-3 rounded-lg px-2 py-1 hover:bg-gray-50">
-                    <span className="min-w-0">
-                      <span className="block truncate font-semibold">
-                        {c.callerName ?? "Unknown caller"}
-                        {c.callerPhone ? <span className="font-normal text-gray-500"> · {formatUsPhone(c.callerPhone)}</span> : null}
-                      </span>
-                      {c.messageText ? <span className="line-clamp-1 text-sm text-gray-600">{c.messageText}</span> : null}
-                      <span className="text-xs text-gray-500">{timeAgo(c.startedAt, now)}</span>
-                    </span>
-                    <Badge tone={c.escalationReason ? "red" : classificationTone[c.classification]} className="shrink-0">
-                      {c.escalationReason ? humanize(c.escalationReason) : humanize(c.classification)}
-                    </Badge>
-                  </Link>
-                </Reveal>
-              ))}
-            </ul>
-          </Card>
-        </Reveal>
-      ) : null}
-    </div>
+/** Who is owed a call back. The number beside each name is the caller's own callback number —
+ *  the one they stated if they gave one, else the line they rang from (see takeMessageHandler). */
+export function CallbacksCard({ callbacks, now }: { callbacks: Dash["callbacks"]; now: Date }) {
+  return (
+    <Card
+      title={
+        <>
+          Callbacks owed · <CountUp to={callbacks.length} />
+        </>
+      }
+      action={<CardLink href="/calls?type=message">Messages</CardLink>}
+    >
+      <ul className="divide-y divide-gray-100">
+        {callbacks.map((c, i) => (
+          <Reveal as="li" index={i + 1} key={c.id} className="py-2.5">
+            <Link href={`/calls/${c.id}`} className="lift -mx-2 flex items-start justify-between gap-3 rounded-lg px-2 py-1 hover:bg-gray-50">
+              <span className="min-w-0">
+                <span className="block truncate font-semibold">
+                  {c.callerName ?? "Unknown caller"}
+                  {c.callerPhone ? <span className="font-normal text-gray-500"> · {formatUsPhone(c.callerPhone)}</span> : null}
+                </span>
+                {c.messageText ? <span className="line-clamp-1 text-sm text-gray-600">{c.messageText}</span> : null}
+                <span className="text-xs text-gray-500">{timeAgo(c.startedAt, now)}</span>
+              </span>
+              <Badge tone={c.escalationReason ? "red" : classificationTone[c.classification]} className="shrink-0">
+                {c.escalationReason ? humanize(c.escalationReason) : humanize(c.classification)}
+              </Badge>
+            </Link>
+          </Reveal>
+        ))}
+      </ul>
+    </Card>
   );
 }
 
