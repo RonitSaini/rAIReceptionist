@@ -9,6 +9,9 @@ import { vocabularyFor } from "@/verticals";
 import { Badge, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { Reveal } from "@/components/reveal";
 import { JOB_STATUS_TONE, JOB_STATUS_ORDER } from "@/lib/jobs-ui";
+import { getGoogleCalendarStatus } from "@/lib/google-calendar-view";
+import { calendarBlurbFor, calendarSettingsHref } from "@/lib/calendar-sync-ui";
+import { CalendarSyncPrompt } from "@/components/calendar-sync-prompt";
 
 export const metadata = { title: "Work orders" };
 
@@ -20,9 +23,9 @@ export const metadata = { title: "Work orders" };
  * because the number they called from was not on file. The office needs to see that before it sends
  * someone to a door.
  */
-export default async function WorkOrdersPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+export default async function WorkOrdersPage({ searchParams }: { searchParams: Promise<{ status?: string; google?: string; message?: string }> }) {
   const { account } = await requireAccount();
-  const { status } = await searchParams;
+  const { status, google: googleStatus, message: googleMessage } = await searchParams;
   const words = vocabularyFor(account);
   const now = nowUtc();
 
@@ -34,7 +37,10 @@ export default async function WorkOrdersPage({ searchParams }: { searchParams: P
     include: { property: true, unit: true },
   });
 
-  const counts = await prisma.job.groupBy({ by: ["status"], where: { accountId: account.id }, _count: { _all: true } });
+  const [counts, calendar] = await Promise.all([
+    prisma.job.groupBy({ by: ["status"], where: { accountId: account.id }, _count: { _all: true } }),
+    getGoogleCalendarStatus(account.id),
+  ]);
   const countFor = (s: JobStatus) => counts.find((c) => c.status === s)?._count._all ?? 0;
 
   return (
@@ -87,6 +93,16 @@ export default async function WorkOrdersPage({ searchParams }: { searchParams: P
           })}
         </ul>
       )}
+
+      <CalendarSyncPrompt
+        status={calendar}
+        returnTo="/work-orders"
+        manageHref={calendarSettingsHref("property_management")}
+        blurb={calendarBlurbFor("property_management")}
+        itemsLabel={words.booking.many}
+        googleStatus={googleStatus}
+        googleMessage={googleMessage}
+      />
     </div>
   );
 }

@@ -19,6 +19,7 @@ import { InvoicesCard } from "@/components/billing-invoices";
 import { AccountActions } from "@/components/account-actions";
 import { Reveal } from "@/components/reveal";
 import { getGoogleCalendarView } from "@/lib/google-calendar-view";
+import { calendarBlurbFor } from "@/lib/calendar-sync-ui";
 import { verticalFor } from "@/verticals";
 import { serializeServiceOffering } from "@/lib/serialize";
 import { ServiceAreaForm } from "@/components/forms/service-area-form";
@@ -67,17 +68,6 @@ const FIELD_SERVICE_TABS = [
   { key: "phone", label: "Phone" },
   { key: "billing", label: "Billing" },
 ] as const;
-
-/**
- * Restaurants keep their calendar card inside the Reservations tab, where it has always lived;
- * every other profession gets it as its own tab. Same component either way — only the words differ,
- * and only where the archetypes genuinely behave differently (dispatch, no slot offers for PM).
- */
-const CALENDAR_BLURB: Record<string, string> = {
-  shop_appointment: "Optional. Every appointment also appears on your calendar, and anything else on that calendar blocks those times for phone bookings. The built-in schedule stays the source of truth.",
-  property_management: "Optional. Work orders appear on your calendar once they have a scheduled time, and emergency dispatches show up as they happen. The built-in work-order list stays the source of truth.",
-  field_service: "Optional. Every scheduled job also appears on your calendar, emergency dispatches show up as they happen, and anything else on that calendar blocks those times for phone bookings. The built-in schedule stays the source of truth.",
-};
 
 type TabKey = (typeof RESTAURANT_TABS)[number]["key"] | (typeof FIELD_SERVICE_TABS)[number]["key"] | (typeof SHOP_TABS)[number]["key"];
 
@@ -176,7 +166,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               googleMessage={googleMessage}
               returnTo="/settings?tab=calendar"
               itemsLabel={definition.vocabulary.booking.many}
-              blurb={CALENDAR_BLURB[definition.archetype] ?? CALENDAR_BLURB.field_service}
+              blurb={calendarBlurbFor(definition.archetype)}
             />
           </Card>
         ) : null}

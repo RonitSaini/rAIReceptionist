@@ -5,10 +5,13 @@ import { prisma } from "@/lib/prisma";
 import { addDays, dayBoundsUtc, formatDateString, formatTime, isValidDateString, startOfWeek, toDateString, todayString } from "@/lib/time";
 
 import { humanize } from "@/lib/constants";
-import { vocabularyFor } from "@/verticals";
+import { verticalFor, vocabularyFor } from "@/verticals";
 import { Badge, LinkButton, PageHeader } from "@/components/ui";
 import { Reveal } from "@/components/reveal";
 import { JOB_STATUS_TONE } from "@/lib/jobs-ui";
+import { getGoogleCalendarStatus } from "@/lib/google-calendar-view";
+import { calendarBlurbFor, calendarSettingsHref } from "@/lib/calendar-sync-ui";
+import { CalendarSyncPrompt } from "@/components/calendar-sync-prompt";
 
 export const metadata = { title: "Schedule" };
 
@@ -19,23 +22,27 @@ export const metadata = { title: "Schedule" };
  * question an owner opens it with is identical: what is happening this week, and where are the gaps.
  * What differs is what fills a column: a visit with an address rather than a table with a party.
  */
-export default async function SchedulePage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
+export default async function SchedulePage({ searchParams }: { searchParams: Promise<{ date?: string; google?: string; message?: string }> }) {
   const { account } = await requireAccount();
   const tz = account.timeZone;
   const sp = await searchParams;
   const today = todayString(tz);
   const date = isValidDateString(sp.date) ? sp.date : today;
   const words = vocabularyFor(account);
+  const archetype = verticalFor(account).archetype;
 
   const rangeStart = startOfWeek(date);
   const days = Array.from({ length: 7 }, (_, i) => addDays(rangeStart, i));
   const { start } = dayBoundsUtc(rangeStart, tz);
   const { start: end } = dayBoundsUtc(addDays(rangeStart, 7), tz);
 
-  const jobs = await prisma.job.findMany({
-    where: { accountId: account.id, scheduledStart: { gte: start, lt: end }, status: { notIn: ["cancelled"] } },
-    orderBy: { scheduledStart: "asc" },
-  });
+  const [jobs, calendar] = await Promise.all([
+    prisma.job.findMany({
+      where: { accountId: account.id, scheduledStart: { gte: start, lt: end }, status: { notIn: ["cancelled"] } },
+      orderBy: { scheduledStart: "asc" },
+    }),
+    getGoogleCalendarStatus(account.id),
+  ]);
 
   const byDay = new Map(days.map((d) => [d, [] as typeof jobs]));
   for (const j of jobs) if (j.scheduledStart) byDay.get(toDateString(j.scheduledStart, tz))?.push(j);
@@ -122,6 +129,16 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
         </Link>
         .
       </p>
+
+      <CalendarSyncPrompt
+        status={calendar}
+        returnTo={`/schedule?date=${date}`}
+        manageHref={calendarSettingsHref(archetype)}
+        blurb={calendarBlurbFor(archetype)}
+        itemsLabel={words.booking.many}
+        googleStatus={sp.google}
+        googleMessage={sp.message}
+      />
     </div>
   );
 }

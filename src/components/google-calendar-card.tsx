@@ -7,26 +7,18 @@ import type { ActionState } from "@/lib/form";
 import { Alert, Badge, Button, Field, LinkButton, Select, StatusDot } from "@/components/ui";
 import { ActionForm } from "@/components/action-form";
 import { friendlyProviderError } from "@/lib/provider-errors";
+import { googleCalendarBanner, needsCalendarReconnect } from "@/lib/calendar-sync-ui";
 
 /**
  * The "Connected calendar" card: connect, pick a calendar, resync, disconnect. Extracted from
  * ReservationSettingsForm so every profession gets the same one — restaurants keep rendering it
  * inside their reservations form, everyone else gets it on a Settings tab. The two copy props
  * default to the restaurant wording so that extraction changed nothing there.
+ *
+ * This is the full manager. Each profession's diary page also offers the connection, through the
+ * lighter <CalendarSyncPrompt>, and links here for everything beyond connecting; the wording both
+ * show comes from @/lib/calendar-sync-ui so the two cannot drift.
  */
-
-const googleMessages = (itemsLabel: string): Record<string, { kind: "success" | "error" | "info"; text: string }> => ({
-  connected: { kind: "success", text: `Google Calendar connected. Upcoming ${itemsLabel} were added to your calendar.` },
-  denied: { kind: "info", text: "Google access was cancelled. Nothing changed." },
-  not_configured: { kind: "info", text: "Google Calendar isn't set up on this deployment yet (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET)." },
-  invalid_state: { kind: "error", text: "That connection link expired. Please try again." },
-  wrong_account: { kind: "error", text: "That link was started from a different account. Please try again." },
-  missing_code: { kind: "error", text: "Google didn't return an authorization code. Please try again." },
-  error: { kind: "error", text: "Connecting to Google failed." },
-});
-
-/** An expired or revoked grant is not a sync hiccup: nothing will sync again until a human reconnects. */
-const needsReconnect = (lastError: string | null | undefined) => !!lastError && /invalid_grant|unauthorized|401|invalid_credentials|insufficient/i.test(lastError);
 
 export function GoogleCalendarCard({
   google,
@@ -47,7 +39,7 @@ export function GoogleCalendarCard({
   const [result, setResult] = useState<ActionState>(null);
   const [busy, startTransition] = useTransition();
   const run = (fn: () => Promise<ActionState>) => startTransition(async () => setResult(await fn()));
-  const banner = googleStatus ? googleMessages(itemsLabel)[googleStatus] : null;
+  const banner = googleCalendarBanner(googleStatus, itemsLabel);
   const connectHref = `/api/google-calendar/connect?returnTo=${encodeURIComponent(returnTo)}`;
 
   return (
@@ -97,7 +89,7 @@ export function GoogleCalendarCard({
             {google.lastSyncedAt ? <span className="text-gray-500"> · last synced {new Date(google.lastSyncedAt).toLocaleString("en-US")}</span> : null}
           </p>
           {google.lastError ? (
-            needsReconnect(google.lastError) ? (
+            needsCalendarReconnect(google.lastError) ? (
               <Alert>
                 Reconnect needed — Google is no longer accepting this connection, so new bookings are not reaching your calendar.{" "}
                 <a href={connectHref} className="font-semibold underline">

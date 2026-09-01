@@ -8,10 +8,13 @@ import { setReservationStatus } from "@/actions/reservations";
 import { Badge, EmptyState, LinkButton, PageHeader, reservationTone } from "@/components/ui";
 import { RESERVATION_TRANSITIONS, StatusButtons } from "@/components/status-buttons";
 import { Reveal } from "@/components/reveal";
+import { getGoogleCalendarStatus } from "@/lib/google-calendar-view";
+import { calendarBlurbFor, calendarSettingsHref } from "@/lib/calendar-sync-ui";
+import { CalendarSyncPrompt } from "@/components/calendar-sync-prompt";
 
 export const metadata = { title: "Book" };
 
-export default async function ReservationsPage({ searchParams }: { searchParams: Promise<{ date?: string; view?: string; show?: string; changed?: string }> }) {
+export default async function ReservationsPage({ searchParams }: { searchParams: Promise<{ date?: string; view?: string; show?: string; changed?: string; google?: string; message?: string }> }) {
   const { account } = await requireAccount();
   const tz = account.timeZone;
   const sp = await searchParams;
@@ -25,10 +28,13 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
   const { start } = dayBoundsUtc(rangeStart, tz);
   const { start: end } = dayBoundsUtc(rangeEnd, tz);
 
-  const reservations = await prisma.reservation.findMany({
-    where: { accountId: account.id, startTime: { gte: start, lt: end }, ...(showAll ? {} : { status: { notIn: ["cancelled", "no_show"] } }) },
-    orderBy: { startTime: "asc" },
-  });
+  const [reservations, calendar] = await Promise.all([
+    prisma.reservation.findMany({
+      where: { accountId: account.id, startTime: { gte: start, lt: end }, ...(showAll ? {} : { status: { notIn: ["cancelled", "no_show"] } }) },
+      orderBy: { startTime: "asc" },
+    }),
+    getGoogleCalendarStatus(account.id),
+  ]);
 
   const href = (d: string, v: string = view) => `/reservations?date=${d}${v === "day" ? "&view=day" : ""}${showAll ? "&show=all" : ""}`;
   const step = view === "week" ? 7 : 1;
@@ -151,6 +157,16 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
           {showAll ? "Hide cancelled / no-shows" : "Show cancelled / no-shows"}
         </Link>
       </div>
+
+      <CalendarSyncPrompt
+        status={calendar}
+        returnTo={href(date)}
+        manageHref={calendarSettingsHref("restaurant")}
+        blurb={calendarBlurbFor("restaurant")}
+        itemsLabel="reservations"
+        googleStatus={sp.google}
+        googleMessage={sp.message}
+      />
     </div>
   );
 }

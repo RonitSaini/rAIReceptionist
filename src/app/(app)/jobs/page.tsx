@@ -5,19 +5,26 @@ import { prisma } from "@/lib/prisma";
 import { formatDateTime, nowUtc, timeAgo } from "@/lib/time";
 import { formatUsPhone } from "@/lib/form";
 import { humanize } from "@/lib/constants";
-import { vocabularyFor } from "@/verticals";
+import { verticalFor, vocabularyFor } from "@/verticals";
 import { Badge, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { Reveal } from "@/components/reveal";
 import { JOB_STATUS_TONE, JOB_STATUS_ORDER } from "@/lib/jobs-ui";
+import { getGoogleCalendarStatus } from "@/lib/google-calendar-view";
+import { calendarBlurbFor, calendarSettingsHref } from "@/lib/calendar-sync-ui";
+import { CalendarSyncPrompt } from "@/components/calendar-sync-prompt";
 
 export const metadata = { title: "Jobs" };
 
 /** Every job, newest first, filterable by status. The schedule shows the diary; this shows the list. */
-export default async function JobsPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+export default async function JobsPage({ searchParams }: { searchParams: Promise<{ status?: string; google?: string; message?: string }> }) {
   const { account } = await requireAccount();
-  const { status } = await searchParams;
+  const { status, google: googleStatus, message: googleMessage } = await searchParams;
   const words = vocabularyFor(account);
   const now = nowUtc();
+  // A dispatch-only account has no /schedule page to make the offer on, but its dispatches still
+  // reach the calendar (jobEventWindow gives them a response-time window), so this list is its
+  // diary. Accounts that DO schedule are offered it on /schedule instead — never in both places.
+  const offerCalendarHere = account.takesScheduledWork === false;
 
   const active = JOB_STATUS_ORDER.includes(status as JobStatus) ? (status as JobStatus) : null;
   const jobs = await prisma.job.findMany({
@@ -26,7 +33,10 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
     take: 100,
   });
 
-  const counts = await prisma.job.groupBy({ by: ["status"], where: { accountId: account.id }, _count: { _all: true } });
+  const [counts, calendar] = await Promise.all([
+    prisma.job.groupBy({ by: ["status"], where: { accountId: account.id }, _count: { _all: true } }),
+    offerCalendarHere ? getGoogleCalendarStatus(account.id) : null,
+  ]);
   const countFor = (s: JobStatus) => counts.find((c) => c.status === s)?._count._all ?? 0;
 
   return (
@@ -79,6 +89,18 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
           ))}
         </ul>
       )}
+
+      {calendar ? (
+        <CalendarSyncPrompt
+          status={calendar}
+          returnTo="/jobs"
+          manageHref={calendarSettingsHref(verticalFor(account).archetype)}
+          blurb={calendarBlurbFor(verticalFor(account).archetype)}
+          itemsLabel={words.booking.many}
+          googleStatus={googleStatus}
+          googleMessage={googleMessage}
+        />
+      ) : null}
     </div>
   );
 }
