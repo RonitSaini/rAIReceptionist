@@ -475,6 +475,114 @@ body {
   }
 }
 
+/* ---------- Landing page (marketing) motion ----------
+   Same language as the app: entrances are expo-out 350ms, pops are back-out 500ms, ambient loops are
+   ease-in-out, and everything animates transform/opacity/filter/stroke only. Hidden initial states are
+   gated on `.js` so a no-JS visitor gets the complete page, and every class here is in the
+   prefers-reduced-motion block below, landing on the END state. */
+
+/* Hero backdrop: call routes drawing themselves in, the site's stroke-draw motif at ambient scale.
+   Pure CSS loop (no JS), pathLength="1" on each path. */
+.beam-path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0;
+  animation: beam-flow var(--beam-duration, 7s) ease-in-out infinite;
+  animation-delay: var(--beam-delay, 0ms);
+}
+@keyframes beam-flow {
+  0% { stroke-dashoffset: 1; opacity: 0; }
+  12% { opacity: var(--beam-opacity, 0.5); }
+  55% { stroke-dashoffset: 0; opacity: var(--beam-opacity, 0.5); }
+  82% { stroke-dashoffset: 0; opacity: 0; }
+  100% { stroke-dashoffset: 0; opacity: 0; }
+}
+
+/* Hero text entrance: lift + un-blur, NEVER opacity — content hidden by opacity:0 is excluded from
+   Largest Contentful Paint, and this block holds the page's LCP element (the h1). Pure CSS, so it
+   needs no .js gate; 'both' lands it on the end state. */
+.hero-enter {
+  animation: hero-enter 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes hero-enter {
+  from { transform: translateY(10px); filter: blur(4px); }
+  to { transform: translateY(0); filter: blur(0); }
+}
+
+/* Static hero glow (no motion, so no reduced-motion entry needed). */
+.landing-glow {
+  background:
+    radial-gradient(600px 420px at 72% 18%, color-mix(in oklab, var(--color-brand-400) 13%, transparent), transparent 70%),
+    radial-gradient(520px 380px at 12% 85%, color-mix(in oklab, var(--color-brand-300) 7%, transparent), transparent 70%);
+}
+
+/* Rotating profession in the hero: all words stacked in one grid cell (the widest sets the width, so
+   nothing shifts), crossfading with the same blur-slide as .digit-in. First word is server-rendered
+   visible for no-JS visitors. */
+.word-stack { display: inline-grid; }
+.word-stack > .word { grid-area: 1 / 1; white-space: nowrap; visibility: hidden; }
+.word-stack > .word.is-in { visibility: visible; }
+.js .word-stack > .word.is-in { animation: word-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.js .word-stack > .word.is-out { visibility: visible; animation: word-out 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes word-in {
+  from { opacity: 0; transform: translateY(0.45em); filter: blur(4px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+@keyframes word-out {
+  from { opacity: 1; transform: translateY(0); filter: blur(0); }
+  to { opacity: 0; transform: translateY(-0.45em); filter: blur(4px); }
+}
+
+/* Call demo: every bubble/step/chip is laid out in its final position from the server render and only
+   ever animates opacity/transform/blur into place — nothing moves anything else (no layout shift, and
+   the full conversation is simply visible without JS). */
+.js .cd-item {
+  opacity: 0;
+  transform: translateY(8px);
+  filter: blur(4px);
+}
+.js .cd-item.is-on { animation: cd-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+@keyframes cd-in {
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+/* Step-rail connector fills toward the next step; a plain line, so scaleX distorts nothing (rule 5). */
+.js .cd-seg { transform: scaleX(0); transform-origin: left center; }
+.js .cd-seg.is-on { animation: seg-fill 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+@keyframes seg-fill {
+  to { transform: scaleX(1); }
+}
+/* Outcome chips arrive with the badge pop — the pop IS the entrance, one signal per event. */
+.js .cd-chip { opacity: 0; }
+.js .cd-chip.is-on { opacity: 1; animation: badge-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+/* Whole-demo crossfade when the loop restarts. */
+.cd-fade { transition: opacity 0.3s ease; }
+.js .cd-fade.is-resetting { opacity: 0; }
+
+/* FAQ collapse: the pre-registered grid-template-rows exception (motion spec rule 5) — collapse has
+   no transform-only solution. Collapsed only under `.js` (no-JS visitors get every answer open), and
+   a delayed visibility swap keeps closed panels out of the accessibility tree and tab order. The
+   chevron rotates in sympathy. */
+.faq-panel {
+  display: grid;
+  grid-template-rows: 1fr;
+}
+.faq-panel > div { overflow: hidden; min-height: 0; }
+.js .faq-panel {
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.js .faq-panel > div {
+  visibility: hidden;
+  transition: visibility 0s linear 0.3s;
+}
+.js .faq-panel.is-open { grid-template-rows: 1fr; }
+.js .faq-panel.is-open > div {
+  visibility: visible;
+  transition-delay: 0s;
+}
+.faq-chevron { transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
+.faq-open .faq-chevron { transform: rotate(180deg); }
+
 /* Buttons: soft press. */
 .press {
   transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
@@ -502,15 +610,54 @@ body {
   .bar-label,
   .notif-panel,
   .lift,
-  .lift::after {
+  .lift::after,
+  .beam-path,
+  .js .word-stack > .word.is-in,
+  .js .word-stack > .word.is-out,
+  .js .cd-item,
+  .js .cd-item.is-on,
+  .js .cd-seg,
+  .js .cd-seg.is-on,
+  .js .cd-chip,
+  .js .cd-chip.is-on,
+  .cd-fade,
+  .js .faq-panel,
+  .js .faq-panel > div,
+  .faq-chevron,
+  .hero-enter {
     animation: none;
     transition: none;
+  }
+  .hero-enter {
+    transform: none;
+    filter: none;
   }
   /* Reduced motion lands on the END state, never the hidden one: reset every hidden initial state. */
   .js .reveal {
     opacity: 1;
     transform: none;
     filter: none;
+  }
+  .beam-path {
+    stroke-dashoffset: 0;
+    opacity: var(--beam-opacity, 0.5);
+  }
+  .js .word-stack > .word.is-out {
+    visibility: hidden; /* the leaving word stays gone; the current one below lands visible */
+  }
+  .js .word-stack > .word.is-in {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+  .js .cd-item,
+  .js .cd-chip {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+  .js .cd-seg {
+    transform: none;
   }
   .bar-grow {
     transform: none;

@@ -267,6 +267,12 @@ there. Don't mix the two.
 12. **Hover on a non-interactive surface is a false affordance.** `Card` is a `<section>`;
    it gets no hover state. `.lift` goes on things that navigate: `StatTile`, notification grid
    cards, list rows that are links.
+13. **Above-the-fold initial content never enters via `opacity: 0`.** Chrome excludes
+   opacity-0-at-first-paint elements from Largest Contentful Paint entirely — a hero wrapped in
+   `.reveal` hands LCP to whatever tiny element never hid (measured on the landing page: the logo,
+   then the eyebrow pill at 2.7s). Content in the load-time viewport enters with transform + blur
+   only (`.hero-enter`); `.reveal` stays a *scroll* reveal for content below the fold, where LCP
+   can't see it.
 
 ---
 
@@ -293,3 +299,24 @@ Searched on 21st.dev via the MCP (2026-08-30). Status: ✅ done · 🔍 to resea
 drawing them; anything with bouncy spring physics on entrances (springs are reserved for
 badge/count pops); anything animating layout properties; anything pulling in a motion
 runtime unless that's a deliberate decision; anything without a reduced-motion path.
+
+### Landing page pass (2026-09-01)
+
+Searched on 21st.dev via the MCP for the `/` revamp. framer-motion was pre-approved for this pass
+but not needed — every pattern ported to the house CSS (option (b) from §0), so the site still has
+one motion system. New classes (`.hero-enter`, `.beam-path`, `.word-stack`, `.cd-item`, `.cd-seg`,
+`.cd-chip`, `.cd-fade`, `.faq-panel`, `.faq-chevron`) are all in the reduced-motion block, landing
+on end states; the `.cd-*` demo is laid out at final positions server-side (opacity/transform in
+place → zero CLS, complete without JS).
+
+| Search | Where it went | Status |
+|---|---|---|
+| hero + animated background beams | `<HeroBeams>` — shape of aceternity *Background Beams* #1152, redrawn as the pathLength/dashoffset motif at ambient scale (`.beam-path`); canvas versions (kokonutd #1637, easemize #25483) rejected — a second idiom. Hidden < md (crossed hero text on phones) | ✅ (in-house port) |
+| chat conversation in a phone frame | `<CallDemo>` — the one paid retrieval (solaceui *Chat Messages* #20130): its util files (motion internals) weren't returned by the API, so only the shape was taken (message list, side-switching, frame, fade mask); step-rail auto-advance per ayushmxxn *Feature Section* #1368 (metadata only). Step icons redraw on activation (rule 8's sanctioned trigger, 18px) | ✅ |
+| rotating word headline | `<WordCarousel>` — behavior of animbits *Word Carousel Text* #19230 as `.word-stack`: one grid cell, widest word sets the width, word placed sentence-FINAL so the reserved width reads as pill padding, frozen under reduced motion | ✅ (in-house) |
+| FAQ accordion | `<Faq>` — first use of rule 5's pre-registered `grid-template-rows` collapse exception; collapse gated on `.js` (no-JS reads every answer), delayed `visibility` swap keeps closed panels out of the a11y tree. 21st.dev candidates were Radix/spring/height-animated — shape only | ✅ (in-house) |
+| feature bento / steps / CTA blocks | plain Tailwind grids + existing `.reveal` and colors-only hovers; nothing pulled. CTA banner gradient + button text use brand-500/600 ONLY — the stops `.dark` doesn't remap (brand-800 flips light in dark and had inverted the banner) | ✅ (in-house) |
+
+Verified: CLS 0 in 6 viewport/theme/motion configs (loop + scroll pass), LCP 52–96ms unthrottled
+(rule 13 came from this pass), Lighthouse on the build 98/100/100/100, no-JS and reduced-motion
+complete, goldens byte-identical.
