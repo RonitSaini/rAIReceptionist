@@ -12,6 +12,7 @@ import { JOB_STATUS_TONE } from "@/lib/jobs-ui";
 import { getGoogleCalendarStatus } from "@/lib/google-calendar-view";
 import { calendarBlurbFor, calendarSettingsHref } from "@/lib/calendar-sync-ui";
 import { CalendarSyncPrompt } from "@/components/calendar-sync-prompt";
+import { RunningLateButton } from "@/components/running-late-button";
 
 export const metadata = { title: "Schedule" };
 
@@ -56,9 +57,12 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
       <PageHeader
         title="Schedule"
         action={
-          <LinkButton href="/jobs/new" size="sm">
-            + New
-          </LinkButton>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <RunningLateButton />
+            <LinkButton href="/jobs/new" size="sm">
+              + New
+            </LinkButton>
+          </div>
         }
       />
 

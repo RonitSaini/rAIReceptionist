@@ -20,7 +20,7 @@ function sender(account: Pick<Account, "twilioNumber">): string | undefined {
 }
 
 /** What a guest message was for. Stored so cost reporting can break SMS spend down by cause. */
-export type SmsPurpose = "reservation_confirmation" | "takeout_confirmation" | "escalation_followup" | "cancellation_reply" | "inbound_reply" | "unacknowledged";
+export type SmsPurpose = "reservation_confirmation" | "takeout_confirmation" | "escalation_followup" | "cancellation_reply" | "inbound_reply" | "unacknowledged" | "running_late";
 
 export async function sendGuestSms(
   account: Pick<Account, "id" | "twilioNumber" | "businessName">,

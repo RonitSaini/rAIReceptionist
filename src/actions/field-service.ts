@@ -10,8 +10,12 @@ import { bool, int, json, list, normalizeUsPhone, optDecimal, optStr, str, type 
 import { isPostalCodeFor, normalizePostalCode, accountCountry, toMiles } from "@/lib/locale";
 import { formatRestaurantAddress, geocodeAddress } from "@/lib/geo";
 import { jobWindow } from "@/lib/field-service-handlers";
-import { verticalFor } from "@/verticals";
+import { verticalFor, vocabularyFor } from "@/verticals";
 import { customEmergencyKey } from "@/lib/custom-emergencies";
+import { ACTIVE_JOB_STATUSES } from "@/lib/job-availability";
+import { sendGuestSms } from "@/lib/sms";
+import { createNotification } from "@/lib/notifications";
+import { dayBoundsUtc, todayString } from "@/lib/time";
 import { finish, modeOf } from "@/lib/onboarding-flow";
 
 /**
@@ -237,4 +241,60 @@ export async function saveServiceOfferings(_prev: ActionState, fd: FormData): Pr
   const result = await saveServices(_prev, fd);
   revalidatePath("/services");
   return result;
+}
+
+// ---------- Running late ----------
+
+/**
+ * "We're running behind" — texts every booking left today so the caller hears it from the
+ * business before they are stood up.
+ *
+ * Deliberately idempotent per booking per day: however many times the button is pressed, a
+ * customer is told once. A send that failed does not count as told — pressing again retries it.
+ * The customers are texted; nothing on the jobs changes, because running late is not a
+ * cancellation and the office may yet keep some of them.
+ */
+export async function notifyRunningLate(): Promise<ActionState> {
+  const { account } = await requireAccount();
+  const words = vocabularyFor(account);
+  const { start, end } = dayBoundsUtc(todayString(account.timeZone), account.timeZone);
+
+  const jobs = await prisma.job.findMany({
+    where: { accountId: account.id, scheduledStart: { gte: new Date(), lt: end }, status: { in: [...ACTIVE_JOB_STATUSES] }, customerPhone: { not: null } },
+    orderBy: { scheduledStart: "asc" },
+    select: { id: true, customerPhone: true },
+  });
+  if (jobs.length === 0) return { ok: true, message: "Nothing left on today's schedule to notify." };
+
+  const already = new Set(
+    (
+      await prisma.smsMessage.findMany({
+        where: { accountId: account.id, purpose: "running_late", error: null, createdAt: { gte: start }, jobId: { in: jobs.map((j) => j.id) } },
+        select: { jobId: true },
+      })
+    ).map((m) => m.jobId),
+  );
+
+  const body = `${account.businessName}: We're running behind today and may need to reschedule your ${words.booking.one}. We'll call you shortly - sorry for the trouble.`;
+  let sent = 0;
+  let failed = 0;
+  for (const job of jobs) {
+    if (already.has(job.id)) continue;
+    const sms = await sendGuestSms(account, job.customerPhone, body, { purpose: "running_late", jobId: job.id });
+    if (sms.ok) sent++;
+    else failed++;
+  }
+
+  if (sent > 0) {
+    await createNotification({
+      accountId: account.id,
+      type: "system",
+      title: "Running-late notice sent",
+      body: `${sent} ${sent === 1 ? "customer" : "customers"} with ${words.booking.many} later today ${sent === 1 ? "was" : "were"} texted that you may need to reschedule.`,
+    });
+  }
+
+  if (failed > 0) return { ok: false, error: `Texted ${sent}, but ${failed} could not be reached. Check the numbers on today's ${words.booking.many}.` };
+  if (sent === 0) return { ok: true, message: "Everyone left on today's schedule has already been texted." };
+  return { ok: true, message: `Texted ${sent} ${sent === 1 ? "customer" : "customers"}. Call them when you can.` };
 }
