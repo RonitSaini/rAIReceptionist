@@ -5,16 +5,20 @@ import assert from "node:assert/strict";
  * ToS acceptance gates account creation — on the SERVER, which is what these tests pin. The
  * checkbox and the disabled buttons are courtesy; the contract is that signUp (the endpoint every
  * hand-crafted POST ultimately reaches) refuses first, before validating, looking up or creating
- * anything. The Google path's equivalent (a new user with no signed consent cookie is refused in
- * the NextAuth callback) rests on hasPendingTermsCookie, whose no-request behavior is pinned here
- * too: absence of proof is never proof.
+ * anything.
+ *
+ * The Google path has no equivalent here to pin: it no longer carries consent in a cookie taken
+ * before the redirect. Signing in with Google creates a User row and nothing else, and the asking
+ * happens on onboarding step 1, whose action (createAccountForCurrentUser) refuses to create an
+ * Account without acceptance — a guarantee that needs a session and a database, so it is covered by
+ * the browser walk rather than here.
  */
 
 process.env.DATABASE_URL ??= "postgresql://snapshot:snapshot@localhost:5432/snapshot";
 process.env.DIRECT_URL ??= process.env.DATABASE_URL;
 
 const { signUp } = await import("../src/actions/auth.ts");
-const { hasPendingTermsCookie } = await import("../src/lib/terms-acceptance.ts");
+const termsAcceptance = await import("../src/lib/terms-acceptance.ts");
 const { TERMS_VERSION, TERMS_EFFECTIVE } = await import("../src/app/terms/terms-version.ts");
 
 const fd = (entries) => {
@@ -44,10 +48,13 @@ test("forged checkbox values do not count", async () => {
   }
 });
 
-test("the Google consent cookie is never assumed outside a real request", async () => {
-  // In the NextAuth callback this returning false means: new Google user, no captured consent,
-  // no account. Outside any request context it must fail closed, not throw and not pass.
-  assert.equal(await hasPendingTermsCookie(), false);
+test("consent is never carried across the Google redirect in a cookie", async () => {
+  // The pre-redirect cookie let the signup form's checkbox stand in for the Google path, so a
+  // Google sign-up was never shown a box to tick — and a tick on an abandoned attempt could
+  // silently consent a later one for the fifteen minutes it lived. Nothing may reintroduce it.
+  for (const gone of ["setPendingTermsCookie", "hasPendingTermsCookie"]) {
+    assert.equal(termsAcceptance[gone], undefined, `${gone} must stay gone: the Google path asks on step 1`);
+  }
 });
 
 test("the terms version is date-based and the page's effective date derives from it", () => {
