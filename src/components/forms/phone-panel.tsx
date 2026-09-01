@@ -16,7 +16,7 @@ import { ActionForm } from "@/components/action-form";
 
 type Status = { twilio: boolean; retell: boolean; publicUrl: boolean; subscribed: boolean; appUrl: string; lastSynced: string | null };
 
-export function PhonePanel({ account, mode, status }: { account: AccountView; mode: FormMode; status: Status }) {
+export function PhonePanel({ account, mode, status, backHref, nextHref }: { account: AccountView; mode: FormMode; status: Status; backHref?: string; nextHref?: string }) {
   const [provisionState, provisionAction, provisioning] = useActionState(provisionPhoneNumber, null);
   const [result, setResult] = useState<ActionState>(null);
   const [pending, startTransition] = useTransition();
@@ -63,7 +63,7 @@ export function PhonePanel({ account, mode, status }: { account: AccountView; mo
                 <p className="mt-1">
                   {mode === "onboarding" ? "Finish the payment step next, then come back to Settings → Phone to connect your number." : "Subscribe under Billing and this button unlocks right away."}
                 </p>
-                <Link href={mode === "onboarding" ? "/onboarding/8" : "/settings?tab=billing"} className="mt-2 inline-block font-semibold text-brand-700">
+                <Link href={mode === "onboarding" ? (nextHref ?? "/onboarding/8") : "/settings?tab=billing"} className="mt-2 inline-block font-semibold text-brand-700">
                   {mode === "onboarding" ? "Go to payment →" : "Open Billing →"}
                 </Link>
               </Alert>
@@ -132,9 +132,11 @@ export function PhonePanel({ account, mode, status }: { account: AccountView; mo
           <Button type="submit" size="lg" full variant={hasNumber ? "primary" : "secondary"}>
             {hasNumber ? "Continue" : "Skip for now"}
           </Button>
-          <Link href="/onboarding/6" className="block text-center text-sm font-semibold text-gray-500 hover:text-ink">
-            Back
-          </Link>
+          {backHref ? (
+            <Link href={backHref} className="block text-center text-sm font-semibold text-gray-500 hover:text-ink">
+              Back
+            </Link>
+          ) : null}
         </form>
       ) : null}
     </div>

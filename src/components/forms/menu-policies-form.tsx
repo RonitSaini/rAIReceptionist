@@ -17,7 +17,7 @@ function newRow(partial: Partial<Row> = {}): Row {
   return { key: nextKey++, name: "", category: "", price: "", description: "", dietaryTags: [], enabled: true, ...partial };
 }
 
-export function MenuPoliciesForm({ account, menu, mode }: { account: AccountView; menu: MenuItemView[]; mode: FormMode }) {
+export function MenuPoliciesForm({ account, menu, mode, backHref }: { account: AccountView; menu: MenuItemView[]; mode: FormMode; backHref?: string }) {
   const [state, action, pending] = useActionState(saveMenuPolicies, null);
   const [rows, setRows] = useState<Row[]>(() => (menu.length ? menu.map((m) => newRow({ ...m, price: m.price == null ? "" : m.price.toFixed(2) })) : [newRow()]));
   const [expanded, setExpanded] = useState<number | null>(null);
@@ -131,7 +131,7 @@ export function MenuPoliciesForm({ account, menu, mode }: { account: AccountView
         ) : null}
       </section>
 
-      <FormFooter state={state} pending={pending} mode={mode} backHref="/onboarding/3" />
+      <FormFooter state={state} pending={pending} mode={mode} backHref={backHref} />
     </ActionForm>
   );
 }

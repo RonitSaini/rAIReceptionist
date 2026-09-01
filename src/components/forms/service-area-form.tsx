@@ -16,7 +16,7 @@ import { DeliveryRadiusMap, deliveryMapAvailable } from "@/components/forms/deli
  * miles, the same convention the restaurant delivery radius already uses. The map is the same
  * component too: seeing the circle is how an owner notices they have drawn it too small.
  */
-export function ServiceAreaForm({ account, mode }: { account: AccountView; mode: FormMode }) {
+export function ServiceAreaForm({ account, mode, backHref }: { account: AccountView; mode: FormMode; backHref?: string }) {
   const [state, action, pending] = useActionState(saveServiceArea, null);
   const country = accountCountry(account);
   const unit = country === "CA" ? "km" : "miles";
@@ -58,7 +58,7 @@ export function ServiceAreaForm({ account, mode }: { account: AccountView; mode:
         <p className="text-xs text-gray-500">Add your street address in Business basics to see the area on a map. The radius still works without it.</p>
       ) : null}
 
-      <FormFooter state={state} pending={pending} mode={mode} backHref="/onboarding/3" />
+      <FormFooter state={state} pending={pending} mode={mode} backHref={backHref} />
     </ActionForm>
   );
 }

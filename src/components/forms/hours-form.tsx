@@ -20,7 +20,7 @@ function buildDays(hours: BusinessHours[]): DayState[] {
   });
 }
 
-export function HoursForm({ hours, mode }: { hours: BusinessHours[]; mode: FormMode }) {
+export function HoursForm({ hours, mode, backHref, nextHref }: { hours: BusinessHours[]; mode: FormMode; backHref?: string; nextHref?: string }) {
   const [state, action, pending] = useActionState(saveHours, null);
   const [days, setDays] = useState<DayState[]>(() => buildDays(hours));
 
@@ -86,8 +86,8 @@ export function HoursForm({ hours, mode }: { hours: BusinessHours[]; mode: FormM
         ))}
       </section>
 
-      <FormFooter state={state} pending={pending} mode={mode} backHref="/onboarding/2" />
-      {mode === "onboarding" ? <Skip href="/onboarding/4" /> : null}
+      <FormFooter state={state} pending={pending} mode={mode} backHref={backHref} />
+      {mode === "onboarding" && nextHref ? <Skip href={nextHref} /> : null}
     </ActionForm>
   );
 }

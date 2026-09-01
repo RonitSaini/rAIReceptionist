@@ -26,12 +26,14 @@ export function DispatchForm({
   defaultAckMinutes,
   defaultUnacknowledged,
   mode,
+  backHref,
 }: {
   account: AccountView;
   defaultResponse: [number, number] | null;
   defaultAckMinutes: number;
   defaultUnacknowledged: string;
   mode: FormMode;
+  backHref?: string;
 }) {
   const [state, action, pending] = useActionState(saveDispatch, null);
   const [scheduled, setScheduled] = useState(account.takesScheduledWork);
@@ -95,7 +97,7 @@ export function DispatchForm({
         />
       </Field>
 
-      <FormFooter state={state} pending={pending} mode={mode} backHref="/onboarding/4" />
+      <FormFooter state={state} pending={pending} mode={mode} backHref={backHref} />
     </ActionForm>
   );
 }

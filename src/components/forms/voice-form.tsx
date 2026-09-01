@@ -28,7 +28,7 @@ function speak(text: string, pitch: number, rate: number) {
   window.speechSynthesis.speak(u);
 }
 
-export function VoiceForm({ account, mode }: { account: AccountView; mode: FormMode }) {
+export function VoiceForm({ account, mode, backHref }: { account: AccountView; mode: FormMode; backHref?: string }) {
   const [state, action, pending] = useActionState(saveVoice, null);
   const [voiceId, setVoiceIdState] = useState(account.voiceId);
   const [voiceSave, setVoiceSave] = useState<{ ok: boolean; text: string } | null>(null);
@@ -215,7 +215,7 @@ export function VoiceForm({ account, mode }: { account: AccountView; mode: FormM
         </div>
       </section>
 
-      <FormFooter state={state} pending={pending} mode={mode} backHref="/onboarding/5" />
+      <FormFooter state={state} pending={pending} mode={mode} backHref={backHref} />
 
       <section className="space-y-3">
         <h2 className="text-base font-bold">Hear it for real</h2>

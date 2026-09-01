@@ -24,12 +24,14 @@ export function ShopHandoffForm({
   referral,
   defaultSlotMinutes,
   mode,
+  backHref,
 }: {
   account: AccountView;
   emergencyTypes: readonly ClassifiedReason[];
   referral: Referral;
   defaultSlotMinutes: number;
   mode: FormMode;
+  backHref?: string;
 }) {
   const [state, action, pending] = useActionState(saveShopHandoffs, null);
   const current = (account as unknown as Record<string, string | null>)[referral.field] ?? "";
@@ -67,7 +69,7 @@ export function ShopHandoffForm({
         </Field>
       </div>
 
-      <FormFooter state={state} pending={pending} mode={mode} />
+      <FormFooter state={state} pending={pending} mode={mode} backHref={backHref} />
     </ActionForm>
   );
 }

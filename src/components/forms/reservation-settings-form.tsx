@@ -9,7 +9,7 @@ import { FormFooter, type FormMode } from "@/components/form-footer";
 import { ActionForm } from "@/components/action-form";
 import { GoogleCalendarCard } from "@/components/google-calendar-card";
 
-export function ReservationSettingsForm({ account, mode, google, googleStatus, googleMessage }: { account: AccountView; mode: FormMode; google?: GoogleCalendarView; googleStatus?: string; googleMessage?: string }) {
+export function ReservationSettingsForm({ account, mode, google, googleStatus, googleMessage, backHref }: { account: AccountView; mode: FormMode; google?: GoogleCalendarView; googleStatus?: string; googleMessage?: string; backHref?: string }) {
   const [state, action, pending] = useActionState(saveReservationSettings, null);
   const returnTo = mode === "onboarding" ? "/onboarding/5" : "/settings?tab=reservations";
 
@@ -49,7 +49,7 @@ export function ReservationSettingsForm({ account, mode, google, googleStatus, g
           </div>
         </section>
 
-        <FormFooter state={state} pending={pending} mode={mode} backHref="/onboarding/4" />
+        <FormFooter state={state} pending={pending} mode={mode} backHref={backHref} />
       </ActionForm>
     </div>
   );

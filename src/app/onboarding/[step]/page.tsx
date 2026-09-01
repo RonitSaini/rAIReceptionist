@@ -54,9 +54,18 @@ export default async function OnboardingStepPage({ params, searchParams }: { par
 
   // The step NUMBER is only a position in this vertical's ordered list; the step ID decides what
   // renders. A restaurant's list is unchanged, so its numbering is exactly what it always was.
-  const stepDef = onboardingStepsFor(account)[step - 1];
+  const steps = onboardingStepsFor(account);
+  const stepDef = steps[step - 1];
   if (!stepDef) notFound();
   const progress = <OnboardingProgress step={step} vertical={account.vertical} />;
+
+  // Back goes to the previous position in THIS vertical's list, which is the only thing a step
+  // number means. The steps used to name their own back link as a literal ("/onboarding/4"), which
+  // was wrong for every profession whose list is ordered differently — a vet's Appointments step
+  // linked back to itself, and voice, emergencies and payment all pointed a step short for the
+  // trades. Step 2 gets none: step 1 created the account and redirects straight back here.
+  const backHref = step > 2 ? `/onboarding/${step - 1}` : undefined;
+  const nextHref = step < steps.length ? `/onboarding/${step + 1}` : undefined;
 
   switch (stepDef.id) {
     case "business-basics":
@@ -71,7 +80,7 @@ export default async function OnboardingStepPage({ params, searchParams }: { par
       return (
         <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
           {progress}
-          <HoursForm hours={hours} mode="onboarding" />
+          <HoursForm hours={hours} mode="onboarding" backHref={backHref} nextHref={nextHref} />
         </div>
       );
     }
@@ -80,7 +89,7 @@ export default async function OnboardingStepPage({ params, searchParams }: { par
       return (
         <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
           {progress}
-          <MenuPoliciesForm account={view} menu={items.map(serializeMenuItem)} mode="onboarding" />
+          <MenuPoliciesForm account={view} menu={items.map(serializeMenuItem)} mode="onboarding" backHref={backHref} />
         </div>
       );
     }
@@ -88,14 +97,14 @@ export default async function OnboardingStepPage({ params, searchParams }: { par
       return (
         <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
           {progress}
-          <ReservationSettingsForm account={view} mode="onboarding" google={await getGoogleCalendarView(account.id)} googleStatus={googleStatus} googleMessage={googleMessage} />
+          <ReservationSettingsForm account={view} mode="onboarding" google={await getGoogleCalendarView(account.id)} googleStatus={googleStatus} googleMessage={googleMessage} backHref={backHref} />
         </div>
       );
     case "service-area":
       return (
         <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
           {progress}
-          <ServiceAreaForm account={view} mode="onboarding" />
+          <ServiceAreaForm account={view} mode="onboarding" backHref={backHref} />
         </div>
       );
     case "services": {
@@ -103,7 +112,7 @@ export default async function OnboardingStepPage({ params, searchParams }: { par
       return (
         <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
           {progress}
-          <ServicesForm account={view} services={services.map(serializeServiceOffering)} mode="onboarding" />
+          <ServicesForm account={view} services={services.map(serializeServiceOffering)} mode="onboarding" backHref={backHref} />
         </div>
       );
     }
@@ -112,7 +121,7 @@ export default async function OnboardingStepPage({ params, searchParams }: { par
       return (
         <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
           {progress}
-          <ServicesForm account={view} services={services.map(serializeServiceOffering)} mode="onboarding" />
+          <ServicesForm account={view} services={services.map(serializeServiceOffering)} mode="onboarding" backHref={backHref} />
         </div>
       );
     }
@@ -126,6 +135,7 @@ export default async function OnboardingStepPage({ params, searchParams }: { par
             referral={verticalFor(account).referral!}
             defaultSlotMinutes={verticalFor(account).defaults.slotMinutes}
             mode="onboarding"
+            backHref={backHref}
           />
         </div>
       );
@@ -139,6 +149,7 @@ export default async function OnboardingStepPage({ params, searchParams }: { par
             defaultAckMinutes={verticalFor(account).ackMinutes ?? 5}
             defaultUnacknowledged={verticalFor(account).smsTemplates.unacknowledged?.(account).replace(`${account.businessName}: `, "") ?? ""}
             mode="onboarding"
+            backHref={backHref}
           />
         </div>
       );
@@ -146,21 +157,21 @@ export default async function OnboardingStepPage({ params, searchParams }: { par
       return (
         <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
           {progress}
-          <EmergenciesForm account={view} emergencyTypes={verticalFor(account).emergencyTypes} defaultSlotMinutes={verticalFor(account).defaults.slotMinutes} mode="onboarding" />
+          <EmergenciesForm account={view} emergencyTypes={verticalFor(account).emergencyTypes} defaultSlotMinutes={verticalFor(account).defaults.slotMinutes} mode="onboarding" backHref={backHref} />
         </div>
       );
     case "voice":
       return (
         <div className="mx-auto max-w-6xl">
           {progress}
-          <VoiceForm account={view} mode="onboarding" />
+          <VoiceForm account={view} mode="onboarding" backHref={backHref} />
         </div>
       );
     case "phone":
       return (
         <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
           {progress}
-          <PhoneStep account={view} mode="onboarding" />
+          <PhoneStep account={view} mode="onboarding" backHref={backHref} nextHref={nextHref} />
         </div>
       );
     case "payment": {
@@ -168,7 +179,7 @@ export default async function OnboardingStepPage({ params, searchParams }: { par
       return (
         <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
           {progress}
-          <PaymentStep account={view} mode="onboarding" checkout={parseCheckoutResult(checkout)} />
+          <PaymentStep account={view} mode="onboarding" checkout={parseCheckoutResult(checkout)} backHref={backHref} />
         </div>
       );
     }

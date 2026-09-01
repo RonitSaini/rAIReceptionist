@@ -17,7 +17,7 @@ import { ActionForm } from "@/components/action-form";
  * minutes. Leaving them all unticked is allowed — the agent then treats the whole list as urgent
  * rather than none of it, because the failure mode of under-reacting to a burst pipe is worse.
  */
-export function EmergenciesForm({ account, emergencyTypes, defaultSlotMinutes, mode }: { account: AccountView; emergencyTypes: readonly ClassifiedReason[]; defaultSlotMinutes: number; mode: FormMode }) {
+export function EmergenciesForm({ account, emergencyTypes, defaultSlotMinutes, mode, backHref }: { account: AccountView; emergencyTypes: readonly ClassifiedReason[]; defaultSlotMinutes: number; mode: FormMode; backHref?: string }) {
   const [state, action, pending] = useActionState(saveEmergencies, null);
   const [custom, setCustom] = useState<string[]>(() => account.emergencyTypes.filter(isCustomEmergency).map(customEmergencyLabel));
 
@@ -60,7 +60,7 @@ export function EmergenciesForm({ account, emergencyTypes, defaultSlotMinutes, m
         </Field>
       </div>
 
-      <FormFooter state={state} pending={pending} mode={mode} backHref="/onboarding/5" />
+      <FormFooter state={state} pending={pending} mode={mode} backHref={backHref} />
     </ActionForm>
   );
 }

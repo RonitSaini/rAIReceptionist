@@ -20,7 +20,7 @@ function money(p: PlanPrice | null, fallback: string): string {
 }
 
 /** Step 8 / Settings → Billing. Plan summary, subscription status, and the hand-off to hosted Checkout. */
-export async function PaymentStep({ account, mode, checkout = null }: { account: AccountView; mode: FormMode; checkout?: CheckoutResult }) {
+export async function PaymentStep({ account, mode, checkout = null, backHref }: { account: AccountView; mode: FormMode; checkout?: CheckoutResult; backHref?: string }) {
   const configured = stripeConfigured() && stripePricesConfigured();
   const prices = configured ? await getPlanPrices() : null;
   const active = subscriptionActive(account);
@@ -87,9 +87,11 @@ export async function PaymentStep({ account, mode, checkout = null }: { account:
           <Button type="submit" size="lg" full variant={active ? "primary" : "secondary"}>
             {active ? "Go to my dashboard" : "Skip for now and go to my dashboard"}
           </Button>
-          <Link href="/onboarding/7" className="block text-center text-sm font-semibold text-gray-500 hover:text-ink">
-            Back
-          </Link>
+          {backHref ? (
+            <Link href={backHref} className="block text-center text-sm font-semibold text-gray-500 hover:text-ink">
+              Back
+            </Link>
+          ) : null}
         </form>
       ) : null}
     </div>

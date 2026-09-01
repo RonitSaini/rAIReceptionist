@@ -5,12 +5,14 @@ import { subscriptionActive } from "@/lib/billing-ui";
 import type { FormMode } from "@/components/form-footer";
 import { PhonePanel } from "@/components/forms/phone-panel";
 
-/** Step 7 / Settings → Phone. Server wrapper that passes integration status to the interactive panel. */
-export function PhoneStep({ account, mode }: { account: AccountView; mode: FormMode }) {
+/** The phone step / Settings → Phone. Server wrapper that passes integration status to the panel. */
+export function PhoneStep({ account, mode, backHref, nextHref }: { account: AccountView; mode: FormMode; backHref?: string; nextHref?: string }) {
   return (
     <PhonePanel
       account={account}
       mode={mode}
+      backHref={backHref}
+      nextHref={nextHref}
       status={{
         twilio: twilioConfigured(),
         retell: retellConfigured(),

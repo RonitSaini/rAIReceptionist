@@ -21,7 +21,7 @@ const newRow = (partial: Partial<Row> = {}): Row => ({ key: nextKey++, name: "",
  * from $99" while refusing to put any number on a leak nobody has looked at yet, and the agent must
  * be able to tell those apart.
  */
-export function ServicesForm({ account, services, mode }: { account: AccountView; services: ServiceOfferingView[]; mode: FormMode }) {
+export function ServicesForm({ account, services, mode, backHref }: { account: AccountView; services: ServiceOfferingView[]; mode: FormMode; backHref?: string }) {
   const [state, action, pending] = useActionState(saveServices, null);
   const [rows, setRows] = useState<Row[]>(() =>
     services.length ? services.map((s) => newRow({ id: s.id, name: s.name, category: s.category ?? "", priceFrom: s.priceFrom == null ? "" : String(s.priceFrom), canQuote: s.canQuote, enabled: s.enabled })) : [newRow()],
@@ -80,7 +80,7 @@ export function ServicesForm({ account, services, mode }: { account: AccountView
         <p className="text-xs text-gray-500">Leave this empty if you&apos;d rather the AI just described the problem and booked a visit.</p>
       </section>
 
-      <FormFooter state={state} pending={pending} mode={mode} backHref="/onboarding/4" />
+      <FormFooter state={state} pending={pending} mode={mode} backHref={backHref} />
     </ActionForm>
   );
 }
