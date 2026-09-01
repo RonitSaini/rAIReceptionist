@@ -9,7 +9,7 @@ import { isEmail, str, type ActionState } from "@/lib/form";
 import { isVerticalAvailable, vocabularyFor } from "@/verticals";
 import type { Vertical } from "@prisma/client";
 import { DEFAULT_CLOSE, DEFAULT_OPEN } from "@/lib/availability";
-import { hasAcceptedCurrentTerms, recordTermsAcceptance, requestIp, setPendingTermsCookie } from "@/lib/terms-acceptance";
+import { hasAcceptedCurrentTerms, recordTermsAcceptance, requestIp } from "@/lib/terms-acceptance";
 
 /** Server-side gate, not UI decoration: a hand-crafted POST without the checkbox lands here too. */
 const TERMS_ERROR = "Please accept the Terms of Service and Privacy Policy to create your account.";
@@ -169,15 +169,6 @@ export async function createAccountForCurrentUser(_prev: ActionState, formData: 
     // back. Nothing to report — the user has an account either way.
     if (!(e instanceof AccountAlreadyLinked)) throw e;
   }
-  return { ok: true };
-}
-
-/**
- * The Google signup path: the browser is about to leave for Google, so the ticked box is captured
- * as a short-lived signed cookie here, and the NextAuth callback refuses to create a user without it.
- */
-export async function recordTermsForGoogleSignup(): Promise<ActionState> {
-  await setPendingTermsCookie();
   return { ok: true };
 }
 

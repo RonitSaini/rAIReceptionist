@@ -1,18 +1,15 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
-import { cookies, headers } from "next/headers";
+import { headers } from "next/headers";
 import { prisma } from "./prisma";
-import { signState, verifyState } from "./crypto";
 import { TERMS_VERSION } from "@/app/terms/terms-version";
 
 /**
  * Terms-of-service acceptance: the record produced during a dispute.
  *
- * Two shapes of proof live here. The TermsAcceptance row is ours — who, which version, when, from
- * which address — written at signup, and by the re-consent interstitial for accounts that predate
- * a version. The pending cookie exists only for the Google signup path: consent has to be captured
- * BEFORE the browser leaves for Google, so the tick sets a short-lived signed cookie that the
- * NextAuth callback verifies when it creates the user. Every helper that reads request state
- * degrades to "not accepted" when there is no request — absence of proof is never proof.
+ * One shape of proof: the TermsAcceptance row — who, which version, when, from which address —
+ * written wherever someone actually ticks the box, which is sign-up, onboarding step 1, and the
+ * re-consent interstitial for accounts that predate a version. Every helper that reads request
+ * state degrades to "not accepted" when there is no request — absence of proof is never proof.
  */
 
 type Db = PrismaClient | Prisma.TransactionClient;
@@ -43,28 +40,12 @@ export async function hasAcceptedCurrentTerms(userId: string): Promise<boolean> 
   return !!(await prisma.termsAcceptance.findUnique({ where: { userId_termsVersion: { userId, termsVersion: TERMS_VERSION } }, select: { id: true } }));
 }
 
-// ---------- The Google signup path: consent captured before the OAuth redirect ----------
-
-const PENDING_COOKIE = "fd_terms_pending";
-const PENDING_TTL_MS = 15 * 60_000;
-
-/** Called by the signup form (server action) when the box is ticked, before signIn("google"). */
-export async function setPendingTermsCookie(): Promise<void> {
-  (await cookies()).set(PENDING_COOKIE, signState({ tv: TERMS_VERSION }, PENDING_TTL_MS), {
-    httpOnly: true,
-    sameSite: "lax",
-    maxAge: PENDING_TTL_MS / 1000,
-    path: "/",
-  });
-}
-
-/** True only when a fresh, validly signed cookie for the CURRENT version is on the request. */
-export async function hasPendingTermsCookie(): Promise<boolean> {
-  try {
-    const raw = (await cookies()).get(PENDING_COOKIE)?.value;
-    if (!raw) return false;
-    return verifyState<{ tv?: string }>(raw)?.tv === TERMS_VERSION;
-  } catch {
-    return false; // no request context, no cookie store — never assume consent
-  }
-}
+/*
+ * There is deliberately no "consent captured before the OAuth redirect" cookie any more.
+ *
+ * It existed so the signup form's checkbox could stand in for the Google path, and it made the
+ * Google sign-up ask at the wrong moment (before the person had even chosen an account) while a
+ * leftover cookie from an abandoned attempt could silently consent a later one. Consent for that
+ * path is now taken where the account is created, on onboarding step 1, from a box the person
+ * actually ticks.
+ */

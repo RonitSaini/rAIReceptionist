@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { signIn } from "next-auth/react";
-import { recordTermsForGoogleSignup, signUp } from "@/actions/auth";
+import { signUp } from "@/actions/auth";
 import type { ActionState } from "@/lib/form";
 import { Alert, Button, Field, Input } from "@/components/ui";
 import { GoogleButton } from "@/components/google-button";
@@ -57,11 +57,11 @@ export function SignupForm({ googleEnabled, catalog }: { googleEnabled: boolean;
             or
             <span className="h-px flex-1 bg-gray-200" />
           </div>
-          {/* Always clickable. If the box above is already ticked, consent is captured server-side
-              (a signed cookie) before the browser leaves for Google, and step 1 won't ask again;
-              otherwise step 1 asks once they are back, having chosen an account. Either way no
-              Account exists until it is given. */}
-          <GoogleButton callbackUrl="/onboarding/1" label="Sign up with Google" beforeSignIn={agreed ? () => recordTermsForGoogleSignup() : undefined} />
+          {/* Always clickable, and it never takes the box above as consent: that box belongs to the
+              form it sits in, and someone who came here to use Google may never have looked at it.
+              Step 1 asks them once they are back, having chosen an account — and no Account exists
+              until they answer. */}
+          <GoogleButton callbackUrl="/onboarding/1" label="Sign up with Google" />
         </>
       ) : null}
     </div>

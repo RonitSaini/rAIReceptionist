@@ -4,7 +4,6 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import { prisma } from "./prisma";
 import { verifyPassword } from "./password";
-import { hasPendingTermsCookie, recordTermsAcceptance, requestIp } from "./terms-acceptance";
 
 export const googleEnabled = !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET);
 
@@ -46,23 +45,18 @@ export const authOptions: NextAuthOptions = {
         const email = user.email?.toLowerCase();
         if (!email) return false;
 
-        // Consent on the Google path is captured either BEFORE the redirect — the signed cookie set
-        // when the box was already ticked on the signup form — or AFTER it, on onboarding step 1,
-        // which refuses to create an Account without it. Nobody is turned away here for arriving
-        // without the cookie: signing in creates a User row and nothing else, no service is provided
-        // until that step, and requireAccount() sends every account-less user straight to it. Asking
-        // before someone has even chosen their Google account is the wrong moment to ask.
-        const accepted = await hasPendingTermsCookie();
-
+        // No consent is taken here, and none is required to get this far: signing in with Google
+        // creates a User row and nothing else. The asking happens on onboarding step 1, which
+        // refuses to create an Account without it, and requireAccount() sends every account-less
+        // user straight there — so nothing is served to anyone who has not agreed.
         const googleId = account.providerAccountId;
         const emailVerified = (profile as { email_verified?: boolean } | undefined)?.email_verified ? new Date() : null;
-        const dbUser = await prisma.user.upsert({
+        await prisma.user.upsert({
           where: { email },
           update: { googleId, name: user.name ?? undefined, image: user.image ?? undefined, ...(emailVerified ? { emailVerified } : {}) },
           create: { email, googleId, name: user.name ?? null, image: user.image ?? null, emailVerified },
           select: { id: true },
         });
-        if (accepted) await recordTermsAcceptance(dbUser.id, await requestIp());
       }
       return true;
     },
