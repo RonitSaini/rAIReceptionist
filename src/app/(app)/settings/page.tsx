@@ -219,7 +219,7 @@ async function AccountTab({ userId, businessName }: { userId: string; businessNa
         <>
           <Card title="Email">
             <p className="mb-3 text-sm text-gray-500">You log in as {user.email}.</p>
-            <ChangeEmailForm currentEmail={user.email} />
+            <ChangeEmailForm />
           </Card>
           <Card title="Password">
             <ChangePasswordForm />

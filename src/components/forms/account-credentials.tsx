@@ -13,14 +13,14 @@ import { ActionForm } from "@/components/action-form";
  * live with Google, and the server actions refuse them independently of what renders.
  */
 
-export function ChangeEmailForm({ currentEmail }: { currentEmail: string }) {
+export function ChangeEmailForm() {
   const [state, action, pending] = useActionState(changeEmail, null);
 
   return (
     <ActionForm action={action} className="space-y-3">
       {state ? <Alert kind={state.ok ? "success" : "error"}>{state.ok ? state.message : state.error}</Alert> : null}
       <Field label="New email" htmlFor="account-email">
-        <Input id="account-email" name="email" type="email" autoComplete="email" defaultValue={currentEmail} required />
+        <Input id="account-email" name="email" type="email" autoComplete="email" placeholder="New email..." required />
       </Field>
       <Field label="Current password" htmlFor="account-email-password" hint="Needed to confirm it's you.">
         <Input id="account-email-password" name="currentPassword" type="password" autoComplete="current-password" required />
