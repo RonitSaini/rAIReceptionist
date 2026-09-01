@@ -14,8 +14,8 @@ type DayState = { isClosed: boolean; periods: Period[] };
 function buildDays(hours: BusinessHours[]): DayState[] {
   return DAYS_OF_WEEK.map((_, day) => {
     const rows = hours.filter((h) => h.dayOfWeek === day).sort((a, b) => a.sortOrder - b.sortOrder);
-    if (rows.length === 0) return { isClosed: false, periods: [{ periodName: "All day", open: "11:00", close: "21:00" }] };
-    if (rows.every((r) => r.isClosed)) return { isClosed: true, periods: [{ periodName: "All day", open: "11:00", close: "21:00" }] };
+    if (rows.length === 0) return { isClosed: false, periods: [{ periodName: "Service Hours", open: "11:00", close: "21:00" }] };
+    if (rows.every((r) => r.isClosed)) return { isClosed: true, periods: [{ periodName: "Service Hours", open: "11:00", close: "21:00" }] };
     return { isClosed: false, periods: rows.filter((r) => !r.isClosed).map((r) => ({ periodName: r.periodName, open: r.open, close: r.close })) };
   });
 }
@@ -31,20 +31,8 @@ export function HoursForm({ hours, mode }: { hours: BusinessHours[]; mode: FormM
     setDays((prev) => prev.map((d, i) => (i === day ? { ...d, periods: d.periods.map((p, j) => (j === idx ? { ...p, ...patch } : p)) } : d)));
   }
   function addPeriod(day: number) {
-    setDays((prev) =>
-      prev.map((d, i) => {
-        if (i !== day) return d;
-        const first = d.periods[0];
-        const isSingle = d.periods.length === 1 && first.periodName === "All day";
-        const periods = isSingle
-          ? [
-              { periodName: "Lunch", open: first.open, close: "14:30" },
-              { periodName: "Dinner", open: "17:00", close: first.close },
-            ]
-          : [...d.periods, { periodName: "Late night", open: "21:00", close: "23:00" }];
-        return { ...d, periods };
-      }),
-    );
+    // One new period, name left blank for the owner to fill in; what's already there stays put.
+    setDays((prev) => prev.map((d, i) => (i === day ? { ...d, periods: [...d.periods, { periodName: "", open: "21:00", close: "23:00" }] } : d)));
   }
   function removePeriod(day: number, idx: number) {
     setDays((prev) => prev.map((d, i) => (i === day ? { ...d, periods: d.periods.filter((_, j) => j !== idx) } : d)));
@@ -77,7 +65,7 @@ export function HoursForm({ hours, mode }: { hours: BusinessHours[]; mode: FormM
               <div className="mt-3 space-y-2">
                 {d.periods.map((p, idx) => (
                   <div key={idx} className="grid grid-cols-12 items-center gap-2">
-                    <input aria-label="Period name" value={p.periodName} onChange={(e) => updatePeriod(day, idx, { periodName: e.target.value })} className={`${inputClass} col-span-12 min-h-11 sm:col-span-4`} placeholder="Lunch" />
+                    <input aria-label="Period name" value={p.periodName} onChange={(e) => updatePeriod(day, idx, { periodName: e.target.value })} className={`${inputClass} col-span-12 min-h-11 sm:col-span-4`} />
                     <input aria-label="Opens" type="time" value={p.open} onChange={(e) => updatePeriod(day, idx, { open: e.target.value })} className={`${inputClass} col-span-5 min-h-11 px-2 sm:col-span-3`} required />
                     <input aria-label="Closes" type="time" value={p.close} onChange={(e) => updatePeriod(day, idx, { close: e.target.value })} className={`${inputClass} col-span-5 min-h-11 px-2 sm:col-span-3`} required />
                     <button type="button" onClick={() => removePeriod(day, idx)} disabled={d.periods.length === 1} className="col-span-2 min-h-11 rounded-xl text-sm font-semibold text-red-600 disabled:text-gray-300" aria-label="Remove period">

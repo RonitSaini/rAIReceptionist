@@ -20,7 +20,7 @@ function defaultHours(accountId: string) {
   return Array.from({ length: 7 }, (_, dayOfWeek) => ({
     accountId,
     dayOfWeek,
-    periodName: "All day",
+    periodName: "Service Hours",
     open: DEFAULT_OPEN,
     close: DEFAULT_CLOSE,
     isClosed: false,
