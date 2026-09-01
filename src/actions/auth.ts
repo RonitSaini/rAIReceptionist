@@ -100,36 +100,25 @@ export async function signUp(_prev: ActionState, formData: FormData): Promise<Ac
   if (!vertical) return { ok: false, error: "Choose what kind of business this is." };
   if (businessName.length < 2) return { ok: false, error: businessNameError(vertical) };
 
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing?.passwordHash) return { ok: false, error: "An account with that email already exists. Try logging in." };
+  // Any existing user — password OR Google — makes the email taken. The Google case is the one
+  // that matters: sign-up does no email verification, so quietly setting the submitted password
+  // on an existing Google user (what this once did) would let anyone who knows the address log
+  // in to that account. A Google user signs in with Google; the form must never touch their row.
+  const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+  if (existing) return { ok: false, error: "An account with that email already exists. Try logging in." };
 
   const passwordHash = await hashPassword(password);
   const ip = await requestIp();
 
   try {
     await prisma.$transaction(async (tx) => {
-      if (existing) {
-        // Google-only user setting a password.
-        if (existing.accountId) {
-          await tx.user.update({ where: { id: existing.id }, data: { passwordHash } });
-        } else {
-          // Attach an account only if they still have none — see linkAccountToUser.
-          const account = await createAccountWithDefaults(businessName, vertical, tx);
-          await linkAccountToUser(tx, existing.id, account.id, { passwordHash });
-        }
-        await recordTermsAcceptance(existing.id, ip, tx);
-      } else {
-        const account = await createAccountWithDefaults(businessName, vertical, tx);
-        // The unique index on email is what makes this safe under concurrency: a second
-        // request with the same address fails here and rolls its account back.
-        const user = await tx.user.create({ data: { email, passwordHash, accountId: account.id } });
-        await recordTermsAcceptance(user.id, ip, tx);
-      }
+      const account = await createAccountWithDefaults(businessName, vertical, tx);
+      // The unique index on email is what makes this safe under concurrency: a second
+      // request with the same address fails here and rolls its account back.
+      const user = await tx.user.create({ data: { email, passwordHash, accountId: account.id } });
+      await recordTermsAcceptance(user.id, ip, tx);
     });
   } catch (e) {
-    // Both races end the same way: someone else got there first, and this request's account
-    // was rolled back. The user already has what they asked for, so report success.
-    if (e instanceof AccountAlreadyLinked) return { ok: true };
     if (typeof e === "object" && e !== null && (e as { code?: string }).code === "P2002") {
       return { ok: false, error: "An account with that email already exists. Try logging in." };
     }
