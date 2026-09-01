@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { requireAccount } from "@/lib/current-account";
+import { hasAcceptedCurrentTerms } from "@/lib/terms-acceptance";
 import { serializeAccount, serializeMenuItem, serializeServiceOffering } from "@/lib/serialize";
 import { MAX_ONBOARDING_STEPS, VERTICAL_CATALOG, onboardingStepsFor, verticalFor } from "@/verticals";
 import { OnboardingProgress } from "@/components/onboarding-progress";
@@ -32,12 +33,18 @@ export default async function OnboardingStepPage({ params, searchParams }: { par
   if (step === 1) {
     const session = await auth();
     if (!session?.user?.id) redirect("/login");
-    const user = await prisma.user.findUnique({ where: { id: session.user.id }, select: { accountId: true } });
+    // Ask for consent here only when there is none on file: a Google user who signed in from the
+    // login page never passed a checkbox, and the (app) re-consent interstitial cannot reach them
+    // because they have no account yet.
+    const [user, accepted] = await Promise.all([
+      prisma.user.findUnique({ where: { id: session.user.id }, select: { accountId: true } }),
+      hasAcceptedCurrentTerms(session.user.id),
+    ]);
     if (user?.accountId) redirect("/onboarding/2");
     return (
       <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
         <OnboardingProgress step={1} />
-        <CreateAccountForm catalog={VERTICAL_CATALOG} />
+        <CreateAccountForm catalog={VERTICAL_CATALOG} needsTerms={!accepted} />
       </div>
     );
   }

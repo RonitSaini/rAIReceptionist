@@ -7,6 +7,7 @@ import type { ActionState } from "@/lib/form";
 import { Alert, Button, Field, Input } from "@/components/ui";
 import { GoogleButton } from "@/components/google-button";
 import { VerticalPicker } from "@/components/forms/vertical-picker";
+import { TermsCheckbox } from "@/components/terms-checkbox";
 import type { VerticalCatalogEntry } from "@/verticals/types";
 
 export function SignupForm({ googleEnabled, catalog }: { googleEnabled: boolean; catalog: readonly VerticalCatalogEntry[] }) {
@@ -44,28 +45,7 @@ export function SignupForm({ googleEnabled, catalog }: { googleEnabled: boolean;
         <Field label="Password" htmlFor="password" hint="At least 8 characters.">
           <Input id="password" name="password" type="password" required minLength={8} autoComplete="new-password" placeholder="••••••••" />
         </Field>
-        <label htmlFor="acceptTerms" className="flex items-start gap-2.5 text-sm text-gray-700">
-          <input
-            id="acceptTerms"
-            name="acceptTerms"
-            type="checkbox"
-            required
-            checked={agreed}
-            onChange={(e) => setAgreed(e.target.checked)}
-            className="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 accent-brand-600"
-          />
-          <span>
-            I agree to the{" "}
-            <a href="/terms" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-700 underline">
-              Terms of Service
-            </a>{" "}
-            and{" "}
-            <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-700 underline">
-              Privacy Policy
-            </a>
-            .
-          </span>
-        </label>
+        <TermsCheckbox checked={agreed} onChange={setAgreed} />
         <Button type="submit" size="lg" full disabled={pending || !!state?.ok || !vertical || !agreed}>
           {pending ? "Creating account…" : "Create account"}
         </Button>
