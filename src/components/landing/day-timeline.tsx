@@ -16,7 +16,9 @@ import type { IconName } from "@/components/icon-paths";
  *
  * The track's geometry (first node center to last node center) is measured and laid out once per
  * resize, not animated. Without JavaScript the track stays hidden and the content reads complete;
- * under reduced motion everything renders lit and fully drawn from the start.
+ * under reduced motion everything renders lit and fully drawn from the start — the server cannot
+ * know the preference, so the stylesheet paints .day-node lit (see the reduce block in globals.css)
+ * and the class swap at hydration changes nothing visible.
  *
  * Times and the cancelled booking are illustrative; every behavior is shipped code, and the
  * CANCEL reply is the roofing vertical's real cancellationReply template with the business-name
@@ -145,7 +147,7 @@ export function DayTimeline({ cancelReply, className = "" }: { cancelReply: { be
             <p className="hidden pt-2 text-right text-xs font-semibold text-gray-500 sm:block">{moment.time}</p>
             <span
               data-day-node
-              className={`relative z-10 flex h-9 w-9 items-center justify-center rounded-full border bg-surface transition-colors ${
+              className={`day-node relative z-10 flex h-9 w-9 items-center justify-center rounded-full border bg-surface transition-colors ${
                 isLit ? "border-brand-300 text-brand-600" : "border-gray-300 text-gray-400"
               }`}
             >

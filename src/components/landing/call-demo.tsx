@@ -45,8 +45,14 @@ const STEPS: { icon: IconName; label: string }[] = [
   { icon: "bell", label: "You know" },
 ];
 
+/* The first chip mirrors what the owner's app actually shows for this job, so it quotes rather than
+   invents: the badge is humanize(job.status) — "Scheduled", the app has no "Booked" status — and the
+   time is formatDateTime's start time. A 2-to-4 window is one 120-minute slot (Account.jobSlotMinutes
+   defaults to 120); the window is real in the data, but no screen renders one, so the chip does not.
+   The separator is the app's own (notification bodies join with " · "). The spoken bubbles above are
+   dialogue, not artifacts, and read as speech. */
 const CHIPS: { icon: IconName; label: string }[] = [
-  { icon: "check", label: "Booked — today, 2–4 PM" },
+  { icon: "check", label: "Scheduled · 2:00 PM" },
   { icon: "message", label: "Confirmation text sent" },
   { icon: "bell", label: "Owner notified" },
 ];

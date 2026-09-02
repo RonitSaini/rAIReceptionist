@@ -548,6 +548,22 @@ reading order, after the conversation's first line and the strip's first node, a
 viewport, so the quiet arrow at its bottom edge is the page's one deliberate exception to the
 no-scroll-cue default.
 
+**Follow-ups (same day, the user's call).** Three fixes on top of the above. *The day timeline's
+nodes* get the strip's treatment: the reduce block paints `.day-node` lit with no transition, so the
+five colour transitions that used to run at hydration under reduced motion are gone and the section
+is complete from the first styled frame. *The strip's nodes default lit without JavaScript*: the page
+without JS is the finished hero — every bubble and chip visible, and the connectors already full,
+since their `scaleX(0)` is `.js`-gated — so gray nodes beside full connectors were the one thing
+claiming a call still in progress. The gray start now belongs to `.js` (`html:not(.js) .cd-node` paints
+the finished look). *The first outcome chip stops inventing UI copy*: it read "Booked — today,
+2–4 PM", but the app's badge is `humanize(job.status)` → "Scheduled" (there is no "Booked" status) and
+`formatDateTime` renders a start time, never a window — a 2-to-4 window is one 120-minute slot
+(`Account.jobSlotMinutes` defaults to 120), real in the data but on no screen. The chip is now
+"Scheduled · 2:00 PM", separator included (the app joins notification bodies with " · "). The other
+two chips quote nothing, so they stand. **The two remaining em-dashes are spoken dialogue** — "Thanks
+for calling — how can I help?" and "Okay — today between 2 and 4 is open." — and stay: a bubble is
+speech, not an artifact.
+
 **Copy (same day).** The pill and the subhead end their sentences with periods instead of em-dashes:
 "Ten professions. Built for HVAC." — each rotating word carries its own period, so the sentence
 closes right after the word and the reserved width still reads as pill padding — and "…your business
