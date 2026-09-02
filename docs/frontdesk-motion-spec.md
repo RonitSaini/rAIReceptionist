@@ -98,7 +98,7 @@ back half of the swing. 700 ms total. It reads like a physical bell being struck
     <path class="clapper" d="…" /> <!-- clapper -->
   </svg>
 </button>
-<div popover="auto" class="notif-panel slide-in">…All · Unread tabs, rows, View all…</div>
+<div popover="auto" class="notif-panel">…All · Unread tabs, rows, View all…</div>  <!-- enters/leaves via its own transitions since §7 -->
 ```
 
 ```css
@@ -154,20 +154,20 @@ focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400
 
 | Class | Effect | Timing |
 |---|---|---|
-| `.reveal` → `.reveal.is-visible` | scroll reveal: `opacity 0→1`, `blur(6px)→0`, `translateY(12px)→0` | `.55s cubic-bezier(.22,1,.36,1)`, stagger via `--reveal-delay` |
-| `.page-enter` | route/page mount: `opacity 0→1`, `translateY(6px)→0` | `.35s cubic-bezier(.22,1,.36,1)` |
+| `.reveal` → `.reveal.is-visible` | scroll reveal: `opacity 0→1`, `blur(6px)→0`, `translateY(12px)→0`; the class holds the end state, the keyframe only the start (`backwards`), so a settled element's transform is `none` | `.55s cubic-bezier(.22,1,.36,1)`, stagger via `--reveal-delay` |
+| `.page-enter` | route/page mount: `opacity 0→1`, `translateY(4px)→0`, ends on `transform: none` | `var(--m-standard)` (220 ms) `var(--m-ease)` — retuned §7 |
 | `.slide-in` | dropdown/toast: `opacity 0→1`, `translateY(-4px)→0` | `.3s cubic-bezier(.22,1,.36,1)` |
 | `.skeleton::after` | loading shimmer sweep, `translateX(-100%)→100%`, gradient via `color-mix(in oklab, var(--color-surface) 70%, transparent)` | `1.4s ease-in-out infinite` |
 | `.status-dot::before` | live pulse ripple, `scale(1)→2.6`, `opacity .6→0` | `1.8s cubic-bezier(.2,.7,.3,1) infinite` |
-| `.progress-fill` | onboarding bar fill, `scaleX(.05)→1` | `.55s cubic-bezier(.22,1,.36,1)` |
+| `.progress-fill` | onboarding bar travels from the previous step's width: `scaleX(var(--progress-from))→1` | `var(--m-slow)` (300 ms) — retuned §7 |
 | `claude-pulse` | idle breathing, `opacity .6↔1` | — |
 | `.nav-highlight` / `.nav-bar` | sidebar hover highlight + active bar glide to an item, **transform only** | `.3s cubic-bezier(.22,1,.36,1)` |
 | `.draw-icon.is-drawing` | `<DrawIcon>` self-draws: outline `.7s`, detail paths `.35s` delayed `.35s`; row stagger via `--draw-delay` | `ease` |
 | `.digit-in` | `<CountUp live>`: only changed digits blur-slide in, direction via `--digit-dir` | `.35s cubic-bezier(.22,1,.36,1)` |
 | `.lift` | interactive card/row hover: `translateY(-2px)` + border color; the shadow lives on a `::after` faded via `opacity` (rule 5 — `box-shadow` itself never animates) | `.15s ease` |
-| `.press` | button press: `scale(.97)` on `:active` | `.15s ease` |
+| `.press` / `.press-soft` | press: `translateY(1px) scale(.97)` (`.99` for rows, chips, labels) on `:active`, 60 ms down | `var(--m-fast)` back, `var(--m-ease)` — §7 |
 | `.bar-grow` / `.bar-label` | chart bars `scaleY(0→1)` from the baseline (`transform-box: fill-box`), labels fade after; paused until the enclosing `.reveal` is visible, then delayed `--reveal-delay + 250ms + --bar-delay` (40 ms/column, 15 ms/hour bar) | `.55s cubic-bezier(.22,1,.36,1)` |
-| `.notif-panel` | bell popover (native Popover API): `.slide-in` under the bell ≥ md, `sheet-in` (`translateY(16px)` + fade) as a bottom sheet < md | `.3s cubic-bezier(.22,1,.36,1)` |
+| `.notif-panel` | bell popover (native Popover API): transitions on `:popover-open` with `@starting-style` + `allow-discrete`, so it enters from its origin (top-right under the bell; the bottom edge as a sheet < md) and leaves the same way, faster | enter `var(--m-standard)` / `var(--m-slow)` sheet, exit `var(--m-exit)` / `var(--m-exit-slow)` — §7 |
 
 ### Usage counts (repo greps, 2026-08-30)
 
@@ -202,7 +202,9 @@ there. Don't mix the two.
    - Plain `ease` / `ease-in-out` → state swaps and oscillations.
 4. **Duration ladder:** 150 ms hover colors · 300–350 ms entrances · 500 ms pops ·
    550 ms scroll reveals · 700 ms icon state swaps and physical motions · 500 ms hero-sequence
-   moves (two 250 ms beats each, so at most two are ever in motion — pass 8).
+   moves (two 250 ms beats each, so at most two are ever in motion — pass 8). **This ladder is for
+   arrivals and signatures. What answers a click lives on the interaction ladder (§7): 150 / 220 /
+   300 ms, exits about two thirds, one ease.**
 5. **Only `transform`, `opacity`, `filter: blur()`, and stroke properties animate.** Nothing
    animates layout. No `width`/`height`/`top`/`left` transitions.
    - Sliding indicators (nav highlight, active bar, tab pill) **translate only**. Items are
@@ -216,9 +218,11 @@ there. Don't mix the two.
      and reads as growth — don't relitigate it per component.
    - **Variable-width tab strips** (if one is ever needed): the sanctioned indicator is a 2 px
      underline animated with `translateX` + `scaleX` — a line has no corners to distort. A
-     sliding *pill* across variable widths cannot be done transform-only, so it isn't done.
-     Unused for now: the notification filter chips are independent toggles with a 150 ms
-     color swap and nothing else (a filter toggling is minor state, not an event).
+     sliding *pill* across variable widths cannot be done transform-only **in one piece** — so
+     since 2026-09-02 it is done in three (§7 rule 19, `<SegmentedLinks>`): two round caps that
+     translate and a 1 px body that scales between them, overlapping, so no corner ever scales.
+     The filter strips (settings tabs, jobs, work orders, notifications, takeout, calls) use it;
+     "Unread only" stays an independent toggle with a 150 ms color swap.
 6. **Sequencing over simultaneity for compound icons** — the bell's clapper is delayed
    350 ms behind the body. Multi-part icons should stagger. `<DrawIcon>` generalizes this:
    the first path is the outline (700 ms), every later path is a detail (350 ms, delayed 350 ms).
@@ -295,10 +299,10 @@ Searched on 21st.dev via the MCP (2026-08-30). Status: ✅ done · 🔍 to resea
 | animated line-icon set, self-drawing SVG icons | **21st.dev has no runtime-free self-drawing icon set** (only path primitives — dqnamo *Animated Signature* #16799, pulkitxm *Line Draw SVG* #18352 — and `motion`-based icon packs). Built the house `<DrawIcon>` with inlined Lucide paths (`icon-paths.ts`, ISC notice kept). Also replaced the notification-type emoji so the inbox and the rail are one system | ✅ |
 | bar chart with grow-in / staggered bars | **21st.dev has no CSS-only grow-in** (only chart libraries: visx, reaviz, Recharts wrappers; framer stats cards). In-house `.bar-grow` on the server-rendered SVG rects; stacked columns scale as a `<g>` from the baseline | ✅ (in-house) |
 | notification popover | Bell is now a `<button popovertarget>` opening a **native Popover API** panel (zero deps: light-dismiss, Escape, top layer from the browser; non-modal so no focus trap owed). Shape copied from patrick-xin's *Vercel Notification Popover* (#10479, retrieved 2026-08-30): popover ≥ md / bottom sheet < md, All · Unread tabs, row hover action, View-all footer — its implementation was Radix + tailwindcss-animate, so only the shape was taken. ~8 items passed from the layout, refreshed on the 30 s poll, mark-read via the existing action | ✅ (in-house) |
-| toasts | **Out of scope.** The app has no flash mechanism (actions redirect; feedback is inline `Alert`), so a toast system is app plumbing, not motion. Don't let it creep back in under a motion ticket | — |
+| toasts | Was out of scope (no flash mechanism). **Brought in by the 2026-09-02 interaction brief**, still without plumbing: `<Toast>` is rendered by the form that received the result (`FormFooter`), for a success sentence that says more than "Saved."; errors stay inline (§7 rule 21) | ✅ (in-house) |
 | card hover elevation + border glow | Rejected as a category: every candidate was a pointer-tracking gradient / spotlight / 3D tilt (aceternity *Glowing Effect* #1567, *Glow Card Grid* #25283, *Spotlight Card* #2220) — a third motion idiom. `Card` stays inert (rule 12); `.lift` retuned to 150 ms with the shadow on `::after`, extended to link rows | ✅ (in-house) |
 | animated success / confirm button | Checkmark morph **rejected** (rule 11 + the 18 px floor). Candidates were motion.dev *Copy Button* #24659 (pathLength check on `motion`), ddoemonn *Loading Button* #23536 (no-layout-shift label morph — the constraint kept). Ours: `useFormStatus` pending → label dims; the new status `Badge` pops (`?changed=` on the action redirect) | ✅ (in-house) |
-| animated segmented control / tabs | Target was the notifications filter chips. Sliding-pill controls (ddoemonn *Segmented Control* #23552, educalvolpz *Animated Tabs* #24930, cnippet #24931) all need `width`/`scaleX` across variable-width chips — rule 5 forbids it. Chips stay independent toggles, 150 ms color swap only; the 2 px underline pattern is recorded under rule 5 for any future tab strip | ✅ (decided, no code) |
+| animated segmented control / tabs | Sliding-pill controls (ddoemonn *Segmented Control* #23552, educalvolpz *Animated Tabs* #24930, cnippet #24931) all need `width`/`scaleX` across variable-width chips. **Built in-house 2026-09-02 as a three-piece pill** (`<SegmentedLinks>`, §7 rule 19): caps translate, the body scales, transform-only. Every filter/tab strip uses it | ✅ (in-house) |
 | skeleton loading cards | `(app)/dashboard/loading.tsx` mirrors the dashboard; `<SidebarPanel>` streams behind a Suspense skeleton so the shell paints before the panel's queries finish | ✅ (in-house) |
 | live/pulse status indicator | "isn't on a line yet" uses `.status-dot` (amber, actionable); "Closed right now" keeps a steady gray dot (rule 10) | ✅ (in-house) |
 | staggered list reveal | Recent calls, Callbacks owed, Today's reservations, Open takeout rows: `<Reveal as="li" index={i + 1}>` | ✅ (in-house) |
@@ -569,3 +573,102 @@ speech, not an artifact.
 closes right after the word and the reserved width still reads as pill padding — and "…your business
 line 24/7. It books the work…". The pill stays on one line with the longest label in place at every
 measured width (see the verification numbers in the pass-8 report).
+
+---
+
+## 7. Interaction vocabulary — the app's answer to every click (2026-09-02)
+
+Design read (taste-skill process; the skill itself declares product UI out of its scope in its §13, so only
+its motion rules were applied — motivated motion, transform/opacity only, reduced motion, tactile press):
+*product UI for owner-operators on phones; every animation is user- or data-triggered; zero scroll theater
+and zero entrance choreography are added inside the app.* framer-motion was pre-approved for a third time
+and again not needed: one motion system, hand-written CSS plus four small client leaves.
+
+### 7.1 The vocabulary
+
+Constants: `INTERACTION` in `src/lib/motion.ts`. Tokens: `--m-*` on `:root` in `globals.css`. The two are
+the same table and `tests/motion-vocabulary.test.mjs` fails if they drift. One ease for everything on this
+ladder — the house expo-out, `cubic-bezier(.22,1,.36,1)` — exits included: an exit is the same curve run
+shorter, so what leaves is out of the way before what replaces it has landed.
+
+| Step | Entrance | Exit | Used for |
+|---|---|---|---|
+| **fast** | 150 ms (down-stroke 60 ms) | 100 ms | presses, toggles' track colour, hover/colour swaps, chip text, the tick's leaving digit; **everything on an urgent row** |
+| **standard** | 220 ms | 150 ms | toggle thumb travel, tab/segment indicator, disclosures opening, menus/popovers, toasts, rows arriving and sliding, badge crossfades, fetched content fading in, the page transition |
+| **slow** | 300 ms | 200 ms | the ceiling: the bottom sheet, the onboarding progress bar's one-step travel, the saved check drawing |
+
+Holds (JS, same file): a success toast holds 4 s; the "Saved" check holds 2 s before the verb returns.
+
+### 7.2 What the vocabulary does, where
+
+| Interaction | Mechanism | Class / component |
+|---|---|---|
+| Button, control press | `translateY(1px) scale(.97)` on `:active`, 60 ms down, 150 ms back; rows/chips/labels use `scale(.99)`; lifted tiles press by adoption | `.press`, `.press-soft`, `.lift:active` |
+| Toggle | track colour at fast, thumb travels at standard (`translate`), thumb stretches toward its destination while held (`scale`, origin follows the direction) | `.switch` on `<Toggle>` |
+| Tabs / segmented filters | one indicator slides to the picked pill: two round caps translate, a 1 px body scales between them (rule 5 amended below); text colour swaps at fast; click moves it before the navigation lands | `<SegmentedLinks>`, `.seg-*` |
+| Accordions / disclosure | the fold (grid-rows exception) opens at standard, closes at exit; content mounted only while open or leaving | `<Disclosure>`, `.fold-app` |
+| Popover / bottom sheet | enters from its origin (top-right under the bell, bottom edge as a sheet) and leaves the same way, faster; `@starting-style` + `allow-discrete`, so the exit animates too | `.notif-panel` |
+| Menus (address suggestions) | grows down from the input at standard, shrinks back at exit | `<Presence>` + `.menu-in` / `.menu-out` |
+| Toasts | rise from the bottom edge (above the tab bar on a phone, bottom-right on desktop), hold 4 s, drop faster; portalled to `<body>`; `role=status` | `<Toast>` |
+| Rows (add / remove / reorder) | keys diffed after every commit: a new row fades up 4 px; a removed row is kept (its detached node, at its old index) for a 150 ms fade-and-settle; rows that moved slide from their old offset (FLIP, inline transform) | `<MotionList>`, `.row-enter`, `.row-exit` |
+| Status badge change in place | old badge fades out on top (exit) while the new one, already holding the layout, fades in (standard) | `<Badge>` (now a client leaf), `.badge-swap` |
+| Bell count | digits tick like an odometer wheel — old rolls out the top, new rolls in from the bottom, reversed when the count fell; the pop on the container stays | `<Tick>`, `.tick-*` |
+| Form save | pending = "Saving…" and the disabled fill (text, not motion); saved = a check draws (300 ms) beside "Saved" for 2 s, only after the server answered; a message that says more than "Saved." rises as a toast; errors stay inline | `<FormFooter>`, `.draw-fast`, `.saved-in` |
+| Loading | control-shaped skeleton while the reservation slots fetch, then the control fades in; the voice catalogue fades in when it lands | `.skeleton`, `.content-in` |
+| Page to page | the new page fades up 4 px at standard, starting after the route has changed (never before); onboarding steps get the same via a template | `.page-enter` |
+| Onboarding progress | the bar travels from the previous step's width to this one's (`--progress-from`) at slow | `.progress-fill` |
+
+### 7.3 Adoption: inherited vs wired locally
+
+**By inheritance (no page edits):** every `Button` / `LinkButton` (41 + 21 sites), every `PendingButton`
+and `StatusButtons` (9 mount sites), every `Toggle` (7) and `Checkbox` (2), every `Badge` (39 sites
+crossfade on in-place change), every `.lift` tile and row (press), every `FormFooter` form (19 settings
+and onboarding forms: pending, saved check, toast), the bell popover, the page transition, the onboarding
+progress bar.
+
+**Wired locally (one line each, listed so nothing is hidden):** the seven filter/tab strips became
+`<SegmentedLinks>` (settings, jobs, work orders, notifications, takeout, calls); nine lists became
+`<MotionList>` (dispatch queue, notifications page, bell rows, work orders, properties + units, vendors,
+hours periods, menu items, services, custom emergencies); three disclosures became `<Disclosure>`
+(delete-account confirmation, a closed day's hours, menu item details, the voice browser); the address
+listbox got `<Presence>`; the reservation form's slot control got the skeleton; 25 raw `<button>`s and
+links got `.press` / `.press-soft` by hand (they never went through `Button`); dispatch, work-order and
+notification rows declare `data-urgent`.
+
+### 7.4 Rules added (continuing §5)
+
+15. **One ease on the interaction ladder, exits shorter.** Entrances and exits share the decelerating
+    curve; an exit is about two thirds of its entrance. Back-out (pops) and plain ease (oscillations)
+    stay reserved for arrivals and signatures (§5 rule 3); nothing that answers a click overshoots.
+16. **Nothing blocks input, delays a click's effect, or masks latency.** The press registers in 60 ms;
+    the segment indicator moves on `click`, before navigation; a row's exit plays on top of a layout
+    React has already committed; a toast never gates the form. Pending is shown by text and a dimmed
+    fill, never by a spinner, and never claims success (rule 11 holds).
+17. **Urgent surfaces take only the quiet end.** Dispatch-queue urgency (stale, unreachable, emergency),
+    EMERGENCY badges, unacknowledged escalations and "caller not notified" rows are `data-urgent`: they
+    arrive instantly (an alarm does not fade in), their badge crossfade and exit run at the fast step,
+    and they gain nothing else. Their existing signal is colour; motion must not dilute it.
+18. **Reduced motion is the complete state, at once.** Every §7 class is in the reduce block; leaving
+    things are simply gone (`display: none` on `.row-exit`, `.badge-out`, `.tick-out`, `.menu-out`,
+    `.toast.is-leaving`), arriving things are simply there, and pending / saved / toast still read by
+    non-motion means. The JS leaves check `prefersReducedMotion()` before keeping anything around.
+19. **Rule 5, amended — a pill can slide across variable widths if it is not one piece.** Two round caps
+    that translate plus a 1 px body that scales, overlapping by half a cap: transform-only, no corner
+    ever scales. The 2 px underline remains the alternative for strips without a fill.
+20. **Below ~14 px, counts tick; they never blur-slide.** `.digit-in` (rule 9) is for stat tiles;
+    the bell badge and tab counts use `<Tick>` — translate and opacity only, no filter — because a blur
+    at 11 px is smear, not motion.
+21. **The check is the verb's state; the toast is the sentence.** A bare "Saved." is the button drawing
+    its check; only a message with more to say becomes a toast. Errors are never toasts.
+22. **Lists diff by key, never by index.** A row that can leave carries a stable local id (hours
+    periods, custom emergencies got them); index keys would animate the wrong row out.
+
+### 7.5 21st.dev, this pass
+
+Four searches, zero retrievals (the day's two were not spent: nothing here was structurally complex enough
+to buy). Candidates read from their descriptions/previews only: *Segmented Control* #23552 and *Animated
+Tabs* #24930 (sliding thumb — width-animated, hence the three-piece pill instead); *Toast Notification*
+#19994 and *Toast* #24297 (spring-in, stacked; ours is one at a time and never springs); *List Item* #10469
+and *Stacked List* #10477 (Motion's `AnimatePresence` / `layout` — the DOM-diff `<MotionList>` does the same
+two things without the runtime); *Press Depth* #23547 (spring tilt toward the pointer — rejected, a press
+should not wobble) and *Bouncy Toggle* #9634 (bounce — rejected, rule 15).

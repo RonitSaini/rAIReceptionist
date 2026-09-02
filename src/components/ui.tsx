@@ -1,9 +1,9 @@
 import Link from "next/link";
 import type { ComponentProps, ReactNode } from "react";
+import { cx } from "@/lib/cx";
+import type { BadgeTone } from "@/components/badge";
 
-function cx(...parts: (string | false | null | undefined)[]) {
-  return parts.filter(Boolean).join(" ");
-}
+export { Badge } from "@/components/badge";
 
 // ---------- Buttons ----------
 
@@ -81,7 +81,7 @@ export function Field({ label, hint, htmlFor, children, className }: { label: st
  */
 export function Toggle({ label, description, name, defaultChecked, checked, onChange, tone = "go" }: { label: string; description?: string; name?: string; defaultChecked?: boolean; checked?: boolean; onChange?: (v: boolean) => void; tone?: "go" | "brand" }) {
   return (
-    <label className="flex min-h-14 cursor-pointer items-center justify-between gap-4 rounded-xl border border-gray-200 bg-surface px-4 py-3">
+    <label className="press-soft flex min-h-14 cursor-pointer items-center justify-between gap-4 rounded-xl border border-gray-200 bg-surface px-4 py-3">
       <span>
         <span className="block font-semibold">{label}</span>
         {description ? <span className="block text-sm text-gray-500">{description}</span> : null}
@@ -94,9 +94,11 @@ export function Toggle({ label, description, name, defaultChecked, checked, onCh
         onChange={onChange ? (e) => onChange(e.target.checked) : undefined}
         className="peer sr-only"
       />
+      {/* .switch (globals.css) times the track colour and the thumb's travel; the thumb stretches toward
+          where it is going while pressed (scale composes with the translate). */}
       <span
         className={cx(
-          "relative h-7 w-12 shrink-0 rounded-full bg-gray-300 transition-colors duration-300 after:absolute after:left-0.5 after:top-0.5 after:h-6 after:w-6 after:rounded-full after:bg-white after:shadow-sm after:transition-transform after:duration-300 after:[transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)] peer-checked:after:translate-x-5",
+          "switch relative h-7 w-12 shrink-0 rounded-full bg-gray-300 after:absolute after:left-0.5 after:top-0.5 after:h-6 after:w-6 after:origin-left after:rounded-full after:bg-white after:shadow-sm peer-checked:after:translate-x-5 peer-checked:after:origin-right peer-active:after:scale-x-115",
           tone === "brand" ? "peer-checked:bg-brand-500" : "peer-checked:bg-green-500",
         )}
       />
@@ -106,7 +108,7 @@ export function Toggle({ label, description, name, defaultChecked, checked, onCh
 
 export function Checkbox({ label, name, value, defaultChecked }: { label: string; name: string; value: string; defaultChecked?: boolean }) {
   return (
-    <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-surface px-4 py-2">
+    <label className="press-soft flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-surface px-4 py-2">
       <input type="checkbox" name={name} value={value} defaultChecked={defaultChecked} className="h-5 w-5 rounded border-gray-300 accent-brand-600" />
       <span className="text-base">{label}</span>
     </label>
@@ -168,23 +170,9 @@ export function StatusDot({ className, label }: { className?: string; label?: st
   return <span className={cx("status-dot", className)} role={label ? "img" : undefined} aria-label={label} aria-hidden={label ? undefined : true} />;
 }
 
-// ---------- Badges ----------
+// ---------- Badges (the component itself lives in badge.tsx: it crossfades on change, so it is a client leaf) ----------
 
-const badgeTone: Record<string, string> = {
-  gray: "bg-gray-100 text-gray-700",
-  green: "bg-green-100 text-green-800",
-  blue: "bg-blue-100 text-blue-800",
-  amber: "bg-amber-100 text-amber-800",
-  red: "bg-red-100 text-red-800",
-  purple: "bg-purple-100 text-purple-800",
-  brand: "bg-brand-100 text-brand-800",
-};
-
-export function Badge({ children, tone = "gray", className }: { children: ReactNode; tone?: keyof typeof badgeTone; className?: string }) {
-  return <span className={cx("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap", badgeTone[tone], className)}>{children}</span>;
-}
-
-export const reservationTone: Record<string, keyof typeof badgeTone> = {
+export const reservationTone: Record<string, BadgeTone> = {
   booked: "blue",
   confirmed: "green", // Sage: the confirmed state is what the palette reserves green for
   seated: "green",
@@ -193,7 +181,7 @@ export const reservationTone: Record<string, keyof typeof badgeTone> = {
   no_show: "amber",
 };
 
-export const takeoutTone: Record<string, keyof typeof badgeTone> = {
+export const takeoutTone: Record<string, BadgeTone> = {
   new: "blue",
   confirmed: "green", // Sage, as above
   ready: "green",
@@ -201,7 +189,7 @@ export const takeoutTone: Record<string, keyof typeof badgeTone> = {
   cancelled: "red",
 };
 
-export const classificationTone: Record<string, keyof typeof badgeTone> = {
+export const classificationTone: Record<string, BadgeTone> = {
   reservation: "blue",
   service_call: "blue",
   estimate: "brand",
@@ -215,7 +203,7 @@ export const classificationTone: Record<string, keyof typeof badgeTone> = {
   other: "gray",
 };
 
-export const notificationTone: Record<string, keyof typeof badgeTone> = {
+export const notificationTone: Record<string, BadgeTone> = {
   reservation: "blue",
   job: "blue",
   takeout: "brand",

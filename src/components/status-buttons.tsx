@@ -35,7 +35,7 @@ export function StatusButtons({
           <input type="hidden" name="id" value={id} />
           <input type="hidden" name="status" value={t.status} />
           {returnTo ? <input type="hidden" name="returnTo" value={returnTo} /> : null}
-          <PendingButton className={`inline-flex items-center justify-center rounded-xl font-semibold transition-colors ${sz} ${cls[t.tone ?? "secondary"]}`}>{t.label}</PendingButton>
+          <PendingButton className={`inline-flex items-center justify-center rounded-xl font-semibold ${sz} ${cls[t.tone ?? "secondary"]}`}>{t.label}</PendingButton>
         </form>
       ))}
     </div>

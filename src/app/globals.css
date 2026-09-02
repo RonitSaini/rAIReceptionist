@@ -266,36 +266,58 @@ body {
 
 /* ---------- Motion system (subtle, everywhere) ---------- */
 
-/* Reveal: fade + lift + un-blur into view, staggered via --reveal-delay (set by <Reveal index>). */
+/* The interaction vocabulary (motion spec §7; INTERACTION in src/lib/motion.ts is the same table,
+   and tests/motion-vocabulary.test.mjs fails if the two drift). One decelerating ease, a three-step
+   ladder, exits about two thirds of their entrance. Every interaction class below reads these. */
+:root {
+  --m-fast: 150ms; /* presses, toggles, hovers, colour swaps */
+  --m-standard: 220ms; /* expands, menus, toasts, rows, badge crossfades, the tab indicator */
+  --m-slow: 300ms; /* the ceiling: sheets, drawers, the one-step progress bar */
+  --m-exit-fast: 100ms;
+  --m-exit: 150ms;
+  --m-exit-slow: 200ms;
+  --m-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Reveal: fade + lift + un-blur into view, staggered via --reveal-delay (set by <Reveal index>).
+   The visible class carries the END state and the keyframe only the start (fill: backwards), so once
+   the reveal has played the element's transform is `none` again: a later inline transform (a row
+   sliding to its new place in <MotionList>) is not overridden by a filled animation, and a settled
+   card is not a containing block for anything fixed. */
 .js .reveal {
   opacity: 0;
   transform: translateY(12px);
   filter: blur(6px);
 }
 .js .reveal.is-visible {
-  animation: reveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  opacity: 1;
+  transform: none;
+  filter: none;
+  animation: reveal 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
   animation-delay: var(--reveal-delay, 0ms);
 }
 @keyframes reveal {
-  to {
-    opacity: 1;
-    transform: translateY(0);
-    filter: blur(0);
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(6px);
   }
 }
 
-/* Page transition: new page content fades up on every navigation. */
+/* Page transition: new page content fades up on every navigation — the standard beat, four pixels,
+   so the route change is never felt as a wait (the animation starts when the new page is already
+   there). Ends on `none` for the same reason as .reveal. */
 .page-enter {
-  animation: page-enter 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: page-enter var(--m-standard) var(--m-ease) both;
 }
 @keyframes page-enter {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
   }
 }
 
@@ -409,7 +431,11 @@ body {
 
 /*
  * Bell popover (native Popover API). Anchored under the bell by the component on ≥ md (inline top /
- * right); a bottom sheet under md. Enters with .slide-in; the sheet swaps in its own keyframe.
+ * right); a bottom sheet under md. Enters from its origin — under the bell it grows down from its
+ * top-right corner, as a sheet it rises from the bottom edge — and leaves the same way, faster.
+ * Transitions on the popover's own open state (@starting-style for the entrance, allow-discrete so
+ * `display` waits for the exit), so the exit animates too; a browser without discrete transitions
+ * simply shows and hides it.
  */
 .notif-panel {
   position: fixed;
@@ -424,10 +450,27 @@ body {
   color: var(--color-ink);
   box-shadow: 0 16px 40px -16px rgb(0 0 0 / 0.35);
   overflow: hidden;
+  transform-origin: top right;
+  opacity: 0;
+  transform: translateY(-6px) scale(0.98);
+  transition:
+    opacity var(--m-exit) var(--m-ease),
+    transform var(--m-exit) var(--m-ease),
+    overlay var(--m-exit) allow-discrete,
+    display var(--m-exit) allow-discrete;
 }
 .notif-panel:popover-open {
   display: flex;
   flex-direction: column;
+  opacity: 1;
+  transform: none;
+  transition-duration: var(--m-standard);
+}
+@starting-style {
+  .notif-panel:popover-open {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
 }
 .notif-panel::backdrop {
   background: transparent;
@@ -440,23 +483,21 @@ body {
     border-radius: 1rem 1rem 0 0;
     border-bottom: 0;
     padding-bottom: env(safe-area-inset-bottom);
+    transform-origin: bottom center;
+    transform: translateY(16px);
+    transition-duration: var(--m-exit-slow);
   }
-  /* Compound selector so this beats .slide-in's shorthand regardless of source order. */
-  .notif-panel.slide-in {
-    animation-name: sheet-in;
+  .notif-panel:popover-open {
+    transform: none;
+    transition-duration: var(--m-slow);
+  }
+  @starting-style {
+    .notif-panel:popover-open {
+      transform: translateY(16px);
+    }
   }
   .notif-panel::backdrop {
     background: rgb(0 0 0 / 0.35);
-  }
-}
-@keyframes sheet-in {
-  from {
-    opacity: 0;
-    transform: translateY(16px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -475,14 +516,16 @@ body {
   }
 }
 
-/* Onboarding progress bar grows in from the left. */
+/* Onboarding progress bar travels from where it stood on the previous step (--progress-from, the
+   previous width as a fraction of this one, set by <OnboardingProgress>) to this step's width: a bar
+   advancing one step, not a bar drawing itself from nothing every time. Slow beat: the ceiling. */
 .progress-fill {
   transform-origin: left center;
-  animation: progress-grow 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; /* a bar arriving: 550ms like every arrival */
+  animation: progress-grow var(--m-slow) var(--m-ease) both;
 }
 @keyframes progress-grow {
   from {
-    transform: scaleX(0.05);
+    transform: scaleX(var(--progress-from, 0.05));
   }
   to {
     transform: scaleX(1);
@@ -797,20 +840,30 @@ html:not(.js) .cd-label {
 }
 .js .fold {
   grid-template-rows: 0fr;
-  transition: grid-template-rows 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: grid-template-rows var(--fold-exit, var(--fold-dur, 0.3s)) cubic-bezier(0.22, 1, 0.36, 1);
 }
 .js .fold > div {
   visibility: hidden;
   opacity: 0;
-  transition: visibility 0s linear 0.3s, opacity 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  transition:
+    visibility 0s linear var(--fold-exit, var(--fold-dur, 0.3s)),
+    opacity var(--fold-exit, var(--fold-dur, 0.3s)) cubic-bezier(0.22, 1, 0.36, 1);
 }
 .js .fold.is-open {
   grid-template-rows: 1fr;
+  transition-duration: var(--fold-dur, 0.3s);
 }
 .js .fold.is-open > div {
   visibility: visible;
   opacity: 1;
   transition-delay: 0s;
+  transition-duration: var(--fold-dur, 0.3s);
+}
+/* The app's <Disclosure>: opens at the standard beat, closes at the exit beat. The landing FAQ keeps
+   the 0.3s defaults above. */
+.fold-app {
+  --fold-dur: var(--m-standard);
+  --fold-exit: var(--m-exit);
 }
 .fold-arrow {
   transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.15s ease, color 0.15s ease;
@@ -845,12 +898,305 @@ button[aria-expanded="true"] .fold-arrow {
   will-change: transform;
 }
 
-/* Buttons: soft press. */
-.press {
-  transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+/* ---------- Interaction motion: the app's answer to every click (motion spec §7) ----------
+   Tokens are the --m-* variables at the top of the motion system. Everything here is transform and
+   opacity (plus the fold's pre-registered grid-rows exception), fires only when the user acts or the
+   data changes, and is listed in the reduced-motion block below, landing on its end state. */
+
+/* Press: real depression. Down is near-instant (60ms) so the press registers with the finger; the
+   release relaxes back at the fast beat. .press is the button (scale + one pixel down); .press-soft
+   is a row, chip or label — the same pixel, almost no scale, because a whole row shrinking reads as
+   the page flinching. Lifted rows and tiles press by adoption (.lift:active). */
+.press,
+.press-soft {
+  transition:
+    transform var(--m-fast) var(--m-ease),
+    background-color var(--m-fast) var(--m-ease),
+    color var(--m-fast) var(--m-ease),
+    border-color var(--m-fast) var(--m-ease),
+    opacity var(--m-fast) var(--m-ease);
 }
 .press:active:not(:disabled) {
-  transform: scale(0.97);
+  transform: translateY(1px) scale(0.97);
+  transition-duration: 60ms;
+}
+.press-soft:active:not(:disabled) {
+  transform: translateY(1px) scale(0.99);
+  transition-duration: 60ms;
+}
+.lift:active {
+  transform: translateY(0) scale(0.99);
+  transition-duration: 60ms;
+}
+
+/* Toggle: the track swaps colour at the fast beat, the thumb travels at the standard beat, and while
+   the finger is down the thumb stretches toward where it is going (scale on the individual `scale`
+   property, so it composes with the translate). Transient, so the circle flattening is fine. */
+.switch {
+  transition: background-color var(--m-fast) var(--m-ease);
+}
+.switch::after {
+  transition:
+    translate var(--m-standard) var(--m-ease),
+    scale var(--m-fast) var(--m-ease);
+}
+
+/* Segmented strips (<SegmentedLinks>): one indicator that slides to the picked pill, in three
+   transform-only pieces — two round caps that translate and a 1px body that scales between them,
+   overlapping the caps by half their width, so no corner is ever distorted and no seam shows. The
+   rail carries the geometry as variables; .is-instant snaps (first paint, resize); [data-ready]
+   gates the active link's own fill so a strip without JavaScript still shows which item is on. */
+.seg-rail {
+  position: relative;
+}
+.seg-item {
+  position: relative;
+  transition:
+    color var(--m-fast) var(--m-ease),
+    background-color var(--m-fast) var(--m-ease),
+    border-color var(--m-fast) var(--m-ease);
+}
+.seg-ind,
+.seg-ind-mid,
+.seg-ind-r {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: var(--seg-h, 0px);
+  opacity: var(--seg-on, 0);
+  pointer-events: none;
+  will-change: transform;
+  transition: transform var(--m-standard) var(--m-ease);
+}
+.seg-ind,
+.seg-ind-r {
+  width: var(--seg-h, 0px);
+  border-radius: 9999px;
+}
+.seg-ind {
+  transform: translateX(var(--seg-x, 0px));
+}
+.seg-ind-r {
+  transform: translateX(var(--seg-xr, 0px));
+}
+.seg-ind-mid {
+  width: 1px;
+  transform-origin: left center;
+  transform: translateX(var(--seg-xm, 0px)) scaleX(var(--seg-sx, 0));
+}
+.seg-solid .seg-ind,
+.seg-solid .seg-ind-mid,
+.seg-solid .seg-ind-r {
+  background: var(--color-brand-600);
+}
+.seg-soft .seg-ind,
+.seg-soft .seg-ind-mid,
+.seg-soft .seg-ind-r {
+  background: var(--color-brand-50);
+}
+.seg-rail.is-instant .seg-ind,
+.seg-rail.is-instant .seg-ind-mid,
+.seg-rail.is-instant .seg-ind-r,
+.seg-rail.is-instant .seg-item {
+  transition: none;
+}
+.seg-rail[data-ready] .seg-item[data-active="true"] {
+  background-color: transparent;
+}
+.seg-solid[data-ready] .seg-item[data-active="true"] {
+  border-color: transparent; /* its border was the fill colour; the indicator is the fill now */
+}
+
+/* Lists (<MotionList>): rows arrive, leave and slide. A row entering after mount fades up four
+   pixels at the standard beat; a leaving row fades and settles at the exit beat and is then dropped;
+   rows that moved get an inline transform from their old offset (FLIP, transform only). Urgent rows
+   arrive instantly and leave at the fast exit. Rows that are also <Reveal>s take these over the
+   reveal's own animation. */
+.motion-list {
+  position: relative;
+}
+.row-enter,
+.js .reveal.row-enter {
+  opacity: 1;
+  transform: none;
+  filter: none;
+  animation: row-in var(--m-standard) var(--m-ease) backwards;
+  animation-delay: 0ms;
+}
+.row-exit,
+.js .reveal.row-exit {
+  opacity: 1;
+  transform: none;
+  filter: none;
+  animation: row-out var(--m-exit) var(--m-ease) forwards;
+  animation-delay: 0ms;
+  pointer-events: none;
+}
+.row-exit[data-urgent],
+.js .reveal.row-exit[data-urgent] {
+  animation-duration: var(--m-exit-fast);
+}
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@keyframes row-out {
+  to {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+}
+
+/* Status badge crossfade (<Badge>): the new badge takes the layout at once, the old one sits on top
+   and fades at the exit beat while the new fades in at the standard beat. Inside an urgent row both
+   run at the fast end. */
+.badge-swap {
+  position: relative;
+  display: inline-flex;
+}
+.badge-swap > .badge-out {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  animation: fade-out var(--m-exit) var(--m-ease) forwards;
+}
+.badge-swap > .badge-in {
+  animation: fade-in var(--m-standard) var(--m-ease) backwards;
+}
+[data-urgent] .badge-swap > .badge-in {
+  animation-duration: var(--m-fast);
+}
+[data-urgent] .badge-swap > .badge-out {
+  animation-duration: var(--m-exit-fast);
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+/* A count that ticks (<Tick>): old value out the top, new value in from the bottom (reversed when
+   the number went down), one wheel of an odometer. Both share one grid cell; no blur at this size. */
+.tick {
+  display: inline-grid;
+  overflow: hidden;
+}
+.tick > span {
+  grid-area: 1 / 1;
+}
+.tick-in {
+  animation: tick-in var(--m-standard) var(--m-ease) backwards;
+}
+.tick-out {
+  animation: tick-out var(--m-exit) var(--m-ease) forwards;
+}
+@keyframes tick-in {
+  from {
+    opacity: 0;
+    transform: translateY(calc(100% * var(--tick-dir, 1)));
+  }
+}
+@keyframes tick-out {
+  to {
+    opacity: 0;
+    transform: translateY(calc(-100% * var(--tick-dir, 1)));
+  }
+}
+
+/* Toast (<Toast>): rises from the bottom edge — above the tab bar on a phone, bottom right on a
+   desktop — holds, and drops away faster than it rose. */
+.toast-host {
+  position: fixed;
+  z-index: 40;
+  left: 1rem;
+  right: 1rem;
+  bottom: calc(env(safe-area-inset-bottom) + 4.75rem);
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+@media (min-width: 768px) {
+  .toast-host {
+    left: auto;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    justify-content: flex-end;
+  }
+}
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  max-width: 24rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--color-green-400);
+  border-radius: 0.75rem;
+  background: var(--color-green-50);
+  color: var(--color-green-800);
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: 0 16px 40px -16px rgb(0 0 0 / 0.35);
+  animation: toast-in var(--m-standard) var(--m-ease) backwards;
+}
+.toast.is-leaving {
+  animation: toast-out var(--m-exit) var(--m-ease) forwards;
+}
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* Fetched content replacing a skeleton fades in (never pops); a menu or listbox grows down from
+   its anchor and shrinks back faster. */
+.content-in {
+  animation: fade-in var(--m-standard) var(--m-ease) backwards;
+}
+.menu-in {
+  transform-origin: top center;
+  animation: menu-in var(--m-standard) var(--m-ease) backwards;
+}
+.menu-out {
+  transform-origin: top center;
+  pointer-events: none;
+  animation: menu-out var(--m-exit) var(--m-ease) forwards;
+}
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+@keyframes menu-out {
+  to {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+}
+
+/* The saved check: a <DrawIcon> that draws at the slow beat instead of the rail's 700ms — it is a
+   confirmation the server just gave, not an icon arriving — and the label beside it fades in. */
+.draw-fast.is-drawing path {
+  animation-duration: var(--m-slow);
+}
+.saved-in {
+  animation: fade-in var(--m-fast) var(--m-ease) backwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -859,6 +1205,7 @@ button[aria-expanded="true"] .fold-arrow {
   .badge-pop,
   .theme-icon path,
   .js .reveal,
+  .js .reveal.is-visible,
   .page-enter,
   .skeleton::after,
   .status-dot::before,
@@ -893,9 +1240,46 @@ button[aria-expanded="true"] .fold-arrow {
   .js .fold,
   .js .fold > div,
   .fold-arrow,
-  .hero-cue {
+  .hero-cue,
+  .press,
+  .press-soft,
+  .switch,
+  .switch::after,
+  .seg-item,
+  .seg-ind,
+  .seg-ind-mid,
+  .seg-ind-r,
+  .row-enter,
+  .js .reveal.row-enter,
+  .row-exit,
+  .js .reveal.row-exit,
+  .badge-swap > .badge-in,
+  .badge-swap > .badge-out,
+  .tick-in,
+  .tick-out,
+  .toast,
+  .toast.is-leaving,
+  .content-in,
+  .menu-in,
+  .menu-out,
+  .draw-fast.is-drawing path,
+  .saved-in,
+  .animate-pulse {
     animation: none;
     transition: none;
+  }
+  /* What was leaving is gone; what was arriving is simply there. Pending and success states still
+     read by non-motion means (the dimmed label, the "Saved" text, the toast that appears and goes). */
+  .row-exit,
+  .badge-swap > .badge-out,
+  .tick-out,
+  .menu-out,
+  .toast.is-leaving {
+    display: none;
+  }
+  .press-soft:active,
+  .lift:active {
+    transform: none;
   }
   /* The play control is not rendered under reduced motion; if a play is somehow mid-flight when the
      preference flips, everything lands visible. */

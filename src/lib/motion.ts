@@ -65,3 +65,38 @@ export function sequenceOrigin(from: Element | null | undefined): number {
   const start = host?.getAnimations()[0]?.startTime;
   return typeof start === "number" ? start : 0;
 }
+
+/**
+ * The interaction vocabulary: how the app answers a click (docs/frontdesk-motion-spec.md §7).
+ *
+ * A three-step duration ladder and one decelerating ease. Every value here is mirrored as a CSS
+ * custom property in globals.css (`--m-fast`, `--m-standard`, `--m-slow`, `--m-exit-*`, `--m-ease`)
+ * and tests/motion-vocabulary.test.mjs fails if the two drift. CSS reads the variables; the JS timers
+ * that must agree with them (how long a leaving row stays mounted, when a toast lets go) read this.
+ *
+ * - fast: presses, toggles, hovers, colour swaps — feedback that must feel attached to the finger.
+ * - standard: expands, menus, toasts, rows arriving, badges crossfading, the tab indicator sliding.
+ * - slow: the ceiling; sheets and drawers, the one-step progress bar. Nothing in the app exceeds it.
+ * - exits: shorter than their entrance (about two thirds), so what leaves is out of the way before
+ *   what replaces it has finished arriving.
+ *
+ * Urgent surfaces (dispatch queue rows, EMERGENCY, unacknowledged escalations, "caller not notified")
+ * take only the quiet end of this ladder — press and status advance at `fast`, no soft arrival — so
+ * nothing here can dilute what they already say with colour.
+ */
+export const INTERACTION = {
+  fast: 150,
+  standard: 220,
+  slow: 300,
+  exit: { fast: 100, standard: 150, slow: 200 },
+  ease: "cubic-bezier(0.22, 1, 0.36, 1)",
+  /** How long a success toast holds before it leaves. */
+  toastHold: 4000,
+  /** How long the submit button reads "Saved" with its drawn check before it offers "Save" again. */
+  savedHold: 2000,
+} as const;
+
+/** Client-only: true when the visitor asked for reduced motion (every state change then lands at once). */
+export function prefersReducedMotion(): boolean {
+  return typeof window !== "undefined" && (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false);
+}
