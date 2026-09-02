@@ -862,6 +862,20 @@ button[aria-expanded="true"] .fold-arrow {
   .js .cd-seg {
     transform: none;
   }
+  /* The step strip lands lit from the first styled frame. The server renders the nodes unlit (it
+     cannot know the visitor's preference) and JS lights them at hydration, which under reduced motion
+     read as a 150 ms color swap ~270 ms in. The stylesheet paints the strip's "done" look itself, so
+     the hydration swap changes nothing visible, and nothing transitions (rule 7). Not gated on .js:
+     the unlit state is server-rendered, not a JS-only hidden state. */
+  .cd-node {
+    border-color: var(--color-brand-300);
+    color: var(--color-brand-500);
+    transition: none;
+  }
+  .cd-label {
+    color: var(--color-brand-700);
+    transition: none;
+  }
   .bar-grow {
     transform: none;
   }

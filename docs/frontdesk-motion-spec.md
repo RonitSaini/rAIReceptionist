@@ -533,9 +533,13 @@ IMG at 132–212 ms in motion mode (the recorded trade), the subhead at 144–20
 motion; CLS 0 at 2560×1440, 1920×1080, 1440×900, 1440×800 and 390×844 in both modes; 7/7 lines,
 3/3 chips and 4/4 nodes at the end everywhere; scroll away and back holds. The headline text is in
 the server HTML and the `.js` gating is unchanged, so nothing flashes and restarts. Reduced motion:
-the finished hero from the first frame — except that the strip's four nodes still turn green at
-hydration (~270 ms) with the 150 ms `transition-colors` they carry, a pass-7 behaviour this pass did
-not touch.
+the finished hero from the first frame, the step strip included — the server renders the nodes unlit
+(it cannot know the preference) and JS lit them at hydration, which read as a 150 ms colour swap
+~270 ms in; the reduce block now paints `.cd-node` / `.cd-label` in the strip's "done" colours with no
+transition, so the hydration swap changes nothing visible (rule 7; measured: 4/4 nodes and labels lit
+at the first styled frame, before hydration, and zero transitions in the hero — the five colour
+transitions that remain at hydration belong to the day timeline's nodes below the fold: the same
+pattern, not touched here).
 
 **Decisions (2026-09-02, the user's call).** The settle window governs *content*: everything a
 visitor reads or clicks has landed at 2150 ms, when the phone lands. The scroll cue is last in the

@@ -23,7 +23,9 @@ import type { IconName } from "@/components/icon-paths";
  * It plays exactly once per page load, on the hero's beat (HERO_TIMING), and holds its final
  * state — no loop, no restart on scroll or tab return. Under prefers-reduced-motion (or without
  * IntersectionObserver-era browsers' animation support) the demo renders complete and runs no
- * timers; without JavaScript the full conversation is simply visible.
+ * timers, and the stylesheet paints the step strip lit from the first frame (.cd-node / .cd-label in
+ * the reduce block), so the hydration-time class swap changes nothing visible; without JavaScript
+ * the full conversation is simply visible.
  */
 
 const LINES: { who: "caller" | "ai"; text: string; step: number }[] = [
@@ -155,14 +157,14 @@ export function CallDemo() {
               )}
               <span className="flex w-16 flex-col items-center gap-1 sm:w-[4.5rem]">
                 <span
-                  className={`flex h-9 w-9 items-center justify-center rounded-full border transition-colors ${
+                  className={`cd-node flex h-9 w-9 items-center justify-center rounded-full border transition-colors ${
                     active ? "border-brand-500 bg-brand-50 text-brand-700" : done ? "border-brand-300 bg-surface text-brand-500" : "border-gray-300 bg-surface text-gray-400"
                   }`}
                 >
                   {/* Redraws on activation — an active-state change, the sanctioned trigger (and ≥18px). */}
                   <DrawIcon name={step.icon} size={18} draw={active} />
                 </span>
-                <span className={`text-[11px] font-semibold transition-colors ${active || done ? "text-brand-700" : "text-gray-500"}`}>{step.label}</span>
+                <span className={`cd-label text-[11px] font-semibold transition-colors ${active || done ? "text-brand-700" : "text-gray-500"}`}>{step.label}</span>
               </span>
             </li>
           );
