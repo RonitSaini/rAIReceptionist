@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { ActionState } from "@/lib/form";
-import { INTERACTION } from "@/lib/motion";
+import { INTERACTION, leaveGuided } from "@/lib/motion";
 import { Alert, Button } from "@/components/ui";
 import { DrawIcon } from "@/components/draw-icon";
 import { Toast } from "@/components/toast";
@@ -19,6 +19,9 @@ export type FormMode = "onboarding" | "settings";
  * it for INTERACTION.savedHold, then offers the verb again. A message that says more than "Saved."
  * also rises as a toast (auto-dismissing); a bare "Saved." is already the button. Errors stay inline,
  * where the eye is, and never auto-dismiss.
+ *
+ * In onboarding this is the third group of the step's guided arrival (data-guided="3", motion spec §8);
+ * in settings there is no .guided ancestor and the attribute does nothing.
  */
 export function FormFooter({ state, pending, mode, backHref, submitLabel }: { state: ActionState; pending: boolean; mode: FormMode; backHref?: string; submitLabel?: string }) {
   // Every action result is a new object: count the successful ones so the check and toast replay per save.
@@ -32,19 +35,27 @@ export function FormFooter({ state, pending, mode, backHref, submitLabel }: { st
   const toastable = state?.ok && state.message && state.message !== "Saved." ? state.message : null;
 
   return (
-    <div className="space-y-3 pt-2">
+    <div data-guided="3" className="space-y-3 pt-2">
       {state && !state.ok && state.error ? <Alert>{state.error}</Alert> : null}
       {saves > 0 && toastable ? <Toast key={saves}>{toastable}</Toast> : null}
       <input type="hidden" name="mode" value={mode} />
       <Button type="submit" size="lg" full disabled={pending}>
         {pending ? "Saving…" : saves > 0 && state?.ok ? <SavedLabel key={saves} label={label} /> : label}
       </Button>
-      {mode === "onboarding" && backHref ? (
-        <Link href={backHref} className="press-soft block text-center text-sm font-semibold text-gray-500 hover:text-ink">
-          Back
-        </Link>
-      ) : null}
+      {mode === "onboarding" && backHref ? <BackLink href={backHref} /> : null}
     </div>
+  );
+}
+
+/**
+ * The onboarding Back link. On click the current step steps aside toward where it came from (the leave,
+ * spec §8.3) and the navigation proceeds in the same tick — the leave is never waited on.
+ */
+export function BackLink({ href }: { href: string }) {
+  return (
+    <Link href={href} onClick={(e) => leaveGuided(e.currentTarget, "back")} className="press-soft block text-center text-sm font-semibold text-gray-500 hover:text-ink">
+      Back
+    </Link>
   );
 }
 

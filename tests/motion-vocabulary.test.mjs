@@ -27,6 +27,18 @@ test("the CSS tokens mirror INTERACTION", () => {
   assert.equal(token("m-exit"), `${INTERACTION.exit.standard}ms`);
   assert.equal(token("m-exit-slow"), `${INTERACTION.exit.slow}ms`);
   assert.equal(token("m-ease"), INTERACTION.ease);
+  assert.equal(token("m-stagger"), `${INTERACTION.stagger}ms`);
+  assert.equal(token("m-cascade"), `${INTERACTION.cascade}ms`);
+});
+
+test("a guided arrival fits its window and adds no durations", () => {
+  // Three groups at the standard step, two stagger gaps: 300–400 ms in total (spec §8.1).
+  const total = 2 * INTERACTION.stagger + INTERACTION.standard;
+  assert.ok(total >= 300 && total <= 400, `guided total ${total}ms`);
+  // Ten picker cards at the fast step, one cascade gap apart: the grid is assembled inside 400 ms.
+  const grid = 9 * INTERACTION.cascade + INTERACTION.fast;
+  assert.ok(grid <= 400, `cascade total ${grid}ms`);
+  assert.ok(INTERACTION.stagger < INTERACTION.fast && INTERACTION.cascade < INTERACTION.stagger);
 });
 
 test("the ladder is a ladder and exits are shorter", () => {
@@ -38,7 +50,7 @@ test("the ladder is a ladder and exits are shorter", () => {
 
 test("every interaction class is in the reduced-motion block", () => {
   const reduce = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"));
-  for (const cls of [".press", ".press-soft", ".switch", ".seg-ind", ".seg-item", ".row-enter", ".row-exit", ".badge-swap > .badge-in", ".badge-swap > .badge-out", ".tick-in", ".tick-out", ".toast", ".content-in", ".menu-in", ".menu-out", ".draw-fast.is-drawing path", ".saved-in", ".notif-panel"]) {
+  for (const cls of [".press", ".press-soft", ".switch", ".seg-ind", ".seg-item", ".row-enter", ".row-exit", ".badge-swap > .badge-in", ".badge-swap > .badge-out", ".tick-in", ".tick-out", ".toast", ".content-in", ".menu-in", ".menu-out", ".draw-fast.is-drawing path", ".saved-in", ".notif-panel", ".swap", ".guided [data-guided]", ".guided .cascade > *", ".guided[data-leaving]", ".slide-in", ".progress-fill"]) {
     assert.ok(reduce.includes(cls), `${cls} is listed under prefers-reduced-motion`);
   }
 });

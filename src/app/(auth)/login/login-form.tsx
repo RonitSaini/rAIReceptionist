@@ -39,7 +39,8 @@ export function LoginForm({ callbackUrl, initialError, googleEnabled }: { callba
       <form onSubmit={onSubmit} className="space-y-4 rounded-2xl border border-gray-200 bg-surface p-5 shadow-sm">
         {error ? <Alert>{error}</Alert> : null}
         <Field label="Email" htmlFor="email">
-          <Input id="email" name="email" type="email" autoComplete="email" inputMode="email" required placeholder="you@yourbusiness.com" />
+          {/* Focused at mount, before the entrance has settled: typing never waits on motion (spec rule 24). */}
+          <Input id="email" name="email" type="email" autoComplete="email" inputMode="email" required placeholder="you@yourbusiness.com" autoFocus />
         </Field>
         <Field label="Password" htmlFor="password">
           <Input id="password" name="password" type="password" autoComplete="current-password" required placeholder="••••••••" />

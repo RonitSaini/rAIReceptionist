@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import type { BusinessHours } from "@prisma/client";
 import { saveHours } from "@/actions/onboarding";
 import { DAYS_OF_WEEK } from "@/lib/constants";
+import { leaveGuided } from "@/lib/motion";
 import { Button, inputClass } from "@/components/ui";
 import { FormFooter, type FormMode } from "@/components/form-footer";
 import { ActionForm } from "@/components/action-form";
@@ -98,9 +99,18 @@ export function HoursForm({ hours, mode, backHref, nextHref }: { hours: Business
   );
 }
 
+/** Skip saves nothing, so it is the one forward move that can honestly leave before the server answers (spec §8.3). */
 function Skip({ href }: { href: string }) {
   return (
-    <Button type="button" variant="ghost" full onClick={() => (window.location.href = href)}>
+    <Button
+      type="button"
+      variant="ghost"
+      full
+      onClick={(e) => {
+        leaveGuided(e.currentTarget, "forward");
+        window.location.href = href;
+      }}
+    >
       Skip for now (uses 11 AM – 9 PM daily)
     </Button>
   );

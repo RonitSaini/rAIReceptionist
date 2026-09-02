@@ -10,6 +10,7 @@ import { FormFooter, type FormMode } from "@/components/form-footer";
 import { WebTestCall } from "@/components/web-test-call";
 import { ActionForm } from "@/components/action-form";
 import { Disclosure } from "@/components/disclosure";
+import { DrawIcon } from "@/components/draw-icon";
 
 type VoiceSample = { id: string; name: string; available: boolean; previewUrl: string | null };
 type VoiceOption = { id: string; name: string; provider: string; gender: string | null; accent: string | null; age: string | null; recommended: boolean; previewUrl: string | null };
@@ -53,6 +54,9 @@ export function VoiceForm({ account, mode, backHref }: { account: AccountView; m
   const [browse, setBrowse] = useState(false);
   const [filter, setFilter] = useState<{ gender: "" | "female" | "male"; q: string }>({ gender: "", q: "" });
   const [playing, setPlaying] = useState<string | null>(null);
+  // Between the tap and the first audible frame the play button pends (dimmed, aria-busy) — the sample is
+  // fetched over the network and a button that reads "Stop" in silence claims a state that is not there yet.
+  const [loading, setLoading] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const canSpeak = useSyncExternalStore(
     () => () => {},
@@ -81,14 +85,21 @@ export function VoiceForm({ account, mode, backHref }: { account: AccountView; m
     audioRef.current?.pause();
     if (playing === id) {
       setPlaying(null);
+      setLoading(null);
       return;
     }
     const audio = new Audio(url);
     audioRef.current = audio;
     setPlaying(id);
-    audio.onended = () => setPlaying(null);
-    audio.onerror = () => setPlaying(null);
-    audio.play().catch(() => setPlaying(null));
+    setLoading(id);
+    const stop = () => {
+      setPlaying(null);
+      setLoading(null);
+    };
+    audio.onplaying = () => setLoading(null);
+    audio.onended = stop;
+    audio.onerror = stop;
+    audio.play().catch(stop);
   }
 
   function playCurated(v: (typeof VOICES)[number]) {
@@ -122,13 +133,13 @@ export function VoiceForm({ account, mode, backHref }: { account: AccountView; m
             const sample = samples[v.id];
             const playable = sample?.previewUrl ? true : canSpeak;
             return (
-              <div key={v.id} className={`flex items-center justify-between gap-3 rounded-2xl border-2 p-4 ${selected ? "border-brand-500 bg-brand-50" : "border-gray-200 bg-surface"}`}>
+              <div key={v.id} className={`swap flex items-center justify-between gap-3 rounded-2xl border-2 p-4 ${selected ? "border-brand-500 bg-brand-50" : "border-gray-200 bg-surface"}`}>
                 <button type="button" onClick={() => setVoiceId(v.id)} className="press-soft flex-1 text-left">
                   <span className="block font-semibold">{v.name}</span>
                   <span className="block text-sm text-gray-500">{v.description}</span>
                   {sample && !sample.available ? <span className="block text-xs text-amber-700">Not available on your Retell account — a similar voice will be used.</span> : null}
                 </button>
-                <Button type="button" variant="secondary" size="sm" onClick={() => playCurated(v)} disabled={!playable} aria-label={`Play ${v.name} sample`}>
+                <Button type="button" variant="secondary" size="sm" onClick={() => playCurated(v)} disabled={!playable} aria-label={`Play ${v.name} sample`} aria-busy={loading === v.id || undefined} className={loading === v.id ? "opacity-60" : undefined}>
                   {playing === v.id ? "■ Stop" : "▶ Play"}
                 </Button>
               </div>
@@ -145,7 +156,18 @@ export function VoiceForm({ account, mode, backHref }: { account: AccountView; m
         ) : null}
 
         <p className="text-xs text-gray-500" role="status" aria-live="polite">
-          {savingVoice ? "Saving voice…" : voiceSave ? <span className={voiceSave.ok ? "font-semibold text-brand-700" : "font-semibold text-red-600"}>{voiceSave.text}</span> : `Current voice: ${selectedName}. Picking a voice saves it right away.`}
+          {savingVoice ? (
+            "Saving voice…"
+          ) : voiceSave?.ok ? (
+            <span className="saved-in inline-flex items-center gap-1.5 font-semibold text-brand-700">
+              <DrawIcon name="check" size={18} className="draw-fast shrink-0" />
+              {voiceSave.text}
+            </span>
+          ) : voiceSave ? (
+            <span className="font-semibold text-red-600">{voiceSave.text}</span>
+          ) : (
+            `Current voice: ${selectedName}. Picking a voice saves it right away.`
+          )}
         </p>
 
         {all.length > 0 ? (
@@ -169,7 +191,7 @@ export function VoiceForm({ account, mode, backHref }: { account: AccountView; m
                   {filtered.map((v) => {
                     const selected = v.id === voiceId;
                     return (
-                      <li key={v.id} className={`flex items-center justify-between gap-2 py-2 ${selected ? "bg-brand-50" : ""}`}>
+                      <li key={v.id} className={`swap flex items-center justify-between gap-2 py-2 ${selected ? "bg-brand-50" : ""}`}>
                         <button type="button" onClick={() => setVoiceId(v.id)} className="press-soft min-w-0 flex-1 px-2 text-left">
                           <span className="block text-sm font-semibold">
                             {v.recommended ? "★ " : ""}
@@ -182,7 +204,7 @@ export function VoiceForm({ account, mode, backHref }: { account: AccountView; m
                             {v.age ? ` · ${v.age.toLowerCase()}` : ""}
                           </span>
                         </button>
-                        <Button type="button" variant="secondary" size="sm" disabled={!v.previewUrl} onClick={() => v.previewUrl && playUrl(v.id, v.previewUrl)} aria-label={`Play ${v.name}`}>
+                        <Button type="button" variant="secondary" size="sm" disabled={!v.previewUrl} onClick={() => v.previewUrl && playUrl(v.id, v.previewUrl)} aria-label={`Play ${v.name}`} aria-busy={loading === v.id || undefined} className={loading === v.id ? "opacity-60" : undefined}>
                           {playing === v.id ? "■" : "▶"}
                         </Button>
                         <Button type="button" variant={selected ? "primary" : "ghost"} size="sm" onClick={() => setVoiceId(v.id)}>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useActionState, useState, useTransition } from "react";
+import { BackLink } from "@/components/form-footer";
 import { completePhoneStep } from "@/actions/onboarding";
 import { placeTestCall, provisionPhoneNumber, repairNumberWebhooks, syncAgentNow } from "@/actions/phone";
 import type { AccountView } from "@/lib/serialize";
@@ -20,12 +21,21 @@ export function PhonePanel({ account, mode, status, backHref, nextHref }: { acco
   const [provisionState, provisionAction, provisioning] = useActionState(provisionPhoneNumber, null);
   const [result, setResult] = useState<ActionState>(null);
   const [pending, startTransition] = useTransition();
+  // Which of the three test/repair buttons is waiting on the server: it reads its pending state by text
+  // and a dimmed fill (motion spec rule 16), the others simply disable.
+  const [busy, setBusy] = useState<"sync" | "repair" | "call" | null>(null);
   const ready = status.twilio && status.retell && status.publicUrl;
   const canConnect = ready && status.subscribed;
   const hasNumber = !!account.twilioNumber;
   const areaCodeDefault = account.cellPhone?.replace(/\D/g, "").replace(/^1/, "").slice(0, 3) ?? "";
 
-  const run = (fn: () => Promise<ActionState>) => startTransition(async () => setResult(await fn()));
+  const run = (which: "sync" | "repair" | "call", fn: () => Promise<ActionState>) => {
+    setBusy(which);
+    startTransition(async () => {
+      setResult(await fn());
+      setBusy(null);
+    });
+  };
 
   return (
     <div className="space-y-4">
@@ -86,11 +96,11 @@ export function PhonePanel({ account, mode, status, backHref, nextHref }: { acco
         {account.agentSyncError ? <Alert>Last sync failed: {account.agentSyncError}</Alert> : null}
         <p className="mt-2 text-sm text-gray-500">The AI host is rebuilt automatically whenever you save settings. Rebuild manually if something looks out of date.</p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <Button type="button" variant="secondary" size="sm" disabled={!status.retell || pending} onClick={() => run(syncAgentNow)}>
+          <Button type="button" variant="secondary" size="sm" disabled={!status.retell || pending} onClick={() => run("sync", syncAgentNow)}>
             Rebuild AI host
           </Button>
           {hasNumber ? (
-            <Button type="button" variant="secondary" size="sm" disabled={!status.twilio || pending} onClick={() => run(repairNumberWebhooks)}>
+            <Button type="button" variant="secondary" size="sm" disabled={!status.twilio || pending} onClick={() => run("repair", repairNumberWebhooks)}>
               Re-link number to this app URL
             </Button>
           ) : null}
@@ -118,8 +128,8 @@ export function PhonePanel({ account, mode, status, backHref, nextHref }: { acco
           We&apos;ll call {account.cellPhone ? formatUsPhone(account.cellPhone) : "your cell (add it in Business basics)"} from your FrontDesk AI number so you can hear the greeting and try booking{" "}
           {`${/^[aeiou]/i.test(vocabularyFor(account).booking.one) ? "an" : "a"} ${vocabularyFor(account).booking.one}`}.
         </p>
-        <Button type="button" variant="secondary" className="mt-3" disabled={!hasNumber || !account.cellPhone || pending} onClick={() => run(placeTestCall)}>
-          <DrawIcon name="phone" size={16} draw={false} /> Call me to test
+        <Button type="button" variant="secondary" className={busy === "call" ? "mt-3 opacity-60" : "mt-3"} aria-busy={busy === "call" || undefined} disabled={!hasNumber || !account.cellPhone || pending} onClick={() => run("call", placeTestCall)}>
+          <DrawIcon name="phone" size={16} draw={false} /> {busy === "call" ? "Calling you…" : "Call me to test"}
         </Button>
         {hasNumber ? <p className="mt-2 text-xs text-gray-500">Or just call {formatUsPhone(account.twilioNumber)} from any phone.</p> : null}
       </Card>
@@ -128,15 +138,11 @@ export function PhonePanel({ account, mode, status, backHref, nextHref }: { acco
       {result?.ok && result.message ? <Alert kind="success">{result.message}</Alert> : null}
 
       {mode === "onboarding" ? (
-        <form action={completePhoneStep} className="space-y-3 pt-2">
+        <form action={completePhoneStep} data-guided="3" className="space-y-3 pt-2">
           <Button type="submit" size="lg" full variant={hasNumber ? "primary" : "secondary"}>
             {hasNumber ? "Continue" : "Skip for now"}
           </Button>
-          {backHref ? (
-            <Link href={backHref} className="block text-center text-sm font-semibold text-gray-500 hover:text-ink">
-              Back
-            </Link>
-          ) : null}
+          {backHref ? <BackLink href={backHref} /> : null}
         </form>
       ) : null}
     </div>

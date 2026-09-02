@@ -277,6 +277,8 @@ body {
   --m-exit: 150ms;
   --m-exit-slow: 200ms;
   --m-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --m-stagger: 60ms; /* guided arrivals (§8): groups two and three trail group one by this much */
+  --m-cascade: 20ms; /* the profession picker's cards, one after another */
 }
 
 /* Reveal: fade + lift + un-blur into view, staggered via --reveal-delay (set by <Reveal index>).
@@ -501,9 +503,9 @@ body {
   }
 }
 
-/* Alerts and inline messages slide in. */
+/* Alerts and inline messages arrive at the fast step: four pixels, no shake, nothing blocked (spec §8.3). */
 .slide-in {
-  animation: slide-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: slide-in var(--m-fast) var(--m-ease) both;
 }
 @keyframes slide-in {
   from {
@@ -1187,6 +1189,83 @@ button[aria-expanded="true"] .fold-arrow {
   animation: fade-in var(--m-fast) var(--m-ease) backwards;
 }
 
+/* A surface whose colours follow a state it does not itself press (a picked voice card): colours at fast. */
+.swap {
+  transition:
+    background-color var(--m-fast) var(--m-ease),
+    border-color var(--m-fast) var(--m-ease),
+    color var(--m-fast) var(--m-ease);
+}
+
+/* ---------- Guided arrivals: the funnel (motion spec §8) ----------
+   The one place in the app where a page enters. A .guided container holds up to three groups
+   ([data-guided="1|2|3"]: heading, form, footer) that rise 8 px and fade in at the standard step, each
+   trailing the last by --m-stagger. Direction (set by the onboarding template before first paint) turns the
+   axis into the corridor: forward arrives from the right, back from the left. Fill mode is backwards, so a
+   settled group has no transform. The chrome around them (logo, header, progress track) never moves. */
+.guided {
+  --arrive-x: 0px;
+  --arrive-y: 8px;
+}
+.guided[data-dir="forward"] {
+  --arrive-x: 16px;
+  --arrive-y: 0px;
+}
+.guided[data-dir="back"] {
+  --arrive-x: -16px;
+  --arrive-y: 0px;
+}
+.guided [data-guided],
+.guided .cascade > * {
+  animation: guided-in var(--m-standard) var(--m-ease) backwards;
+}
+.guided [data-guided="2"] {
+  animation-delay: var(--m-stagger);
+}
+.guided [data-guided="3"] {
+  animation-delay: calc(2 * var(--m-stagger));
+}
+/* The picker's cascade: ten cards, each at the fast step, --m-cascade apart, starting with group two. */
+.guided .cascade > * {
+  animation-duration: var(--m-fast);
+  animation-delay: calc(var(--m-stagger) + var(--i, 0) * var(--m-cascade));
+}
+@keyframes guided-in {
+  from {
+    opacity: 0;
+    transform: translate(var(--arrive-x, 0px), var(--arrive-y, 8px));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* Leaving (Back, Skip): the step steps aside in the direction of travel and dims to the pending state at
+   the exit step, then holds until the route lands. Never waited on — the navigation goes in the same tick. */
+.guided[data-leaving] {
+  animation: guided-aside var(--m-exit) var(--m-ease) forwards;
+}
+.guided[data-leaving="back"] {
+  --aside-x: 8px;
+}
+.guided[data-leaving="forward"] {
+  --aside-x: -8px;
+}
+@keyframes guided-aside {
+  to {
+    opacity: 0.5;
+    transform: translateX(var(--aside-x, -8px));
+  }
+}
+/* The progress fill travels from the previous step's width going forward and from the next step's width
+   coming back; <OnboardingProgress> computes both, the container's direction picks one. */
+.progress-fill {
+  --progress-from: var(--progress-fwd, 0.05);
+}
+.guided[data-dir="back"] .progress-fill {
+  --progress-from: var(--progress-back, 1);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bell-icon.is-ringing,
   .bell-icon.is-ringing path,
@@ -1250,6 +1329,10 @@ button[aria-expanded="true"] .fold-arrow {
   .menu-out,
   .draw-fast.is-drawing path,
   .saved-in,
+  .swap,
+  .guided [data-guided],
+  .guided .cascade > *,
+  .guided[data-leaving],
   .animate-pulse {
     animation: none;
     transition: none;

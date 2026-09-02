@@ -615,8 +615,8 @@ Holds (JS, same file): a success toast holds 4 s; the "Saved" check holds 2 s be
 | Bell count | digits tick like an odometer wheel — old rolls out the top, new rolls in from the bottom, reversed when the count fell; the pop on the container stays | `<Tick>`, `.tick-*` |
 | Form save | pending = "Saving…" and the disabled fill (text, not motion); saved = a check draws (300 ms) beside "Saved" for 2 s, only after the server answered; a message that says more than "Saved." rises as a toast; errors stay inline | `<FormFooter>`, `.draw-fast`, `.saved-in` |
 | Loading | control-shaped skeleton while the reservation slots fetch, then the control fades in; the voice catalogue fades in when it lands | `.skeleton`, `.content-in` |
-| Page to page | the new page fades up 4 px at standard, starting after the route has changed (never before); onboarding steps get the same via a template | `.page-enter` |
-| Onboarding progress | the bar travels from the previous step's width to this one's (`--progress-from`) at slow | `.progress-fill` |
+| Page to page | the new page fades up 4 px at standard, starting after the route has changed (never before); onboarding steps arrive guided and along the corridor instead (§8) | `.page-enter` |
+| Onboarding progress | the bar travels from the previous step's width to this one's (`--progress-fwd`) at slow, and back down from the next step's (`--progress-back`) when the owner goes Back (§8.3) | `.progress-fill` |
 
 ### 7.3 Adoption: inherited vs wired locally
 
@@ -662,6 +662,8 @@ notification rows declare `data-urgent`.
     its check; only a message with more to say becomes a toast. Errors are never toasts.
 22. **Lists diff by key, never by index.** A row that can leave carries a stable local id (hours
     periods, custom emergencies got them); index keys would animate the wrong row out.
+23. **Inside the app nothing enters on load.** Closure 1 in §7.6 records it; numbered here because §8
+    (the funnel, where a page may enter) is defined against it.
 
 ### 7.5 21st.dev, this pass
 
@@ -690,3 +692,164 @@ should not wobble) and *Bouncy Toggle* #9634 (bounce — rejected, rule 15).
    the viewport, so the truncation only takes effect once the row itself may shrink. Smoke pass 352/352.
 4. The test rows the verification scripts created on vertical-dev (the "Frame Series", "Perf", "Reduce"
    and "Probe" tow jobs, the "Frame Series Guest" reservation and its notification) are deleted.
+
+## 8. Guided arrivals — the funnel (2026-09-02)
+
+Design read (taste-skill process; product wizards are outside the skill's scope by its §13, so only its motion
+rules were applied: motivated motion, transform and opacity only, reduced motion, tactile press): *the sign-up
+funnel — login, signup, the accept-terms interstitial and every onboarding step — is the one place in the app
+where a page may enter, because a new owner arrives here from nowhere and is shown the shape of the page once.
+Inside the app rule 23 still holds.* No runtime: CSS on the interaction ladder, plus one client template that
+knows which way the owner is walking.
+
+### 8.1 "Guided", defined
+
+A **guided arrival** is the funnel's page entrance. Formally:
+
+- **Entrances are allowed, one per page arrival.** An element takes part in exactly one entrance per arrival;
+  nothing inside a guided group starts a second entrance of its own. The picker's cascade is the sanctioned
+  exception and is each card's only entrance; an inline alert already on the page at arrival keeps its own
+  150 ms slide inside its group's 220 ms, the one tolerated overlap (the two are the same message arriving).
+- **At most three staggered groups, in reading order:** heading → form → footer, marked `data-guided="1|2|3"`
+  under a `.guided` container (several elements may share a group; they move as one). Group two starts
+  `--m-stagger` (60 ms) after group one, group three 120 ms after; each runs the **standard** step (220 ms)
+  on the house ease. Total 340 ms, inside the 300–400 ms window.
+- **Standard ladder durations only.** No new durations: groups run at `standard`, the cascade's cards at
+  `fast`, the leave at `exit`, the progress bar at `slow`. The two new constants are gaps, not durations:
+  `INTERACTION.stagger` (60) and `INTERACTION.cascade` (20), mirrored as `--m-stagger` / `--m-cascade` and
+  guarded by `tests/motion-vocabulary.test.mjs`.
+- **Transform and opacity only, no layout shift.** A group rises 8 px (or travels 16 px along the corridor,
+  8.3) while fading in; `animation-fill-mode: backwards`, so a settled group has `transform: none` again and
+  is not a containing block for anything fixed.
+- **Chrome is static.** The logo, the theme toggle, the back-to-home button, the onboarding header and the
+  progress bar's counter and track never enter: they are the room the page arrives into. That also keeps the
+  funnel's largest paint (the logo image) out of an opacity-0 first frame, which is what rule 13 protects.
+- **Login is the exception: one settle, not a sequence.** A returning owner has seen this page; the card and
+  the footer line are both group one and land together in one standard beat (220 ms).
+
+### 8.2 Where it plays
+
+| Surface | Groups | Showpiece and extras |
+|---|---|---|
+| Login | one group (card + footer), 220 ms | email is autofocused at mount; the entrance plays around whatever the owner types |
+| Signup | 1 the "Step 1 of 8" line · 2 the card, "or", the Google button · 3 the footer link | the profession picker's ten cards **cascade** inside group two: each card at `fast` (150 ms), 20 ms apart, so the grid is assembled 390 ms after arrival (330 ms for the grid itself). Picking a card draws an 18 px check at the slow step (`.draw-fast`) beside the card's colour swap — the house confirmation, not a pop. Ticking the terms box enables the buttons through the existing fast colour swap (`.press` transitions `background-color`), so the unlock is felt |
+| Accept-terms interstitial | 1 heading + sentence · 2 the alert and the card | the same box, the same enable |
+| Onboarding step | 1 the step title · 2 the form · 3 the footer (Save and continue, Back) | the counter and the track are static; the fill travels one step at `slow`, forward or back (8.3) |
+| Stripe return / cancel | a fresh guided arrival with the checkout alert in group two | the hosted Checkout page is Stripe's and out of our control. We animate up to the hand-off (the button's pending dim and "Taking you to Stripe…") and never delay the redirect |
+
+### 8.3 The corridor: direction
+
+Step to step is one corridor, not nine pages. `src/app/onboarding/template.tsx` (client) remembers the last
+step it mounted for and, in a layout effect before first paint, stamps the container `data-dir="forward"` or
+`"back"` from the comparison — so a save that redirects, the Back link and the browser's own back button all
+read correctly; a hard load has no history and arrives the plain way (the 8 px rise). Direction turns the
+groups' axis: forward arrives from +16 px, back from −16 px, same stagger, same timings.
+
+- **Exits are shorter and never waited on.** Back (and Skip) marks the current container `data-leaving`,
+  which steps it aside 8 px in the direction of travel and dims it to 0.5 at `exit` (150 ms), then holds —
+  the pending state, in the vocabulary's terms — until the route lands, whenever that is. The navigation goes
+  in the same tick; if the route lands within a frame the exit is simply cut.
+- **Forward has no separate exit, on purpose (rule 11).** A step leaves forward only once the server has
+  saved it, and Next delivers that answer and the next step in one response, so there is no honest window in
+  which to animate the old step out. The pending fill is the forward "exit"; the next step arriving from the
+  right is the confirmation.
+- **The progress bar reads as continuous with the step.** Its `slow` travel (300 ms) starts on the same frame
+  as group one and lands with group three. Forward it grows from the previous step's width (`--progress-fwd`);
+  under `data-dir="back"` it shrinks from the next step's (`--progress-back`) — both computed on the server by
+  `<OnboardingProgress>`, the container's direction choosing which one the fill reads.
+- **Validation errors** arrive inline at `fast` (`.slide-in` now runs `--m-fast` on the house ease, 4 px),
+  never shake and never block input; the browser's own required / minLength bubbles are untouched.
+- **Voice step:** a play button dims (`aria-busy`) between the tap and the first audible frame, then reads
+  "■ Stop"; picking a voice swaps the card's colours at `fast` (`.swap`) and, once the server has saved it,
+  the status line draws the check (`.saved-in` + `.draw-fast`). **Phone step:** "Call me to test" presses,
+  then reads "Calling you…" dimmed until the server answers.
+
+### 8.4 Rules added (continuing §7.4)
+
+24. **A guided arrival never gates input.** Inputs are in the DOM, focusable and typeable from the first
+    frame; autofocus fires at mount and the entrance plays around the owner. Nothing in a guided group changes
+    `pointer-events` or `visibility`; opacity and transform are the only things moving.
+25. **Wrappers animate, never inputs.** The transform rides on the group (`[data-guided]`, a card, a footer),
+    never on an `<input>`, `<select>` or `<textarea>`, so a password manager or the browser's autofill overlay
+    measures a settled field: any overlay opened after the 340 ms window positions against the true layout
+    box, and the layout box itself never moves (transform only). Verified in 8.6: every input's rect is
+    identical before, during and after the entrance, and no input is ever the target of an animation.
+26. **Route changes never wait on an exit.** `data-leaving` is set and the navigation proceeds in the same
+    tick; the leave plays for as long as the route takes and is cut when it lands.
+27. **Reduced motion: complete and static on arrival.** Every §8 class is in the reduce block: groups and
+    cascade cards are simply there, `data-leaving` does nothing (the step swap is instant), the progress fill
+    snaps (already listed), the check is drawn, the play button's dim still reads.
+28. **A guided page's static chrome carries the first paint.** The logo (an image) is never inside a group,
+    so LCP lands on it at first paint on login, signup and the interstitial — the funnel's answer to rule 13.
+
+### 8.5 Rejected on the way
+
+- **The View Transitions API** would give a true two-sided cross-slide, but its snapshot overlay swallows
+  pointer input for the length of the transition (rule 24) and it is experimental in this Next. Rejected.
+- **A forward exit on submit** — sliding the step out while "Saving…" — is rule 11's "13 settling to 12"
+  with a verb: the save can fail. Rejected.
+- **A shake on validation errors** — rejected by the brief and by rule 15 (nothing that answers a click
+  overshoots).
+- **Blur on the guided groups** (the hero's `.hero-enter` uses it) — a form's label and placeholder text
+  smearing in reads as a rendering fault, not as arrival. Opacity instead.
+- **Autofocus on signup's first text field** — the profession picker comes first in reading order, and a
+  focus below it scrolls a short viewport past the one question the page exists to ask. Login autofocuses
+  (email); signup does not.
+
+### 8.6 Verification (2026-09-02, dev server against the vertical-dev branch, a throwaway restaurant created and deleted)
+
+Harness: `funnel.js` (56 checks: the story at 1280×900 with frame series, then desk/phone × light/dark × motion/reduce,
+each logging in and walking steps 3–8 with a hard-load arrival, Back, and the browser's back — a forward move in the
+corridor), `funnel-login.js` (login → logout → login at both viewports) and `funnel-extra.js` (Skip, the Stripe button).
+Frame series: `1-signup-arrival-desk`, `3-step-forward-3-to-4`, `4-step-back-4-to-3`, plus `2-signup-pick-profession`,
+`5-accept-terms-arrival`, `6-login-settle`.
+
+- **Signup arrival:** three groups at 220 ms with delays 0 / 60 / 120 ms; the guided animations start +40 ms after
+  navigation start and the last lands at +430 ms; the logo is in the first frame (+20 ms) and never moves. The ten
+  cards cascade with `--i` 0…9. A click into Business name at +91 ms — while the groups were still arriving — typed
+  "Frame" and the field held it; no input, select or textarea was ever an animation target (13 animations at the
+  first probe, 0 on controls). Inputs' layout boxes are identical before, during and after; their visual boxes rode
+  the wrapper by 8 px mid-entrance and 0 px after settle.
+- **Picking a profession:** press, colour swap, then the 18 px check drawn over 300 ms (`.draw-fast`). Keyboard:
+  Tab reaches the radios, ArrowDown picks, and the focused card shows the ring (2 px offset + 4 px brand-400).
+- **Terms box → enable:** the submit button went disabled → enabled through one `background-color 150ms` transition.
+- **Forward (3 → 4, Save and continue):** "Saving…" dims the fill for the round trip (~250 ms in dev), then step 4
+  arrives `data-dir="forward"`: title at +300 ms, form by +397 ms, footer by +498 ms, the bar growing from 0.750 of
+  its new width. Inputs' visual shift mid-arrival 16.3 px (the corridor travel), 0.5 px after.
+- **Back (4 → 3):** `data-leaving="back"` is set on the click; the old step dims and steps aside by +80 ms, step 3
+  arrives `data-dir="back"` with the title at +157 ms and the form by +244 ms, the bar shrinking from 1.333.
+  Every step 3–8 repeated the triple (plain → back → forward) with the fill reading `--progress-back` on Back and
+  `--progress-fwd` going forward, three groups each time.
+- **Skip (hours):** `data-leaving="forward"` and the `guided-aside` 150 ms animation are on the container in the same
+  synchronous click, before the hard navigation; step 4 then arrives plain.
+- **Voice step:** the play button is `aria-busy` and dimmed 40 ms after the tap and reads "■ Stop"; the pending state
+  cleared once the sample played. Picking a voice ran the card's border and background transitions at 150 ms; after
+  the server answered the status line drew the check beside "Grace saved — your AI host now uses this voice."
+- **Phone step:** "Call me to test" presses; disabled on an account without a number, so the "Calling you…" state
+  was not exercised in the browser.
+- **Stripe step:** the click read "Taking you to Stripe…" and dimmed; the hand-off did not leave the page because
+  Stripe's **test** account refuses `consent_collection` without a Terms of Service URL in Dashboard → Settings →
+  Public details ("You cannot collect consent to your terms of service unless a URL is set"). The error arrived
+  inline and the button re-enabled — rule 11 held. The cancel landing (`?checkout=cancelled`) arrives guided with
+  its alert. The live account was not touched.
+- **Accept-terms interstitial:** heading at +93 ms, card at +192 ms, complete by +295 ms; the box enables the
+  button; Continue reaches the dashboard.
+- **Login:** two elements in group one, same 220 ms, same 0 ms delay; the server HTML carries `autofocus`, so typing
+  at +104 ms (desktop) / +116 ms (phone) after navigation already lands in the email field; Enter submits. Logout
+  from Settings (desktop) and from the onboarding header (both viewports), login again each time.
+- **Matrix:** desk/phone × light/dark × motion/reduce: signup and login arrivals, the settled cascade, no horizontal
+  overflow at 390 px, steps 3–8 forward and back — clean, no console errors or hydration warnings. Under reduce:
+  zero finite animations at any arrival, every group complete at once, the fill already at its width, and a Back
+  click leaves the container at opacity 1 / transform none.
+- `npm test`: 80/80, goldens byte-identical. `eslint .` and `tsc --noEmit` clean.
+
+**Found on the way, not changed (pre-existing, outside this pass):**
+1. **Login submits natively before hydration.** The login form has no `method`/`action`; an Enter pressed before
+   React attaches `onSubmit` performs the browser's GET and lands on `/login?email=…&password=…` — credentials in the
+   URL. Reproduced once in dev (hydration ~200 ms); a password manager's autofill-and-Enter can hit that window in
+   production. Smallest mitigation: `method="post"`; proper fix: a server action fallback.
+2. **Voice step at 390 px shifts when the catalogue lands.** The "Browse all N voices" card is inserted above the
+   greeting fields in the stacked layout, moving them 42 px (`.content-in` fade, already there). Same in reduced
+   motion — a layout event, not motion. Reserve the space or place the browser below the greeting on phones.
+3. **Stripe test account** lacks the Terms of Service URL (above), so local/test checkout cannot start.
+4. On the phone run, Settings → Billing showed no Log out within 20 s; the header's Log out was used instead.

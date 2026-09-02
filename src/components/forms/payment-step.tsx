@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { completePaymentStep } from "@/actions/onboarding";
 import type { AccountView } from "@/lib/serialize";
 import { humanize } from "@/lib/constants";
@@ -8,7 +7,7 @@ import { stripeConfigured, stripePricesConfigured } from "@/lib/env";
 import { getPlanPrices, type PlanPrice } from "@/lib/billing";
 import { parseCheckoutResult, subscriptionActive, subscriptionTone, type CheckoutResult } from "@/lib/billing-ui";
 import { Alert, Badge, Button, Card } from "@/components/ui";
-import type { FormMode } from "@/components/form-footer";
+import { BackLink, type FormMode } from "@/components/form-footer";
 import { CheckoutButton, RefreshStatusButton } from "@/components/forms/billing-buttons";
 
 export { parseCheckoutResult };
@@ -83,15 +82,11 @@ export async function PaymentStep({ account, mode, checkout = null, backHref }: 
       </Card>
 
       {mode === "onboarding" ? (
-        <form action={completePaymentStep} className="space-y-3 pt-2">
+        <form action={completePaymentStep} data-guided="3" className="space-y-3 pt-2">
           <Button type="submit" size="lg" full variant={active ? "primary" : "secondary"}>
             {active ? "Go to my dashboard" : "Skip for now and go to my dashboard"}
           </Button>
-          {backHref ? (
-            <Link href={backHref} className="block text-center text-sm font-semibold text-gray-500 hover:text-ink">
-              Back
-            </Link>
-          ) : null}
+          {backHref ? <BackLink href={backHref} /> : null}
         </form>
       ) : null}
     </div>

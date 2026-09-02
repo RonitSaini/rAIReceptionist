@@ -23,6 +23,20 @@ import { ShopHandoffForm } from "@/components/forms/shop-handoff-form";
 
 export const metadata = { title: "Setup" };
 
+/**
+ * Every step shares this frame: the progress block first, then the form as the second group of the
+ * guided arrival (motion spec §8; the title inside the progress block is group one, the footer inside
+ * the form is group three). `wide` is the voice step's two-column layout.
+ */
+function Frame({ progress, wide = false, children }: { progress: React.ReactNode; wide?: boolean; children: React.ReactNode }) {
+  return (
+    <div className={wide ? "mx-auto max-w-6xl" : "mx-auto max-w-2xl 2xl:max-w-3xl"}>
+      {progress}
+      <div data-guided="2">{children}</div>
+    </div>
+  );
+}
+
 export default async function OnboardingStepPage({ params, searchParams }: { params: Promise<{ step: string }>; searchParams: Promise<{ checkout?: string; google?: string; message?: string }> }) {
   const { step: stepParam } = await params;
   const { google: googleStatus, message: googleMessage } = await searchParams;
@@ -42,10 +56,9 @@ export default async function OnboardingStepPage({ params, searchParams }: { par
     ]);
     if (user?.accountId) redirect("/onboarding/2");
     return (
-      <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
-        <OnboardingProgress step={1} />
+      <Frame progress={<OnboardingProgress step={1} />}>
         <CreateAccountForm catalog={VERTICAL_CATALOG} needsTerms={!accepted} />
-      </div>
+      </Frame>
     );
   }
 
@@ -70,65 +83,57 @@ export default async function OnboardingStepPage({ params, searchParams }: { par
   switch (stepDef.id) {
     case "business-basics":
       return (
-        <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
-          {progress}
+        <Frame progress={progress}>
           <BusinessBasicsForm account={view} mode="onboarding" />
-        </div>
+        </Frame>
       );
     case "hours": {
       const hours = await prisma.businessHours.findMany({ where: { accountId: account.id }, orderBy: [{ dayOfWeek: "asc" }, { sortOrder: "asc" }] });
       return (
-        <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
-          {progress}
+        <Frame progress={progress}>
           <HoursForm hours={hours} mode="onboarding" backHref={backHref} nextHref={nextHref} />
-        </div>
+        </Frame>
       );
     }
     case "menu-policies": {
       const items = await prisma.menuItem.findMany({ where: { accountId: account.id }, orderBy: { sortOrder: "asc" } });
       return (
-        <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
-          {progress}
+        <Frame progress={progress}>
           <MenuPoliciesForm account={view} menu={items.map(serializeMenuItem)} mode="onboarding" backHref={backHref} />
-        </div>
+        </Frame>
       );
     }
     case "reservations":
       return (
-        <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
-          {progress}
+        <Frame progress={progress}>
           <ReservationSettingsForm account={view} mode="onboarding" google={await getGoogleCalendarView(account.id)} googleStatus={googleStatus} googleMessage={googleMessage} backHref={backHref} />
-        </div>
+        </Frame>
       );
     case "service-area":
       return (
-        <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
-          {progress}
+        <Frame progress={progress}>
           <ServiceAreaForm account={view} mode="onboarding" backHref={backHref} />
-        </div>
+        </Frame>
       );
     case "services": {
       const services = await prisma.serviceOffering.findMany({ where: { accountId: account.id }, orderBy: { sortOrder: "asc" } });
       return (
-        <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
-          {progress}
+        <Frame progress={progress}>
           <ServicesForm account={view} services={services.map(serializeServiceOffering)} mode="onboarding" backHref={backHref} />
-        </div>
+        </Frame>
       );
     }
     case "appointments": {
       const services = await prisma.serviceOffering.findMany({ where: { accountId: account.id }, orderBy: { sortOrder: "asc" } });
       return (
-        <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
-          {progress}
+        <Frame progress={progress}>
           <ServicesForm account={view} services={services.map(serializeServiceOffering)} mode="onboarding" backHref={backHref} />
-        </div>
+        </Frame>
       );
     }
     case "handoffs":
       return (
-        <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
-          {progress}
+        <Frame progress={progress}>
           <ShopHandoffForm
             account={view}
             emergencyTypes={verticalFor(account).emergencyTypes}
@@ -137,12 +142,11 @@ export default async function OnboardingStepPage({ params, searchParams }: { par
             mode="onboarding"
             backHref={backHref}
           />
-        </div>
+        </Frame>
       );
     case "dispatch":
       return (
-        <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
-          {progress}
+        <Frame progress={progress}>
           <DispatchForm
             account={view}
             defaultResponse={null}
@@ -151,36 +155,32 @@ export default async function OnboardingStepPage({ params, searchParams }: { par
             mode="onboarding"
             backHref={backHref}
           />
-        </div>
+        </Frame>
       );
     case "emergencies":
       return (
-        <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
-          {progress}
+        <Frame progress={progress}>
           <EmergenciesForm account={view} emergencyTypes={verticalFor(account).emergencyTypes} defaultSlotMinutes={verticalFor(account).defaults.slotMinutes} mode="onboarding" backHref={backHref} />
-        </div>
+        </Frame>
       );
     case "voice":
       return (
-        <div className="mx-auto max-w-6xl">
-          {progress}
+        <Frame progress={progress} wide>
           <VoiceForm account={view} mode="onboarding" backHref={backHref} />
-        </div>
+        </Frame>
       );
     case "phone":
       return (
-        <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
-          {progress}
+        <Frame progress={progress}>
           <PhoneStep account={view} mode="onboarding" backHref={backHref} nextHref={nextHref} />
-        </div>
+        </Frame>
       );
     case "payment": {
       const { checkout } = await searchParams;
       return (
-        <div className="mx-auto max-w-2xl 2xl:max-w-3xl">
-          {progress}
+        <Frame progress={progress}>
           <PaymentStep account={view} mode="onboarding" checkout={parseCheckoutResult(checkout)} backHref={backHref} />
-        </div>
+        </Frame>
       );
     }
     default:

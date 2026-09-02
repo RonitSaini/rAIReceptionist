@@ -10,7 +10,9 @@ export const metadata = { title: "Log in" };
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ callbackUrl?: string; error?: string }> }) {
   const { callbackUrl, error } = await searchParams;
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-5 py-10">
+    // A returning owner's page: the logo stays put and the card and its footer settle once, together
+    // (guided arrival, one group — motion spec §8.1's exception).
+    <main className="guided mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-5 py-10">
       <BackToHome />
       <div className="fixed right-4 top-4 z-10">
         <AnimatedThemeToggle />
@@ -19,8 +21,10 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <Logo href="/" size="lg" />
         <p className="mt-2 text-gray-500">Your AI phone receptionist</p>
       </div>
-      <LoginForm callbackUrl={callbackUrl ?? "/dashboard"} initialError={error ?? null} googleEnabled={googleEnabled} />
-      <p className="mt-6 text-center text-sm text-gray-600">
+      <div data-guided="1">
+        <LoginForm callbackUrl={callbackUrl ?? "/dashboard"} initialError={error ?? null} googleEnabled={googleEnabled} />
+      </div>
+      <p data-guided="1" className="mt-6 text-center text-sm text-gray-600">
         New here?{" "}
         <Link href="/signup" className="font-semibold text-brand-700 underline">
           Create your account

@@ -83,6 +83,9 @@ export function sequenceOrigin(from: Element | null | undefined): number {
  * Urgent surfaces (dispatch queue rows, EMERGENCY, unacknowledged escalations, "caller not notified")
  * take only the quiet end of this ladder — press and status advance at `fast`, no soft arrival — so
  * nothing here can dilute what they already say with colour.
+ *
+ * The funnel's guided arrivals (spec §8) run on the same durations; the two extra numbers are GAPS —
+ * how far group two and three trail group one, and how far each picker card trails the one before.
  */
 export const INTERACTION = {
   fast: 150,
@@ -94,9 +97,22 @@ export const INTERACTION = {
   toastHold: 4000,
   /** How long the submit button reads "Saved" with its drawn check before it offers "Save" again. */
   savedHold: 2000,
+  /** Guided arrivals (spec §8): the second and third groups of a page trail the first by this much. */
+  stagger: 60,
+  /** The profession picker's cascade: each card trails the one before by this much, at `fast`. */
+  cascade: 20,
 } as const;
 
 /** Client-only: true when the visitor asked for reduced motion (every state change then lands at once). */
 export function prefersReducedMotion(): boolean {
   return typeof window !== "undefined" && (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false);
+}
+
+/**
+ * Client-only: the guided container around `from` (an onboarding step) steps aside in the direction of
+ * travel while the route changes — 8 px along the corridor, dimmed to the pending state, at the exit step
+ * (spec §8.3). Never awaited: the caller navigates in the same tick, and the route lands whenever it lands.
+ */
+export function leaveGuided(from: Element, dir: "forward" | "back"): void {
+  from.closest(".guided")?.setAttribute("data-leaving", dir);
 }
