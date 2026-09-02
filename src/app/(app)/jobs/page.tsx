@@ -78,10 +78,10 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
       ) : (
         <ul className="grid gap-3 xl:grid-cols-2">
           {jobs.map((j, i) => (
-            <Reveal as="li" index={i} key={j.id} className="lift rounded-2xl border border-gray-200 bg-surface p-4">
+            <Reveal as="li" index={i} key={j.id} className="lift min-w-0 rounded-2xl border border-gray-200 bg-surface p-4">
               <Link href={`/jobs/${j.id}`} className="flex items-start justify-between gap-3">
                 <span className="min-w-0">
-                  <span className="block font-semibold">
+                  <span className="block truncate font-semibold">
                     {j.isEmergency ? <span className="mr-1 text-red-600">EMERGENCY</span> : null}
                     {j.customerName}
                     {j.customerPhone ? <span className="font-normal text-gray-500"> · {formatUsPhone(j.customerPhone)}</span> : null}
