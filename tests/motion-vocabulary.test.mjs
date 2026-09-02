@@ -1,7 +1,9 @@
 /**
  * The interaction vocabulary is written twice on purpose — INTERACTION in src/lib/motion.ts for the
  * JS timers, --m-* on :root in globals.css for every transition and keyframe — and this keeps the
- * two the same table. Pure: no server, no database.
+ * two the same table. Since the motion scale (spec §9) every scaled token is its *-base times
+ * --m-scale, and the clamped ones (the fast step, the toggle thumb) must never read the scale at all.
+ * Pure: no server, no database.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -19,26 +21,34 @@ const token = (name) => {
   return m[1].trim();
 };
 
-test("the CSS tokens mirror INTERACTION", () => {
-  assert.equal(token("m-fast"), `${INTERACTION.fast}ms`);
-  assert.equal(token("m-standard"), `${INTERACTION.standard}ms`);
-  assert.equal(token("m-slow"), `${INTERACTION.slow}ms`);
-  assert.equal(token("m-exit-fast"), `${INTERACTION.exit.fast}ms`);
-  assert.equal(token("m-exit"), `${INTERACTION.exit.standard}ms`);
-  assert.equal(token("m-exit-slow"), `${INTERACTION.exit.slow}ms`);
+test("the scaled tokens are their bases times --m-scale, and the bases mirror INTERACTION", () => {
+  assert.equal(token("m-scale"), "1");
+  for (const [name, base] of [
+    ["m-standard", INTERACTION.standard],
+    ["m-slow", INTERACTION.slow],
+    ["m-exit", INTERACTION.exit.standard],
+    ["m-exit-slow", INTERACTION.exit.slow],
+    ["m-stagger", INTERACTION.stagger],
+    ["m-cascade", INTERACTION.cascade],
+  ]) {
+    assert.equal(token(`${name}-base`), `${base}ms`);
+    assert.equal(token(name), `calc(var(--${name}-base) * var(--m-scale))`);
+  }
   assert.equal(token("m-ease"), INTERACTION.ease);
-  assert.equal(token("m-stagger"), `${INTERACTION.stagger}ms`);
-  assert.equal(token("m-cascade"), `${INTERACTION.cascade}ms`);
+  assert.equal(token("m-travel"), `${INTERACTION.travel}px`);
+  assert.equal(token("m-rise"), `${INTERACTION.rise}px`);
 });
 
-test("a guided arrival fits its window and adds no durations", () => {
-  // Three groups at the standard step, two stagger gaps: 300–400 ms in total (spec §8.1).
-  const total = 2 * INTERACTION.stagger + INTERACTION.standard;
-  assert.ok(total >= 300 && total <= 400, `guided total ${total}ms`);
-  // Ten picker cards at the fast step, one cascade gap apart: the grid is assembled inside 400 ms.
-  const grid = 9 * INTERACTION.cascade + INTERACTION.fast;
-  assert.ok(grid <= 400, `cascade total ${grid}ms`);
-  assert.ok(INTERACTION.stagger < INTERACTION.fast && INTERACTION.cascade < INTERACTION.stagger);
+test("the clamped tokens never read the scale", () => {
+  assert.equal(token("m-fast"), `${INTERACTION.fast}ms`);
+  assert.equal(token("m-exit-fast"), `${INTERACTION.exit.fast}ms`);
+  assert.equal(token("m-toggle"), `${INTERACTION.toggle}ms`);
+  // And nothing else in the stylesheet multiplies the fast step or the thumb by the scale.
+  assert.ok(!/--m-fast[^;]*--m-scale|--m-exit-fast[^;]*--m-scale|--m-toggle[^;]*--m-scale/.test(css));
+  // Urgent surfaces read only the clamped tokens.
+  for (const m of css.matchAll(/\[data-urgent\][^{]*\{([^}]*)\}/g)) {
+    assert.ok(!/--m-(standard|slow|exit|exit-slow|stagger|cascade)(?![\w-])/.test(m[1]), `urgent rule reads only fast tokens: ${m[1].trim()}`);
+  }
 });
 
 test("the ladder is a ladder and exits are shorter", () => {
@@ -46,6 +56,19 @@ test("the ladder is a ladder and exits are shorter", () => {
   assert.ok(INTERACTION.exit.fast < INTERACTION.fast);
   assert.ok(INTERACTION.exit.standard < INTERACTION.standard);
   assert.ok(INTERACTION.exit.slow < INTERACTION.slow);
+  // Exits stay about two thirds of their entrance, so they stay shorter at every scale (both sides scale together).
+  assert.ok(INTERACTION.exit.standard / INTERACTION.standard <= 0.7 && INTERACTION.exit.slow / INTERACTION.slow <= 0.7);
+  assert.ok(INTERACTION.toggle <= INTERACTION.standard, "the toggle thumb is never slower than standard");
+});
+
+test("a guided arrival fits its window and adds no durations", () => {
+  // Three groups at the standard step, two stagger gaps: 700–850 ms in total at scale 1 (spec §8.1 after the 1.6× pick).
+  const total = 2 * INTERACTION.stagger + INTERACTION.standard;
+  assert.ok(total >= 700 && total <= 850, `guided total ${total}ms`);
+  // Ten picker cards at the standard step, one cascade gap apart, starting with group two: assembled by ~1,130 ms.
+  const grid = INTERACTION.stagger + 9 * INTERACTION.cascade + INTERACTION.standard;
+  assert.ok(grid >= 1050 && grid <= 1200, `cascade total ${grid}ms`);
+  assert.ok(INTERACTION.cascade < INTERACTION.stagger && INTERACTION.stagger < INTERACTION.standard);
 });
 
 test("every interaction class is in the reduced-motion block", () => {

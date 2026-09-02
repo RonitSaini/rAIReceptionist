@@ -268,17 +268,35 @@ body {
 
 /* The interaction vocabulary (motion spec §7; INTERACTION in src/lib/motion.ts is the same table,
    and tests/motion-vocabulary.test.mjs fails if the two drift). One decelerating ease, a three-step
-   ladder, exits about two thirds of their entrance. Every interaction class below reads these. */
+   ladder, exits about two thirds of their entrance. Every interaction class below reads these.
+
+   The motion scale (§9): --m-scale multiplies every SCALED token (each is its *-base times the scale;
+   the base is the number that ships: rebalanced for visibility on 2026-09-02, then the owner's 1.6×
+   pick baked in on 2026-09-03 — 300 → 480, 450 → 720, exits 320 / 480, stagger 144, cascade 56). A comparison
+   sets --m-scale on <html> (a knob did during the pick and was removed with it); the pick is then baked
+   into the bases and the scale returns to 1. CLAMPED tokens never read the scale: the fast step (presses, colour swaps,
+   validation errors, every urgent surface) and the toggle thumb, so no scale can gate input or dilute
+   an alarm. Travel is in pixels and is not a duration, so it is not scaled either. */
 :root {
-  --m-fast: 150ms; /* presses, toggles, hovers, colour swaps */
-  --m-standard: 220ms; /* expands, menus, toasts, rows, badge crossfades, the tab indicator */
-  --m-slow: 300ms; /* the ceiling: sheets, drawers, the one-step progress bar */
-  --m-exit-fast: 100ms;
-  --m-exit: 150ms;
-  --m-exit-slow: 200ms;
+  --m-scale: 1;
+  --m-fast: 150ms; /* CLAMPED: presses, hovers, colour swaps, chip text, validation errors, urgent rows */
+  --m-exit-fast: 100ms; /* CLAMPED */
+  --m-toggle: 220ms; /* CLAMPED: the toggle thumb's travel — the response to a flick never slows */
+  --m-standard-base: 480ms; /* expands, menus, toasts, rows, badge crossfades, the tab indicator, guided groups */
+  --m-slow-base: 720ms; /* the ceiling: sheets, drawers, the one-step progress bar, the saved check */
+  --m-exit-base: 320ms;
+  --m-exit-slow-base: 480ms;
+  --m-stagger-base: 144ms; /* guided arrivals (§8): groups two and three trail group one by this much */
+  --m-cascade-base: 56ms; /* the profession picker's cards, one after another */
+  --m-standard: calc(var(--m-standard-base) * var(--m-scale));
+  --m-slow: calc(var(--m-slow-base) * var(--m-scale));
+  --m-exit: calc(var(--m-exit-base) * var(--m-scale));
+  --m-exit-slow: calc(var(--m-exit-slow-base) * var(--m-scale));
+  --m-stagger: calc(var(--m-stagger-base) * var(--m-scale));
+  --m-cascade: calc(var(--m-cascade-base) * var(--m-scale));
+  --m-travel: 24px; /* a guided group's travel along the corridor; the leave steps aside by half of it */
+  --m-rise: 12px; /* a guided group's plain rise */
   --m-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --m-stagger: 60ms; /* guided arrivals (§8): groups two and three trail group one by this much */
-  --m-cascade: 20ms; /* the profession picker's cards, one after another */
 }
 
 /* Reveal: fade + lift + un-blur into view, staggered via --reveal-delay (set by <Reveal index>).
@@ -931,15 +949,16 @@ button[aria-expanded="true"] .fold-arrow {
   transition-duration: 60ms;
 }
 
-/* Toggle: the track swaps colour at the fast beat, the thumb travels at the standard beat, and while
-   the finger is down the thumb stretches toward where it is going (scale on the individual `scale`
-   property, so it composes with the translate). Transient, so the circle flattening is fine. */
+/* Toggle: the track swaps colour at the fast beat, the thumb travels in --m-toggle (clamped: a toggle's
+   response never slows, whatever the scale), and while the finger is down the thumb stretches toward
+   where it is going (scale on the individual `scale` property, so it composes with the translate).
+   Transient, so the circle flattening is fine. */
 .switch {
   transition: background-color var(--m-fast) var(--m-ease);
 }
 .switch::after {
   transition:
-    translate var(--m-standard) var(--m-ease),
+    translate var(--m-toggle) var(--m-ease),
     scale var(--m-fast) var(--m-ease);
 }
 
@@ -1205,14 +1224,14 @@ button[aria-expanded="true"] .fold-arrow {
    settled group has no transform. The chrome around them (logo, header, progress track) never moves. */
 .guided {
   --arrive-x: 0px;
-  --arrive-y: 8px;
+  --arrive-y: var(--m-rise);
 }
 .guided[data-dir="forward"] {
-  --arrive-x: 16px;
+  --arrive-x: var(--m-travel);
   --arrive-y: 0px;
 }
 .guided[data-dir="back"] {
-  --arrive-x: -16px;
+  --arrive-x: calc(-1 * var(--m-travel));
   --arrive-y: 0px;
 }
 .guided [data-guided],
@@ -1225,36 +1244,37 @@ button[aria-expanded="true"] .fold-arrow {
 .guided [data-guided="3"] {
   animation-delay: calc(2 * var(--m-stagger));
 }
-/* The picker's cascade: ten cards, each at the fast step, --m-cascade apart, starting with group two. */
+/* The picker's cascade: ten cards, each at the standard step, --m-cascade apart, starting with group two
+   (the last card lands about 1,130 ms after arrival at scale 1). */
 .guided .cascade > * {
-  animation-duration: var(--m-fast);
   animation-delay: calc(var(--m-stagger) + var(--i, 0) * var(--m-cascade));
 }
 @keyframes guided-in {
   from {
     opacity: 0;
-    transform: translate(var(--arrive-x, 0px), var(--arrive-y, 8px));
+    transform: translate(var(--arrive-x, 0px), var(--arrive-y, 12px));
   }
   to {
     opacity: 1;
     transform: none;
   }
 }
-/* Leaving (Back, Skip): the step steps aside in the direction of travel and dims to the pending state at
-   the exit step, then holds until the route lands. Never waited on — the navigation goes in the same tick. */
+/* Leaving (Back, Skip): the step steps aside (half the travel) in the direction of travel and dims to the
+   pending state at the exit step, then holds until the route lands. Never waited on — the navigation goes in
+   the same tick. */
 .guided[data-leaving] {
   animation: guided-aside var(--m-exit) var(--m-ease) forwards;
 }
 .guided[data-leaving="back"] {
-  --aside-x: 8px;
+  --aside-x: calc(var(--m-travel) / 2);
 }
 .guided[data-leaving="forward"] {
-  --aside-x: -8px;
+  --aside-x: calc(-1 * var(--m-travel) / 2);
 }
 @keyframes guided-aside {
   to {
     opacity: 0.5;
-    transform: translateX(var(--aside-x, -8px));
+    transform: translateX(var(--aside-x, -12px));
   }
 }
 /* The progress fill travels from the previous step's width going forward and from the next step's width

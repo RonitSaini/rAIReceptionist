@@ -86,22 +86,50 @@ export function sequenceOrigin(from: Element | null | undefined): number {
  *
  * The funnel's guided arrivals (spec §8) run on the same durations; the two extra numbers are GAPS —
  * how far group two and three trail group one, and how far each picker card trails the one before.
+ *
+ * Rebalanced for visibility on 2026-09-02 (spec §9): standard 220 → 300, slow 300 → 450, exits kept at
+ * about two thirds, stagger 60 → 90, cascade 20 → 35, travel 16 → 24 px; then the owner's 1.6× pick was
+ * baked in on 2026-09-03 (standard 480, slow 720, exits 320 / 480, stagger 144, cascade 56). These are the BASES: the CSS
+ * multiplies every scaled token by --m-scale (1; a rebalance comparison may set it on <html>), and `scaled()` below gives
+ * a JS timer the same number the CSS is running. `fast`, its exit and `toggle` are CLAMPED — never
+ * scaled — so no knob value can gate input or slow an alarm.
  */
 export const INTERACTION = {
   fast: 150,
-  standard: 220,
-  slow: 300,
-  exit: { fast: 100, standard: 150, slow: 200 },
+  standard: 480,
+  slow: 720,
+  exit: { fast: 100, standard: 320, slow: 480 },
+  /** The toggle thumb's travel: clamped, a toggle answers a flick at the same speed at every scale. */
+  toggle: 220,
+  /** Guided entrance geometry (px, not durations): travel along the corridor and the plain rise. */
+  travel: 24,
+  rise: 12,
   ease: "cubic-bezier(0.22, 1, 0.36, 1)",
   /** How long a success toast holds before it leaves. */
   toastHold: 4000,
   /** How long the submit button reads "Saved" with its drawn check before it offers "Save" again. */
   savedHold: 2000,
   /** Guided arrivals (spec §8): the second and third groups of a page trail the first by this much. */
-  stagger: 60,
-  /** The profession picker's cascade: each card trails the one before by this much, at `fast`. */
-  cascade: 20,
+  stagger: 144,
+  /** The profession picker's cascade: each card trails the one before by this much, at `standard`. */
+  cascade: 56,
 } as const;
+
+/** Client-only: the live `--m-scale` (1 unless a rebalance comparison set it on <html>, spec §9.3). */
+export function motionScale(): number {
+  if (typeof document === "undefined") return 1;
+  const v = Number.parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--m-scale"));
+  return Number.isFinite(v) && v > 0 ? v : 1;
+}
+
+/**
+ * A scaled ladder duration as the CSS is actually running it: the base times the live scale. For the JS
+ * timers that must agree with a CSS animation (how long a leaving node stays mounted). Clamped values —
+ * `fast`, `exit.fast`, `toggle` — never pass through here.
+ */
+export function scaled(ms: number): number {
+  return Math.round(ms * motionScale());
+}
 
 /** Client-only: true when the visitor asked for reduced motion (every state change then lands at once). */
 export function prefersReducedMotion(): boolean {

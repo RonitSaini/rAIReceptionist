@@ -155,11 +155,11 @@ focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400
 | Class | Effect | Timing |
 |---|---|---|
 | `.reveal` → `.reveal.is-visible` | scroll reveal: `opacity 0→1`, `blur(6px)→0`, `translateY(12px)→0`; the class holds the end state, the keyframe only the start (`backwards`), so a settled element's transform is `none` | `.55s cubic-bezier(.22,1,.36,1)`, stagger via `--reveal-delay` |
-| `.page-enter` | route/page mount: `opacity 0→1`, `translateY(4px)→0`, ends on `transform: none` | `var(--m-standard)` (220 ms) `var(--m-ease)` — retuned §7 |
+| `.page-enter` | route/page mount: `opacity 0→1`, `translateY(4px)→0`, ends on `transform: none` | `var(--m-standard)` (480 ms since the 1.6× pick; was 220) `var(--m-ease)` — retuned §7 |
 | `.slide-in` | dropdown/toast: `opacity 0→1`, `translateY(-4px)→0` | `.3s cubic-bezier(.22,1,.36,1)` |
 | `.skeleton::after` | loading shimmer sweep, `translateX(-100%)→100%`, gradient via `color-mix(in oklab, var(--color-surface) 70%, transparent)` | `1.4s ease-in-out infinite` |
 | `.status-dot::before` | live pulse ripple, `scale(1)→2.6`, `opacity .6→0` | `1.8s cubic-bezier(.2,.7,.3,1) infinite` |
-| `.progress-fill` | onboarding bar travels from the previous step's width: `scaleX(var(--progress-from))→1` | `var(--m-slow)` (300 ms) — retuned §7 |
+| `.progress-fill` | onboarding bar travels from the previous step's width: `scaleX(var(--progress-from))→1` | `var(--m-slow)` (720 ms since the 1.6× pick; was 300) — retuned §7 |
 | `claude-pulse` | idle breathing, `opacity .6↔1` | — |
 | `.nav-highlight` / `.nav-bar` | sidebar hover highlight + active bar glide to an item, **transform only** | `.3s cubic-bezier(.22,1,.36,1)` |
 | `.draw-icon.is-drawing` | `<DrawIcon>` self-draws: outline `.7s`, detail paths `.35s` delayed `.35s`; row stagger via `--draw-delay` | `ease` |
@@ -203,8 +203,8 @@ there. Don't mix the two.
 4. **Duration ladder:** 150 ms hover colors · 300–350 ms entrances · 500 ms pops ·
    550 ms scroll reveals · 700 ms icon state swaps and physical motions · 500 ms hero-sequence
    moves (two 250 ms beats each, so at most two are ever in motion — pass 8). **This ladder is for
-   arrivals and signatures. What answers a click lives on the interaction ladder (§7): 150 / 220 /
-   300 ms, exits about two thirds, one ease.**
+   arrivals and signatures. What answers a click lives on the interaction ladder (§7): 150 / 480 /
+   720 ms since the §9 rebalance and the owner's 1.6× pick (was 150 / 220 / 300), exits about two thirds, one ease.**
 5. **Only `transform`, `opacity`, `filter: blur()`, and stroke properties animate.** Nothing
    animates layout. No `width`/`height`/`top`/`left` transitions.
    - Sliding indicators (nav highlight, active bar, tab pill) **translate only**. Items are
@@ -593,9 +593,13 @@ shorter, so what leaves is out of the way before what replaces it has landed.
 
 | Step | Entrance | Exit | Used for |
 |---|---|---|---|
-| **fast** | 150 ms (down-stroke 60 ms) | 100 ms | presses, toggles' track colour, hover/colour swaps, chip text, the tick's leaving digit; **everything on an urgent row** |
-| **standard** | 220 ms | 150 ms | toggle thumb travel, tab/segment indicator, disclosures opening, menus/popovers, toasts, rows arriving and sliding, badge crossfades, fetched content fading in, the page transition |
-| **slow** | 300 ms | 200 ms | the ceiling: the bottom sheet, the onboarding progress bar's one-step travel, the saved check drawing |
+| **fast** | 150 ms (down-stroke 60 ms) — **clamped, never scaled** | 100 ms | presses, toggles' track colour, hover/colour swaps, chip text, validation errors, the tick's leaving digit; **everything on an urgent row** |
+| **standard** | 480 ms (300 at the §9 rebalance, ×1.6 baked; 220 before) | 320 ms | tab/segment indicator, disclosures opening, menus/popovers, toasts, rows arriving and sliding, badge crossfades, fetched content fading in, the page transition, guided groups |
+| **slow** | 720 ms (450 at the §9 rebalance, ×1.6 baked; 300 before) | 480 ms | the ceiling: the bottom sheet, the onboarding progress bar's one-step travel, the saved check drawing |
+| *toggle* | 220 ms — **clamped** (`--m-toggle`) | — | the toggle thumb's travel only: a toggle answers a flick at the same speed at every scale |
+
+Since 2026-09-02 every standard/slow/exit/stagger/cascade token is its `*-base` times `--m-scale` (§9): the numbers
+above are the bases and what ships; the scale is a comparison multiplier that returns to 1 (the knob used for the pick is gone, 9.3).
 
 Holds (JS, same file): a success toast holds 4 s; the "Saved" check holds 2 s before the verb returns.
 
@@ -604,7 +608,7 @@ Holds (JS, same file): a success toast holds 4 s; the "Saved" check holds 2 s be
 | Interaction | Mechanism | Class / component |
 |---|---|---|
 | Button, control press | `translateY(1px) scale(.97)` on `:active`, 60 ms down, 150 ms back; rows/chips/labels use `scale(.99)`; lifted tiles press by adoption | `.press`, `.press-soft`, `.lift:active` |
-| Toggle | track colour at fast, thumb travels at standard (`translate`), thumb stretches toward its destination while held (`scale`, origin follows the direction) | `.switch` on `<Toggle>` |
+| Toggle | track colour at fast, thumb travels in `--m-toggle` (220 ms, clamped — never scaled), thumb stretches toward its destination while held (`scale`, origin follows the direction) | `.switch` on `<Toggle>` |
 | Tabs / segmented filters | one indicator slides to the picked pill: two round caps translate, a 1 px body scales between them (rule 5 amended below); text colour swaps at fast; click moves it before the navigation lands | `<SegmentedLinks>`, `.seg-*` |
 | Accordions / disclosure | the fold (grid-rows exception) opens at standard, closes at exit; content mounted only while open or leaving | `<Disclosure>`, `.fold-app` |
 | Popover / bottom sheet | enters from its origin (top-right under the bell, bottom edge as a sheet) and leaves the same way, faster; `@starting-style` + `allow-discrete`, so the exit animates too | `.notif-panel` |
@@ -613,7 +617,7 @@ Holds (JS, same file): a success toast holds 4 s; the "Saved" check holds 2 s be
 | Rows (add / remove / reorder) | keys diffed after every commit: a new row fades up 4 px; a removed row is kept (its detached node, at its old index) for a 150 ms fade-and-settle; rows that moved slide from their old offset (FLIP, inline transform) | `<MotionList>`, `.row-enter`, `.row-exit` |
 | Status badge change in place | old badge fades out on top (exit) while the new one, already holding the layout, fades in (standard) | `<Badge>` (now a client leaf), `.badge-swap` |
 | Bell count | digits tick like an odometer wheel — old rolls out the top, new rolls in from the bottom, reversed when the count fell; the pop on the container stays | `<Tick>`, `.tick-*` |
-| Form save | pending = "Saving…" and the disabled fill (text, not motion); saved = a check draws (300 ms) beside "Saved" for 2 s, only after the server answered; a message that says more than "Saved." rises as a toast; errors stay inline | `<FormFooter>`, `.draw-fast`, `.saved-in` |
+| Form save | pending = "Saving…" and the disabled fill (text, not motion); saved = a check draws (`slow`, 720 ms since the 1.6× pick) beside "Saved" for 2 s, only after the server answered; a message that says more than "Saved." rises as a toast; errors stay inline | `<FormFooter>`, `.draw-fast`, `.saved-in` |
 | Loading | control-shaped skeleton while the reservation slots fetch, then the control fades in; the voice catalogue fades in when it lands | `.skeleton`, `.content-in` |
 | Page to page | the new page fades up 4 px at standard, starting after the route has changed (never before); onboarding steps arrive guided and along the corridor instead (§8) | `.page-enter` |
 | Onboarding progress | the bar travels from the previous step's width to this one's (`--progress-fwd`) at slow, and back down from the next step's (`--progress-back`) when the owner goes Back (§8.3) | `.progress-fill` |
@@ -709,30 +713,31 @@ A **guided arrival** is the funnel's page entrance. Formally:
 - **Entrances are allowed, one per page arrival.** An element takes part in exactly one entrance per arrival;
   nothing inside a guided group starts a second entrance of its own. The picker's cascade is the sanctioned
   exception and is each card's only entrance; an inline alert already on the page at arrival keeps its own
-  150 ms slide inside its group's 220 ms, the one tolerated overlap (the two are the same message arriving).
+  150 ms slide inside its group's 480 ms, the one tolerated overlap (the two are the same message arriving).
 - **At most three staggered groups, in reading order:** heading → form → footer, marked `data-guided="1|2|3"`
   under a `.guided` container (several elements may share a group; they move as one). Group two starts
-  `--m-stagger` (60 ms) after group one, group three 120 ms after; each runs the **standard** step (220 ms)
-  on the house ease. Total 340 ms, inside the 300–400 ms window.
+  `--m-stagger` (144 ms since the 1.6× pick; 90 at the §9 rebalance, 60 before) after group one, group three
+  288 ms after; each runs the **standard** step (480 ms; 300, then 220 before) on the house ease. Total 768 ms,
+  inside the 700–850 ms window (480 in 450–600 at the rebalance, 340 in 300–400 before).
 - **Standard ladder durations only.** No new durations: groups run at `standard`, the cascade's cards at
   `fast`, the leave at `exit`, the progress bar at `slow`. The two new constants are gaps, not durations:
-  `INTERACTION.stagger` (60) and `INTERACTION.cascade` (20), mirrored as `--m-stagger` / `--m-cascade` and
+  `INTERACTION.stagger` (144) and `INTERACTION.cascade` (56), mirrored as `--m-stagger` / `--m-cascade` and
   guarded by `tests/motion-vocabulary.test.mjs`.
-- **Transform and opacity only, no layout shift.** A group rises 8 px (or travels 16 px along the corridor,
-  8.3) while fading in; `animation-fill-mode: backwards`, so a settled group has `transform: none` again and
+- **Transform and opacity only, no layout shift.** A group rises 12 px (`--m-rise`) or travels 24 px along the
+  corridor (`--m-travel`, 8.3) while fading in — 8 and 16 before §9; `animation-fill-mode: backwards`, so a settled group has `transform: none` again and
   is not a containing block for anything fixed.
 - **Chrome is static.** The logo, the theme toggle, the back-to-home button, the onboarding header and the
   progress bar's counter and track never enter: they are the room the page arrives into. That also keeps the
   funnel's largest paint (the logo image) out of an opacity-0 first frame, which is what rule 13 protects.
 - **Login is the exception: one settle, not a sequence.** A returning owner has seen this page; the card and
-  the footer line are both group one and land together in one standard beat (220 ms).
+  the footer line are both group one and land together in one standard beat (480 ms).
 
 ### 8.2 Where it plays
 
 | Surface | Groups | Showpiece and extras |
 |---|---|---|
-| Login | one group (card + footer), 220 ms | email is autofocused at mount; the entrance plays around whatever the owner types |
-| Signup | 1 the "Step 1 of 8" line · 2 the card, "or", the Google button · 3 the footer link | the profession picker's ten cards **cascade** inside group two: each card at `fast` (150 ms), 20 ms apart, so the grid is assembled 390 ms after arrival (330 ms for the grid itself). Picking a card draws an 18 px check at the slow step (`.draw-fast`) beside the card's colour swap — the house confirmation, not a pop. Ticking the terms box enables the buttons through the existing fast colour swap (`.press` transitions `background-color`), so the unlock is felt |
+| Login | one group (card + footer), 480 ms | email is autofocused at mount; the entrance plays around whatever the owner types |
+| Signup | 1 the "Step 1 of 8" line · 2 the card, "or", the Google button · 3 the footer link | the profession picker's ten cards **cascade** inside group two: each card at `standard` (480 ms), 56 ms apart (§9 and the 1.6× pick; was fast and 20 ms), so the grid is assembled about 1,130 ms after arrival. Picking a card draws an 18 px check at the slow step (`.draw-fast`) beside the card's colour swap — the house confirmation, not a pop. Ticking the terms box enables the buttons through the existing fast colour swap (`.press` transitions `background-color`), so the unlock is felt |
 | Accept-terms interstitial | 1 heading + sentence · 2 the alert and the card | the same box, the same enable |
 | Onboarding step | 1 the step title · 2 the form · 3 the footer (Save and continue, Back) | the counter and the track are static; the fill travels one step at `slow`, forward or back (8.3) |
 | Stripe return / cancel | a fresh guided arrival with the checkout alert in group two | the hosted Checkout page is Stripe's and out of our control. We animate up to the hand-off (the button's pending dim and "Taking you to Stripe…") and never delay the redirect |
@@ -742,18 +747,18 @@ A **guided arrival** is the funnel's page entrance. Formally:
 Step to step is one corridor, not nine pages. `src/app/onboarding/template.tsx` (client) remembers the last
 step it mounted for and, in a layout effect before first paint, stamps the container `data-dir="forward"` or
 `"back"` from the comparison — so a save that redirects, the Back link and the browser's own back button all
-read correctly; a hard load has no history and arrives the plain way (the 8 px rise). Direction turns the
-groups' axis: forward arrives from +16 px, back from −16 px, same stagger, same timings.
+read correctly; a hard load has no history and arrives the plain way (the 12 px rise). Direction turns the
+groups' axis: forward arrives from +24 px, back from −24 px (`--m-travel`), same stagger, same timings.
 
 - **Exits are shorter and never waited on.** Back (and Skip) marks the current container `data-leaving`,
-  which steps it aside 8 px in the direction of travel and dims it to 0.5 at `exit` (150 ms), then holds —
+  which steps it aside half the travel (12 px) in the direction of travel and dims it to 0.5 at `exit` (320 ms), then holds —
   the pending state, in the vocabulary's terms — until the route lands, whenever that is. The navigation goes
   in the same tick; if the route lands within a frame the exit is simply cut.
 - **Forward has no separate exit, on purpose (rule 11).** A step leaves forward only once the server has
   saved it, and Next delivers that answer and the next step in one response, so there is no honest window in
   which to animate the old step out. The pending fill is the forward "exit"; the next step arriving from the
   right is the confirmation.
-- **The progress bar reads as continuous with the step.** Its `slow` travel (300 ms) starts on the same frame
+- **The progress bar reads as continuous with the step.** Its `slow` travel (720 ms) starts on the same frame
   as group one and lands with group three. Forward it grows from the previous step's width (`--progress-fwd`);
   under `data-dir="back"` it shrinks from the next step's (`--progress-back`) — both computed on the server by
   `<OnboardingProgress>`, the container's direction choosing which one the fill reads.
@@ -771,7 +776,7 @@ groups' axis: forward arrives from +16 px, back from −16 px, same stagger, sam
     `pointer-events` or `visibility`; opacity and transform are the only things moving.
 25. **Wrappers animate, never inputs.** The transform rides on the group (`[data-guided]`, a card, a footer),
     never on an `<input>`, `<select>` or `<textarea>`, so a password manager or the browser's autofill overlay
-    measures a settled field: any overlay opened after the 340 ms window positions against the true layout
+    measures a settled field: any overlay opened after the entrance window (768 ms) positions against the true layout
     box, and the layout box itself never moves (transform only). Verified in 8.6: every input's rect is
     identical before, during and after the entrance, and no input is ever the target of an animation.
 26. **Route changes never wait on an exit.** `data-leaving` is set and the navigation proceeds in the same
@@ -853,3 +858,102 @@ Frame series: `1-signup-arrival-desk`, `3-step-forward-3-to-4`, `4-step-back-4-t
    motion — a layout event, not motion. Reserve the space or place the browser below the greeting on phones.
 3. **Stripe test account** lacks the Terms of Service URL (above), so local/test checkout cannot start.
 4. On the phone run, Settings → Billing showed no Log out within 20 s; the header's Log out was used instead.
+
+## 9. The motion scale and the rebalance for visibility (2026-09-02)
+
+The ladder was set for subtlety; the owner could not see it. This pass makes visibility a number that can be
+compared live and then baked, and rebalances the ladder at scale 1 first, because visibility comes from travel
+and stagger as much as from duration.
+
+### 9.1 The rebalance at scale 1
+
+| Token | Was | Now | Reads it |
+|---|---|---|---|
+| `--m-fast` / `--m-exit-fast` | 150 / 100 ms | **unchanged, and clamped** (9.2) | presses, colour swaps, chip text, validation errors, urgent rows |
+| `--m-standard` / `--m-exit` | 220 / 150 ms | **480 / 320 ms** (300 / 200 at the rebalance, ×1.6 baked) | toasts, menus, disclosures, list arrivals and FLIP, tab slides, badge crossfades, the page transition, guided groups |
+| `--m-slow` / `--m-exit-slow` | 300 / 200 ms | **720 / 480 ms** (450 / 300 at the rebalance) | the bottom sheet, the progress bar's travel, the saved check drawing |
+| `--m-toggle` | (was `--m-standard`) | **220 ms, clamped** | the toggle thumb's travel: the response to a flick never slows |
+| `--m-stagger` | 60 ms | **144 ms** (90 at the rebalance) | guided groups two and three |
+| `--m-cascade` | 20 ms | **56 ms** (35 at the rebalance) | the picker's cards, now at `standard` each: the grid is assembled ~1,130 ms after arrival |
+| `--m-travel` / `--m-rise` | 16 / 8 px | **24 / 12 px** | the corridor's entrance travel and the plain rise; the leave steps aside by half the travel (12 px) |
+| guided budget | 340 ms | **768 ms** (2 × 144 + 480; 480 at the rebalance) | §8.1's window becomes 700–850 ms |
+
+Exits stay about two thirds of their entrance at every step and every scale. `INTERACTION` in `src/lib/motion.ts`
+carries the same table (`toggle`, `travel`, `rise` added) and `tests/motion-vocabulary.test.mjs` fails if the two drift.
+
+### 9.2 The scale
+
+`--m-scale` on `:root` (default `1`) multiplies every **scaled** token: each is declared as
+`calc(var(--m-<name>-base) * var(--m-scale))`, and the `*-base` value is the number in the table. The JS timers that
+must agree with the CSS (how long a leaving row, badge, tick, menu or toast stays mounted) read the live value
+through `scaled()` in `motion.ts`, so a scale change never strands a node.
+
+**Clamped — never read the scale, at any value:** the fast step and its exit (press down-strokes and click
+feedback, hover and colour swaps, chip text), the toggle thumb (`--m-toggle`), focus rings (no transition at all),
+validation errors (`.slide-in` at fast), route-change initiation (a Link navigates in the same tick; the leave
+and the page fade are never waited on), and every urgent-surface treatment (`[data-urgent]` arrives instantly and
+crossfades/exits at the fast step). Raising the scale therefore cannot gate input or dilute the alarm hierarchy;
+it only stretches what arrives, slides and leaves. Reduced motion is unchanged: instant and complete, and the
+scale is irrelevant to it.
+
+### 9.3 The comparison knob (used for the pick, then removed)
+
+During the pick a development-only pill (`<MotionScale>`, bottom-left, 1.0× / 1.3× / 1.6×) set `--m-scale` on
+`<html>` live, remembered the choice in localStorage and applied it before first paint through an inline script,
+all inside `NODE_ENV !== "production"` branches. Once the owner picked, the knob was removed with the bake — it
+was a comparison tool, not a setting that ships, and nothing on the page should advertise motion as adjustable.
+What remains is the mechanism: every scaled token is its `*-base` times `--m-scale`, and `scaled()` reads the
+live value, so a future comparison sets `--m-scale` on `<html>` from devtools (or re-adds the knob from history
+at the "rebalanced for visibility" unit), compares, bakes and resets to `1`.
+
+**Procedure:** compare full flows at candidate scales on localhost and pick. The chosen value is baked — each
+`*-base` token (and `INTERACTION`) multiplied by it and rounded, `--m-scale` back to `1` — and this section
+records the pick.
+
+**Pick, 2026-09-03: 1.6×** — the knob's top point, verified in 9.4 (a 1.8× trial was baked and set aside the same
+day). Applied on the rebalanced bases: standard 300 → 480, slow 450 → 720, exits 200 / 300 → 320 / 480, stagger
+90 → 144, cascade 35 → 56; the clamps (fast 150 / 100, toggle 220), travel and rise unchanged; `--m-scale` back
+to 1; the knob removed.
+
+### 9.4 Verification (2026-09-02)
+
+Harness: `scale.js` (scratchpad `6cf24fd4-…`), dev server on the vertical-dev branch; the knob's stored choice set per
+browser context and confirmed at the navigation's commit (`--m-scale` already on `<html>`, the pill showing the value,
+`--m-standard` resolving to `calc(.3s * scale)`). Durations are read from `document.getAnimations()` while each
+interaction runs (finished fill-mode animations ignored).
+
+| Interaction | 1.0× | 1.3× | 1.6× | Reads |
+|---|---|---|---|---|
+| Settings tab slide (indicator) | 300 | 390 | 480 | standard; a second tab clicked at +80 ms mid-slide won every time; label colour swaps 150 at every scale |
+| Save changes: check draws / "Saved" label | 450 / 150 | 585 / 150 | 720 / 150 | slow / fast (clamped); "Saving…" visible by +117 ms in the frame series at both scales |
+| Page transition (schedule week arrow) | 300 | 390 | 480 | standard; the route had changed before the fade began |
+| Bell popover open / close | 300 / 200 | 390 / 260 | 480 / 320 | standard / exit; Escape at +60 ms into the open still closed it |
+| Hours: period row arrives / leaves / rows below slide | 300 / 200 / 300 | 390 / 260 / 390 | 480 / 320 / 480 | standard / exit / standard (MotionList) |
+| Onboarding 3 → 4: groups, delays, bar | 300, 0/90/180, 450 | 390, 0/117/234, 585 | 480, 0/144/288, 720 | standard, stagger, slow; typing 50 ms into the arrival landed in the field |
+| Onboarding 4 → 3 Back: leave | 200 | 260 | 320 | exit; the bar read `--progress-back` |
+| Dispatch, plain row: badge crossfade in / out | 300 / 200 | 390 / 260 | 480 / 320 | standard / exit |
+| Dispatch, **urgent** row: button swaps / row exit | 150 / 100 | 150 / 100 | 150 / 100 | **clamped** — unchanged at every scale (its Emergency badge never changes, so there is no crossfade to observe) |
+
+**390 px at 4× CPU throttle** (rAF gaps, 1.0 as the baseline): bell open, settings tab slide and the urgent dispatch
+advance ran with at most one frame over 33 ms (worst 50 ms) at every scale. The onboarding forward step's arrival
+window had 5–6 frames over 33 ms (worst 117 ms) at **1.0, 1.3 and 1.6 alike**, and the Back arrival 0–2 (worst 50 ms):
+the long frames are React committing the menu-and-policies form on a throttled CPU, not the animation, and the
+scale does not move them. Nothing here is gated on motion: every click above registered during an animation.
+
+`npm test` 80/80, goldens byte-identical; `eslint .` and `tsc --noEmit` clean. Frame series at 1.0 vs 1.3 for the
+onboarding forward step (`A-onboarding-forward@1.0/1.3`) and the toggle + save (`B-toggle-save@1.0/1.3`); the
+knob (since removed) is visible bottom-left in every frame, so the scale each sheet ran at is on the sheet.
+
+The table above was measured on the rebalanced bases (standard 300) before the pick; its 1.6× column is what
+now ships. **After the 1.6× bake** (2026-09-03) the same probes at scale 1 read those numbers directly — see the
+line appended below.
+
+**Re-verified at scale 1 on the baked 1.6× bases (2026-09-03, `scale.js`, SCALES=1):** `--m-standard` resolves to
+`calc(.48s * 1)` at the navigation's commit; tab slide 480 ms with a second click at +80 ms winning; "Saving…" at
++46 ms, the check drawing 720 ms, the "Saved" label 150 ms; hours period row in 480 / out 320 ms; bell popover 480 /
+320 ms, Escape at +60 ms closing it; page transition 480 ms on a path change (schedule → calls; the week arrow only changes a search param, which never remounts the app template); onboarding forward groups
+480 ms at 0 / 144 / 288 ms with the bar at 720 ms and typing 50 ms into the arrival landing in the field; Back leave
+320 ms; plain dispatch row badge crossfade 480 / 320 ms; the urgent row's button swaps 150 ms and exit 100 ms,
+clamped. 390 px at 4× CPU: bell, tab slide and the urgent advance at most one frame over 33 ms (worst 50 ms); the
+onboarding forward step's arrival 8 frames over 33 ms (worst 133 ms) — React committing the menu form, as at every
+scale before the pick; its Back arrival none. Goldens byte-identical, lint and typecheck clean.

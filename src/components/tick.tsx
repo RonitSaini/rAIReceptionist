@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties } from "react";
-import { INTERACTION, prefersReducedMotion } from "@/lib/motion";
+import { INTERACTION, prefersReducedMotion, scaled } from "@/lib/motion";
 import { cx } from "@/lib/cx";
 
 /**
@@ -23,7 +23,7 @@ export function Tick({ value, className }: { value: number | string; className?:
   }
   useEffect(() => {
     if (!old) return;
-    const t = setTimeout(() => setOld(null), INTERACTION.standard + 30);
+    const t = setTimeout(() => setOld(null), scaled(INTERACTION.standard) + 30);
     return () => clearTimeout(t);
   }, [old]);
 

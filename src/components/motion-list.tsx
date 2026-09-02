@@ -1,7 +1,7 @@
 "use client";
 
 import { Children, isValidElement, useEffect, useLayoutEffect, useRef, type HTMLAttributes, type ReactNode } from "react";
-import { INTERACTION, prefersReducedMotion } from "@/lib/motion";
+import { INTERACTION, prefersReducedMotion, scaled } from "@/lib/motion";
 import { cx } from "@/lib/cx";
 
 type Seen = { el: HTMLElement; x: number; y: number; at: number };
@@ -59,7 +59,8 @@ export function MotionList({ as: Tag = "ul", children, className, ...rest }: { a
         old.el.classList.add("row-exit");
         old.el.setAttribute("aria-hidden", "true");
         list.insertBefore(old.el, list.children[old.at] ?? null);
-        const ms = (old.el.dataset.urgent !== undefined ? INTERACTION.exit.fast : INTERACTION.exit.standard) + 30;
+        // Urgent rows leave at the clamped fast exit; everything else at the standard exit as the CSS is scaling it.
+        const ms = (old.el.dataset.urgent !== undefined ? INTERACTION.exit.fast : scaled(INTERACTION.exit.standard)) + 30;
         const t = window.setTimeout(() => {
           old.el.remove();
           leaving.current.delete(old.el);

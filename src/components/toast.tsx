@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { INTERACTION, prefersReducedMotion } from "@/lib/motion";
+import { INTERACTION, prefersReducedMotion, scaled } from "@/lib/motion";
 import { cx } from "@/lib/cx";
 import { DrawIcon } from "@/components/draw-icon";
 
@@ -29,7 +29,7 @@ export function Toast({ children, hold = INTERACTION.toastHold, onDone }: { chil
         setGone(true);
         onDone?.();
       },
-      prefersReducedMotion() ? 0 : INTERACTION.exit.standard,
+      prefersReducedMotion() ? 0 : scaled(INTERACTION.exit.standard),
     );
     return () => clearTimeout(t);
   }, [leaving, onDone]);
