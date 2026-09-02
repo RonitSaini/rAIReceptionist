@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { US_STATES } from "@/lib/constants";
 import { CA_PROVINCES, type Country } from "@/lib/locale";
 import { Input, Select } from "@/components/ui";
+import { Presence } from "@/components/presence";
 
 type Suggestion = { placeId: string; main: string; secondary: string; text: string };
 type Address = { addressLine1: string; addressLine2: string; city: string; state: string; zip: string; lat: number; lng: number };
@@ -125,8 +126,9 @@ export function AddressFields({ initial, country, legend = "Business address" }:
           aria-controls={listId}
           role="combobox"
         />
-        {open ? (
-          <ul id={listId} role="listbox" className="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-gray-200 bg-surface shadow-lg">
+        <Presence show={open}>
+          {(state) => (
+          <ul id={listId} role="listbox" className={`absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-gray-200 bg-surface shadow-lg ${state === "open" ? "menu-in" : "menu-out"}`}>
             {items.map((s, i) => (
               <li
                 key={s.placeId}
@@ -135,7 +137,7 @@ export function AddressFields({ initial, country, legend = "Business address" }:
                 onMouseDown={(e) => e.preventDefault() /* keep focus on the input */}
                 onClick={() => void choose(s)}
                 onMouseEnter={() => setActive(i)}
-                className={`cursor-pointer px-3 py-2 text-sm ${i === active ? "bg-brand-50 text-brand-800" : "text-ink hover:bg-gray-50"}`}
+                className={`press-soft cursor-pointer px-3 py-2 text-sm ${i === active ? "bg-brand-50 text-brand-800" : "text-ink hover:bg-gray-50"}`}
               >
                 <span className="block font-semibold">{s.main}</span>
                 <span className="block text-xs text-gray-500">{s.secondary}</span>
@@ -145,7 +147,8 @@ export function AddressFields({ initial, country, legend = "Business address" }:
               Suggestions by Google
             </li>
           </ul>
-        ) : null}
+          )}
+        </Presence>
       </div>
       <Input name="addressLine2" value={v.addressLine2} onChange={(e) => set({ addressLine2: e.target.value }, true)} placeholder="Suite, floor (optional)" autoComplete="address-line2" aria-label="Address line 2" />
       <div className="grid grid-cols-6 gap-2">

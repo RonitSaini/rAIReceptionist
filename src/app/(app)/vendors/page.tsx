@@ -4,6 +4,7 @@ import { formatUsPhone } from "@/lib/form";
 import { deleteVendor, saveVendor } from "@/actions/property";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { Reveal } from "@/components/reveal";
+import { MotionList } from "@/components/motion-list";
 
 export const metadata = { title: "Vendors" };
 
@@ -29,7 +30,7 @@ export default async function VendorsPage() {
           <input name="name" placeholder="Ridgeway Plumbing" required className="rounded-xl border border-gray-300 bg-surface px-3 py-2 text-sm" />
           <input name="trade" placeholder="Plumbing" className="rounded-xl border border-gray-300 bg-surface px-3 py-2 text-sm" />
           <input name="phone" type="tel" placeholder="(555) 123-4567" className="rounded-xl border border-gray-300 bg-surface px-3 py-2 text-sm" />
-          <button type="submit" className="rounded-xl bg-brand-600 px-3 py-2 text-sm font-semibold text-white">
+          <button type="submit" className="press rounded-xl bg-brand-600 px-3 py-2 text-sm font-semibold text-white">
             Add
           </button>
         </form>
@@ -38,7 +39,7 @@ export default async function VendorsPage() {
       {vendors.length === 0 ? (
         <EmptyState title="No vendors yet" body="Add the trades you call most. They show up as options on a work order." />
       ) : (
-        <ul className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
+        <MotionList className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
           {vendors.map((v, i) => (
             <Reveal as="li" index={i} key={v.id} className="flex items-start justify-between gap-3 rounded-2xl border border-gray-200 bg-surface p-4">
               <div className="min-w-0">
@@ -50,13 +51,13 @@ export default async function VendorsPage() {
               </div>
               <form action={deleteVendor}>
                 <input type="hidden" name="id" value={v.id} />
-                <button type="submit" className="shrink-0 text-xs font-semibold text-red-600">
+                <button type="submit" className="press-soft shrink-0 text-xs font-semibold text-red-600">
                   Remove
                 </button>
               </form>
             </Reveal>
           ))}
-        </ul>
+        </MotionList>
       )}
     </div>
   );

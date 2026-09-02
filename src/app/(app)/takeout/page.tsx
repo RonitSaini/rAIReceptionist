@@ -10,6 +10,7 @@ import { setTakeoutStatus } from "@/actions/takeout";
 import { Badge, EmptyState, LinkButton, PageHeader, takeoutTone } from "@/components/ui";
 import { StatusButtons, TAKEOUT_TRANSITIONS } from "@/components/status-buttons";
 import { Reveal } from "@/components/reveal";
+import { SegmentedLinks } from "@/components/segmented-links";
 
 export const metadata = { title: "Takeout orders" };
 
@@ -27,11 +28,7 @@ export default async function TakeoutPage({ searchParams }: { searchParams: Prom
     take: 100,
   });
 
-  const chip = (value: string, label: string) => (
-    <Link key={value} href={`/takeout?status=${value}`} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${filter === value ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 bg-surface text-gray-700"}`}>
-      {label}
-    </Link>
-  );
+  const chip = (value: string, label: string) => ({ key: value, href: `/takeout?status=${value}`, label, active: filter === value });
 
   return (
     <div className="space-y-4">
@@ -43,11 +40,7 @@ export default async function TakeoutPage({ searchParams }: { searchParams: Prom
           </LinkButton>
         }
       />
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-        {chip("open", "Open")}
-        {TAKEOUT_STATUSES.map((s) => chip(s, humanize(s)))}
-        {chip("all", "All")}
-      </div>
+      <SegmentedLinks fill="soft" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" itemClass="shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold" activeClass="border-brand-600 bg-brand-50 text-brand-800" inactiveClass="border-gray-300 bg-surface text-gray-700" items={[chip("open", "Open"), ...TAKEOUT_STATUSES.map((s) => chip(s, humanize(s))), chip("all", "All")]} />
 
       {orders.length === 0 ? (
         <EmptyState title="No orders" body={filter === "open" ? "New takeout and delivery orders will show up here." : undefined} />

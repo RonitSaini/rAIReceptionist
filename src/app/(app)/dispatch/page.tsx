@@ -10,6 +10,7 @@ import { setJobStatus } from "@/actions/field-service";
 import { Badge, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { StatusButtons } from "@/components/status-buttons";
 import { Reveal } from "@/components/reveal";
+import { MotionList } from "@/components/motion-list";
 import { JOB_STATUS_TONE, JOB_TRANSITIONS } from "@/lib/jobs-ui";
 
 export const metadata = { title: "Dispatch" };
@@ -70,14 +71,18 @@ export default async function DispatchPage() {
       {jobs.length === 0 ? (
         <EmptyState title="Nothing in the queue" body={`New ${words.booking.many} arrive here the moment ${account.hostName} takes them, oldest first.`} />
       ) : (
-        <ul className="space-y-3">
+        <MotionList className="space-y-3">
           {jobs.map((job, i) => {
             const mins = waited(job.createdAt);
             // Over the acknowledgement window and still nobody has touched it: say so loudly.
             const stale = job.status === "requested" && mins >= 5;
             const unreachable = notNotified.get(job.id);
+            // An urgent row (stale, unreachable, emergency) takes only the quiet end of the motion ladder:
+            // it arrives instantly, its badge crossfades fast, and it leaves fast — nothing soft on top
+            // of what its colour already says.
+            const urgent = unreachable !== undefined || stale || job.isEmergency;
             return (
-              <Reveal as="li" index={i} key={job.id} className={`rounded-2xl border bg-surface p-4 ${unreachable !== undefined ? "border-red-500 bg-red-50/40" : stale ? "border-red-300" : "border-gray-200"}`}>
+              <Reveal as="li" index={i} key={job.id} data-urgent={urgent ? "true" : undefined} className={`rounded-2xl border bg-surface p-4 ${unreachable !== undefined ? "border-red-500 bg-red-50/40" : stale ? "border-red-300" : "border-gray-200"}`}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <Link href={`/jobs/${job.id}`} className="block font-semibold">
@@ -109,7 +114,7 @@ export default async function DispatchPage() {
               </Reveal>
             );
           })}
-        </ul>
+        </MotionList>
       )}
     </div>
   );

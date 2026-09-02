@@ -8,6 +8,8 @@ import { humanize } from "@/lib/constants";
 import { vocabularyFor } from "@/verticals";
 import { Badge, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { Reveal } from "@/components/reveal";
+import { SegmentedLinks } from "@/components/segmented-links";
+import { MotionList } from "@/components/motion-list";
 import { JOB_STATUS_TONE, JOB_STATUS_ORDER } from "@/lib/jobs-ui";
 import { getGoogleCalendarStatus } from "@/lib/google-calendar-view";
 import { calendarBlurbFor, calendarSettingsHref } from "@/lib/calendar-sync-ui";
@@ -47,27 +49,28 @@ export default async function WorkOrdersPage({ searchParams }: { searchParams: P
     <div className="space-y-4">
       <PageHeader title={words.booking.Many} subtitle={`${jobs.length} shown`} action={<LinkButton href="/jobs/new" size="sm">+ {words.booking.One}</LinkButton>} />
 
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-        <Link href="/work-orders" className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${!active ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 bg-surface text-gray-700"}`}>
-          All
-        </Link>
-        {JOB_STATUS_ORDER.map((s) => (
-          <Link key={s} href={`/work-orders?status=${s}`} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${active === s ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 bg-surface text-gray-700"}`}>
-            {humanize(s)} · {countFor(s)}
-          </Link>
-        ))}
-      </div>
+      <SegmentedLinks
+        fill="soft"
+        className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1"
+        itemClass="shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold"
+        activeClass="border-brand-600 bg-brand-50 text-brand-800"
+        inactiveClass="border-gray-300 bg-surface text-gray-700"
+        items={[
+          { key: "all", href: "/work-orders", label: "All", active: !active },
+          ...JOB_STATUS_ORDER.map((s) => ({ key: s, href: `/work-orders?status=${s}`, label: `${humanize(s)} · ${countFor(s)}`, active: active === s })),
+        ]}
+      />
 
       {jobs.length === 0 ? (
         <EmptyState title={`No ${words.booking.many}`} body={`Anything ${account.hostName} takes on the phone arrives here.`} />
       ) : (
-        <ul className="space-y-3">
+        <MotionList className="space-y-3">
           {jobs.map((job, i) => {
             const details = (job.details ?? {}) as Record<string, unknown>;
             const unverified = details.unverified === true;
             const category = typeof details.category === "string" ? details.category : null;
             return (
-              <Reveal as="li" index={i} key={job.id} className={`rounded-2xl border bg-surface p-4 ${job.isEmergency ? "border-red-300" : "border-gray-200"}`}>
+              <Reveal as="li" index={i} key={job.id} data-urgent={job.isEmergency ? "true" : undefined} className={`rounded-2xl border bg-surface p-4 ${job.isEmergency ? "border-red-300" : "border-gray-200"}`}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <Link href={`/jobs/${job.id}`} className="block font-semibold">
@@ -91,7 +94,7 @@ export default async function WorkOrdersPage({ searchParams }: { searchParams: P
               </Reveal>
             );
           })}
-        </ul>
+        </MotionList>
       )}
 
       <CalendarSyncPrompt

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { Account } from "@prisma/client";
 import { requireAccount } from "@/lib/current-account";
 import { prisma } from "@/lib/prisma";
@@ -19,6 +18,7 @@ import { InvoicesCard } from "@/components/billing-invoices";
 import { AccountActions } from "@/components/account-actions";
 import { ChangeEmailForm, ChangePasswordForm } from "@/components/forms/account-credentials";
 import { Reveal } from "@/components/reveal";
+import { SegmentedLinks } from "@/components/segmented-links";
 import { getGoogleCalendarView } from "@/lib/google-calendar-view";
 import { calendarBlurbFor } from "@/lib/calendar-sync-ui";
 import { verticalFor } from "@/verticals";
@@ -93,13 +93,13 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
     <div className="space-y-4">
       <PageHeader title="Settings" subtitle={`Everything your AI host knows about your ${definition.vocabulary.business.one}.`} />
 
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-        {TABS.map((t) => (
-          <Link key={t.key} href={`/settings?tab=${t.key}`} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${tab === t.key ? "border-brand-600 bg-brand-600 text-white" : "border-gray-300 bg-surface text-gray-700"}`}>
-            {t.label}
-          </Link>
-        ))}
-      </div>
+      <SegmentedLinks
+        className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1"
+        itemClass="shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold"
+        activeClass="border-brand-600 bg-brand-600 text-white"
+        inactiveClass="border-gray-300 bg-surface text-gray-700"
+        items={TABS.map((t) => ({ key: t.key, href: `/settings?tab=${t.key}`, label: t.label, active: tab === t.key }))}
+      />
 
       <Reveal key={tab} className={tab === "voice" ? "mx-auto max-w-6xl" : "mx-auto max-w-2xl 2xl:max-w-3xl"}>
         {tab === "business" ? (

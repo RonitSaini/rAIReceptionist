@@ -8,6 +8,7 @@ import { humanize } from "@/lib/constants";
 import { verticalFor, vocabularyFor } from "@/verticals";
 import { Badge, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { Reveal } from "@/components/reveal";
+import { SegmentedLinks } from "@/components/segmented-links";
 import { JOB_STATUS_TONE, JOB_STATUS_ORDER } from "@/lib/jobs-ui";
 import { getGoogleCalendarStatus } from "@/lib/google-calendar-view";
 import { calendarBlurbFor, calendarSettingsHref } from "@/lib/calendar-sync-ui";
@@ -50,16 +51,27 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
         }
       />
 
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Filters">
-        <Link href="/jobs" className={`rounded-full border px-3 py-1.5 text-sm font-semibold ${!active ? "border-brand-600 bg-brand-600 text-white" : "border-gray-300 bg-surface text-gray-700"}`}>
-          All
-        </Link>
-        {JOB_STATUS_ORDER.map((s) => (
-          <Link key={s} href={`/jobs?status=${s}`} className={`rounded-full border px-3 py-1.5 text-sm font-semibold ${active === s ? "border-brand-600 bg-brand-600 text-white" : "border-gray-300 bg-surface text-gray-700"}`}>
-            {humanize(s)} <span className="text-xs opacity-70">{countFor(s)}</span>
-          </Link>
-        ))}
-      </div>
+      <SegmentedLinks
+        role="group"
+        aria-label="Filters"
+        className="flex flex-wrap gap-2"
+        itemClass="rounded-full border px-3 py-1.5 text-sm font-semibold"
+        activeClass="border-brand-600 bg-brand-600 text-white"
+        inactiveClass="border-gray-300 bg-surface text-gray-700"
+        items={[
+          { key: "all", href: "/jobs", label: "All", active: !active },
+          ...JOB_STATUS_ORDER.map((s) => ({
+            key: s,
+            href: `/jobs?status=${s}`,
+            label: (
+              <>
+                {humanize(s)} <span className="text-xs opacity-70">{countFor(s)}</span>
+              </>
+            ),
+            active: active === s,
+          })),
+        ]}
+      />
 
       {jobs.length === 0 ? (
         <EmptyState title={`No ${words.booking.many}${active ? ` with status ${humanize(active)}` : ""}`} action={<LinkButton href="/jobs/new">Add one</LinkButton>} />

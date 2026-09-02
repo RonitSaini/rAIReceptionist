@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import type { ActionState } from "@/lib/form";
 import { SEATING_PREFERENCES } from "@/lib/constants";
 import { Field, Input, Select, Textarea, Toggle } from "@/components/ui";
+import { cx } from "@/lib/cx";
 import { FormFooter } from "@/components/form-footer";
 import { ActionForm } from "@/components/action-form";
 
@@ -75,8 +76,10 @@ export function ReservationForm({ action, initial, largePartyThreshold }: { acti
       {partySize > largePartyThreshold ? <p className="text-sm font-semibold text-amber-700">Party of {partySize} is above your large-party threshold ({largePartyThreshold}). The AI would escalate this to a manager; you can still book it manually.</p> : null}
 
       <Field label="Time" htmlFor="time" hint={loading ? "Checking availability…" : availability?.closed ? "You're closed that day. You can still enter a time manually." : "Full slots are marked; you can still override manually."}>
-        {slots.length > 0 ? (
-          <Select id="time" name="time" value={timeInList ? time : "__custom"} onChange={(e) => setTime(e.target.value === "__custom" ? "" : e.target.value)} required>
+        {/* While the slots are fetched a control-shaped skeleton holds the space; what lands fades in, never pops. */}
+        {loading ? <div className="skeleton h-12 w-full rounded-xl" aria-hidden="true" /> : null}
+        {!loading && slots.length > 0 ? (
+          <Select id="time" name="time" className="content-in" value={timeInList ? time : "__custom"} onChange={(e) => setTime(e.target.value === "__custom" ? "" : e.target.value)} required>
             {slots.map((s) => (
               <option key={s.time} value={s.time}>
                 {s.label}
@@ -87,7 +90,7 @@ export function ReservationForm({ action, initial, largePartyThreshold }: { acti
             <option value="__custom">Other time…</option>
           </Select>
         ) : null}
-        {slots.length === 0 || !timeInList ? <Input id="time-custom" name={slots.length === 0 || !timeInList ? "time" : "time-ignored"} type="time" value={time} onChange={(e) => setTime(e.target.value)} className="mt-2" required /> : null}
+        {!loading && (slots.length === 0 || !timeInList) ? <Input id="time-custom" name={slots.length === 0 || !timeInList ? "time" : "time-ignored"} type="time" value={time} onChange={(e) => setTime(e.target.value)} className={cx("mt-2", slots.length === 0 && "content-in")} required /> : null}
       </Field>
       {selectedSlot && !selectedSlot.available && selectedSlot.reason !== "past" ? <p className="text-sm font-semibold text-amber-700">That slot is full for a party of {partySize}. Booking anyway will exceed your limits.</p> : null}
 

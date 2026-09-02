@@ -9,6 +9,8 @@ import { FormFooter, type FormMode } from "@/components/form-footer";
 import { DeliveryRadiusMap, deliveryMapAvailable } from "@/components/forms/delivery-radius-map";
 import { accountCountry, displayDistance, postalLabel, toMiles, unitWord } from "@/lib/locale";
 import { ActionForm } from "@/components/action-form";
+import { Disclosure } from "@/components/disclosure";
+import { MotionList } from "@/components/motion-list";
 
 type Row = Omit<MenuItemView, "id" | "price"> & { key: number; price: string };
 
@@ -42,9 +44,10 @@ export function MenuPoliciesForm({ account, menu, mode, backHref }: { account: A
     <ActionForm action={action} className="space-y-6">
       <input type="hidden" name="menu" value={menuJson} />
 
-      <section className="space-y-3">
-        <h2 className="text-base font-bold">Menu</h2>
-        <p className="text-sm text-gray-500">The AI only ever mentions items listed here. It never invents an item or a price.</p>
+      {/* The section is a MotionList so a removed item leaves and the rows below (and the add button) slide up. */}
+      <MotionList as="section" className="space-y-3">
+        <h2 key="title" className="text-base font-bold">Menu</h2>
+        <p key="lede" className="text-sm text-gray-500">The AI only ever mentions items listed here. It never invents an item or a price.</p>
         {rows.map((r) => (
           <div key={r.key} className="rounded-2xl border border-gray-200 bg-surface p-3">
             <div className="grid grid-cols-12 gap-2">
@@ -55,7 +58,7 @@ export function MenuPoliciesForm({ account, menu, mode, backHref }: { account: A
               </div>
             </div>
             <div className="mt-2 flex items-center justify-between">
-              <button type="button" onClick={() => setExpanded(expanded === r.key ? null : r.key)} className="text-sm font-semibold text-brand-700">
+              <button type="button" onClick={() => setExpanded(expanded === r.key ? null : r.key)} aria-expanded={expanded === r.key} className="press-soft text-sm font-semibold text-brand-700">
                 {expanded === r.key ? "Hide details" : "Category, description, dietary tags"}
               </button>
               <div className="flex items-center gap-3">
@@ -63,12 +66,12 @@ export function MenuPoliciesForm({ account, menu, mode, backHref }: { account: A
                   <input type="checkbox" checked={r.enabled} onChange={(e) => update(r.key, { enabled: e.target.checked })} className="h-4 w-4 accent-brand-600" />
                   Available
                 </label>
-                <button type="button" onClick={() => setRows((prev) => prev.filter((x) => x.key !== r.key))} className="text-sm font-semibold text-red-600" aria-label="Remove item">
+                <button type="button" onClick={() => setRows((prev) => prev.filter((x) => x.key !== r.key))} className="press-soft text-sm font-semibold text-red-600" aria-label="Remove item">
                   Remove
                 </button>
               </div>
             </div>
-            {expanded === r.key ? (
+            <Disclosure open={expanded === r.key}>
               <div className="mt-3 space-y-3 border-t border-gray-100 pt-3">
                 <div className="grid grid-cols-2 gap-2">
                   <input aria-label="Category" list="menu-categories" value={r.category} onChange={(e) => update(r.key, { category: e.target.value })} placeholder="Category" className={`${inputClass} min-h-11`} />
@@ -83,20 +86,20 @@ export function MenuPoliciesForm({ account, menu, mode, backHref }: { account: A
                   {DIETARY_TAGS.map((t) => {
                     const on = r.dietaryTags.includes(t);
                     return (
-                      <button key={t} type="button" onClick={() => toggleTag(r.key, t)} className={`rounded-full border px-3 py-1.5 text-sm ${on ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 text-gray-600"}`}>
+                      <button key={t} type="button" onClick={() => toggleTag(r.key, t)} aria-pressed={on} className={`press-soft rounded-full border px-3 py-1.5 text-sm ${on ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 text-gray-600"}`}>
                         {t}
                       </button>
                     );
                   })}
                 </div>
               </div>
-            ) : null}
+            </Disclosure>
           </div>
         ))}
-        <Button type="button" variant="secondary" full onClick={() => setRows((prev) => [...prev, newRow()])}>
+        <Button key="add" type="button" variant="secondary" full onClick={() => setRows((prev) => [...prev, newRow()])}>
           + Add menu item
         </Button>
-      </section>
+      </MotionList>
 
       <section className="space-y-3">
         <h2 className="text-base font-bold">Policies</h2>

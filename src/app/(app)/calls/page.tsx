@@ -9,6 +9,7 @@ import { classificationLabel } from "@/lib/constants";
 import { verticalFor, vocabularyFor } from "@/verticals";
 import { Badge, EmptyState, PageHeader, StatusDot, classificationTone } from "@/components/ui";
 import { Reveal } from "@/components/reveal";
+import { SegmentedLinks } from "@/components/segmented-links";
 
 export const metadata = { title: "Calls" };
 
@@ -35,16 +36,14 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
     <div className="space-y-4">
       <PageHeader title="Calls" subtitle={account.twilioNumber ? `${account.hostName} is answering ${formatUsPhone(account.twilioNumber)}` : "Your AI host's call history"} />
 
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-        <Link href="/calls" className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${!filter ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 bg-surface text-gray-700"}`}>
-          All
-        </Link>
-        {choices.map((c) => (
-          <Link key={c} href={`/calls?type=${c}`} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${filter === c ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 bg-surface text-gray-700"}`}>
-            {label(c)}
-          </Link>
-        ))}
-      </div>
+      <SegmentedLinks
+        fill="soft"
+        className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1"
+        itemClass="shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold"
+        activeClass="border-brand-600 bg-brand-50 text-brand-800"
+        inactiveClass="border-gray-300 bg-surface text-gray-700"
+        items={[{ key: "all", href: "/calls", label: "All", active: !filter }, ...choices.map((c) => ({ key: c, href: `/calls?type=${c}`, label: label(c), active: filter === c }))]}
+      />
 
       {calls.length === 0 ? (
         <EmptyState

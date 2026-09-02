@@ -5,6 +5,7 @@ import { signOut } from "next-auth/react";
 import { deleteAccount } from "@/actions/account";
 import { Alert, Button, Input } from "@/components/ui";
 import { SignOutButton } from "@/components/sign-out-button";
+import { Disclosure } from "@/components/disclosure";
 
 /** Log out + Delete account, side by side. Delete opens an inline confirmation that requires typing DELETE. */
 export function AccountActions({ businessName }: { businessName: string }) {
@@ -20,12 +21,12 @@ export function AccountActions({ businessName }: { businessName: string }) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
         <SignOutButton className="font-semibold text-gray-700 hover:text-ink" />
-        <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="font-semibold text-red-600 hover:text-red-700">
+        <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="press-soft font-semibold text-red-600 hover:text-red-700">
           Delete account
         </button>
       </div>
 
-      {open ? (
+      <Disclosure open={open}>
         <form action={action} className="rounded-xl border border-red-200 bg-red-50/60 p-4 dark:bg-red-950/20">
           <p className="font-semibold text-red-800 dark:text-red-300">This permanently deletes {businessName}.</p>
           <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-red-800/90 dark:text-red-200/90">
@@ -51,7 +52,7 @@ export function AccountActions({ businessName }: { businessName: string }) {
             </Button>
           </div>
         </form>
-      ) : null}
+      </Disclosure>
     </div>
   );
 }

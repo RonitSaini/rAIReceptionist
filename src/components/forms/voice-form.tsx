@@ -9,6 +9,7 @@ import { Button, Field, Input, Textarea, inputClass } from "@/components/ui";
 import { FormFooter, type FormMode } from "@/components/form-footer";
 import { WebTestCall } from "@/components/web-test-call";
 import { ActionForm } from "@/components/action-form";
+import { Disclosure } from "@/components/disclosure";
 
 type VoiceSample = { id: string; name: string; available: boolean; previewUrl: string | null };
 type VoiceOption = { id: string; name: string; provider: string; gender: string | null; accent: string | null; age: string | null; recommended: boolean; previewUrl: string | null };
@@ -122,7 +123,7 @@ export function VoiceForm({ account, mode, backHref }: { account: AccountView; m
             const playable = sample?.previewUrl ? true : canSpeak;
             return (
               <div key={v.id} className={`flex items-center justify-between gap-3 rounded-2xl border-2 p-4 ${selected ? "border-brand-500 bg-brand-50" : "border-gray-200 bg-surface"}`}>
-                <button type="button" onClick={() => setVoiceId(v.id)} className="flex-1 text-left">
+                <button type="button" onClick={() => setVoiceId(v.id)} className="press-soft flex-1 text-left">
                   <span className="block font-semibold">{v.name}</span>
                   <span className="block text-sm text-gray-500">{v.description}</span>
                   {sample && !sample.available ? <span className="block text-xs text-amber-700">Not available on your Retell account — a similar voice will be used.</span> : null}
@@ -148,16 +149,16 @@ export function VoiceForm({ account, mode, backHref }: { account: AccountView; m
         </p>
 
         {all.length > 0 ? (
-          <div className="rounded-2xl border border-gray-200 bg-surface">
-            <button type="button" onClick={() => setBrowse((b) => !b)} className="flex min-h-12 w-full items-center justify-between px-4 text-left font-semibold">
+          <div className="content-in rounded-2xl border border-gray-200 bg-surface">
+            <button type="button" onClick={() => setBrowse((b) => !b)} aria-expanded={browse} className="press-soft flex min-h-12 w-full items-center justify-between px-4 text-left font-semibold">
               <span>Browse all {all.length} voices</span>
               <span aria-hidden="true">{browse ? "▴" : "▾"}</span>
             </button>
-            {browse ? (
+            <Disclosure open={browse}>
               <div className="border-t border-gray-100 p-3">
                 <div className="mb-3 flex flex-wrap gap-2">
                   {(["", "female", "male"] as const).map((g) => (
-                    <button key={g || "all"} type="button" onClick={() => setFilter((f) => ({ ...f, gender: g }))} className={`rounded-full border px-3 py-1.5 text-sm font-semibold ${filter.gender === g ? "border-brand-500 bg-brand-50 text-brand-800" : "border-gray-300 text-gray-700"}`}>
+                    <button key={g || "all"} type="button" onClick={() => setFilter((f) => ({ ...f, gender: g }))} aria-pressed={filter.gender === g} className={`press-soft rounded-full border px-3 py-1.5 text-sm font-semibold ${filter.gender === g ? "border-brand-500 bg-brand-50 text-brand-800" : "border-gray-300 text-gray-700"}`}>
                       {g === "" ? "All" : g === "female" ? "Female" : "Male"}
                     </button>
                   ))}
@@ -169,7 +170,7 @@ export function VoiceForm({ account, mode, backHref }: { account: AccountView; m
                     const selected = v.id === voiceId;
                     return (
                       <li key={v.id} className={`flex items-center justify-between gap-2 py-2 ${selected ? "bg-brand-50" : ""}`}>
-                        <button type="button" onClick={() => setVoiceId(v.id)} className="min-w-0 flex-1 px-2 text-left">
+                        <button type="button" onClick={() => setVoiceId(v.id)} className="press-soft min-w-0 flex-1 px-2 text-left">
                           <span className="block text-sm font-semibold">
                             {v.recommended ? "★ " : ""}
                             {v.name}
@@ -193,7 +194,7 @@ export function VoiceForm({ account, mode, backHref }: { account: AccountView; m
                   {filtered.length === 0 ? <li className="py-4 text-center text-sm text-gray-500">No voices match.</li> : null}
                 </ul>
               </div>
-            ) : null}
+            </Disclosure>
           </div>
         ) : null}
       </section>

@@ -7,6 +7,7 @@ import type { ServiceOfferingView } from "@/lib/serialize";
 import { Button, Field, Input, Toggle } from "@/components/ui";
 import { FormFooter, type FormMode } from "@/components/form-footer";
 import { ActionForm } from "@/components/action-form";
+import { MotionList } from "@/components/motion-list";
 
 type Row = { key: number; id?: string; name: string; category: string; priceFrom: string; canQuote: boolean; enabled: boolean };
 
@@ -51,7 +52,7 @@ export function ServicesForm({ account, services, mode, backHref }: { account: A
 
       <section className="space-y-3">
         <p className="text-sm font-semibold text-gray-800">Services</p>
-        <ul className="space-y-2">
+        <MotionList className="space-y-2">
           {rows.map((r) => (
             <li key={r.key} className="rounded-xl border border-gray-200 bg-surface p-3">
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-12">
@@ -67,13 +68,13 @@ export function ServicesForm({ account, services, mode, backHref }: { account: A
                   <input type="checkbox" checked={r.enabled} onChange={(e) => update(r.key, { enabled: e.target.checked })} className="h-4 w-4" />
                   Offered
                 </label>
-                <button type="button" onClick={() => setRows((prev) => (prev.length > 1 ? prev.filter((x) => x.key !== r.key) : prev))} className="text-xs font-semibold text-red-600">
+                <button type="button" onClick={() => setRows((prev) => (prev.length > 1 ? prev.filter((x) => x.key !== r.key) : prev))} className="press-soft text-xs font-semibold text-red-600">
                   Remove
                 </button>
               </div>
             </li>
           ))}
-        </ul>
+        </MotionList>
         <Button type="button" variant="secondary" size="sm" onClick={() => setRows((prev) => [...prev, newRow()])}>
           + Add a service
         </Button>

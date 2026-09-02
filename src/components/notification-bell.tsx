@@ -9,6 +9,8 @@ import { timeAgo } from "@/lib/time";
 import { markAllNotificationsRead, markNotificationRead, openNotification } from "@/actions/notifications";
 import { DrawIcon } from "@/components/draw-icon";
 import { StatusDot } from "@/components/ui";
+import { Tick } from "@/components/tick";
+import { MotionList } from "@/components/motion-list";
 
 /**
  * Bell + unread badge + popover. Polls on an interval and refreshes on navigation — no realtime/push
@@ -137,17 +139,24 @@ export function NotificationBell({ initialCount, initialItems }: { initialCount:
         <BellIcon ringKey={ringKey} />
         {count > 0 ? (
           <span key={`badge-${ringKey}`} className={`absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-[11px] font-bold text-white ${ringKey ? "badge-pop" : ""}`}>
-            {count > 99 ? "99+" : count}
+            {/* The container pops on arrival (as before); the digits themselves tick, never snap. */}
+            <Tick value={count > 99 ? "99+" : count} />
           </span>
         ) : null}
       </button>
 
-      <div ref={panelRef} id={panelId} popover="auto" onBeforeToggle={onBeforeToggle} onToggle={onToggle} className="notif-panel slide-in" aria-label="Notifications">
+      <div ref={panelRef} id={panelId} popover="auto" onBeforeToggle={onBeforeToggle} onToggle={onToggle} className="notif-panel" aria-label="Notifications">
         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-200 px-4 pt-3">
           <div className="relative flex">
             {(["all", "unread"] as const).map((t) => (
-              <button key={t} type="button" onClick={() => setTab(t)} aria-pressed={tab === t} className={`w-24 pb-2.5 text-sm font-semibold transition-colors ${tab === t ? "text-ink" : "text-gray-500 hover:text-ink"}`}>
-                {t === "all" ? "All" : `Unread · ${count}`}
+              <button key={t} type="button" onClick={() => setTab(t)} aria-pressed={tab === t} className={`press-soft w-24 pb-2.5 text-sm font-semibold ${tab === t ? "text-ink" : "text-gray-500 hover:text-ink"}`}>
+                {t === "all" ? (
+                  "All"
+                ) : (
+                  <>
+                    Unread · <Tick value={count} />
+                  </>
+                )}
               </button>
             ))}
             {/* Equal-width tabs, so the indicator only translates. */}
@@ -155,7 +164,7 @@ export function NotificationBell({ initialCount, initialItems }: { initialCount:
           </div>
           {count > 0 ? (
             <form action={markAll}>
-              <button type="submit" className="pb-2.5 text-xs font-semibold text-brand-700 transition-colors hover:text-brand-800">
+              <button type="submit" className="press-soft pb-2.5 text-xs font-semibold text-brand-700 hover:text-brand-800">
                 Mark all read
               </button>
             </form>
@@ -166,17 +175,17 @@ export function NotificationBell({ initialCount, initialItems }: { initialCount:
           {shown.length === 0 ? (
             <p className={`px-4 py-8 text-center text-sm ${tab === "unread" ? "text-green-700" : "text-gray-500"}`}>{tab === "unread" ? "You're all caught up." : "Nothing here yet."}</p>
           ) : (
-            <ul>
+            <MotionList>
               {shown.map((n) => {
                 const unread = !n.readAt;
                 const urgent = n.priority === "urgent";
                 return (
-                  <li key={n.id} className={`group flex gap-3 border-b border-gray-100 px-4 py-3 transition-colors last:border-0 hover:bg-gray-50 ${unread ? "bg-brand-50/40" : ""}`}>
+                  <li key={n.id} data-urgent={urgent ? "true" : undefined} className={`group flex gap-3 border-b border-gray-100 px-4 py-3 transition-colors last:border-0 hover:bg-gray-50 ${unread ? "bg-brand-50/40" : ""}`}>
                     <DrawIcon name={NOTIFICATION_TYPE_ICON[n.type]} size={18} draw={false} className={`mt-0.5 shrink-0 ${urgent ? "text-red-600" : "text-gray-400"}`} />
                     {/* Opening marks it read → POST via server action, never a prefetchable GET. */}
                     <form action={openNotification} onSubmit={close} className="min-w-0 flex-1">
                       <input type="hidden" name="id" value={n.id} />
-                      <button type="submit" className="block w-full text-left">
+                      <button type="submit" className="press-soft block w-full text-left">
                       <span className="flex items-center gap-2">
                         <span className={`truncate text-sm ${unread ? "font-bold" : "font-semibold"}`}>{n.title}</span>
                         {unread ? <StatusDot className="text-brand-500" label="Unread" /> : null}
@@ -191,7 +200,7 @@ export function NotificationBell({ initialCount, initialItems }: { initialCount:
                     {unread ? (
                       <form action={markRead} className="shrink-0 self-center">
                         <input type="hidden" name="id" value={n.id} />
-                        <button type="submit" className="text-xs font-semibold text-brand-700 transition-opacity md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100">
+                        <button type="submit" className="press-soft text-xs font-semibold text-brand-700 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100">
                           Mark read
                         </button>
                       </form>
@@ -199,11 +208,11 @@ export function NotificationBell({ initialCount, initialItems }: { initialCount:
                   </li>
                 );
               })}
-            </ul>
+            </MotionList>
           )}
         </div>
 
-        <Link href="/notifications" onClick={close} className="block shrink-0 border-t border-gray-200 py-2.5 text-center text-sm font-semibold text-brand-700 transition-colors hover:bg-gray-50">
+        <Link href="/notifications" onClick={close} className="press-soft block shrink-0 border-t border-gray-200 py-2.5 text-center text-sm font-semibold text-brand-700 hover:bg-gray-50">
           View all notifications
         </Link>
       </div>

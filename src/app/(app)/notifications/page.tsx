@@ -8,6 +8,7 @@ import { verticalFor, vocabularyFor } from "@/verticals";
 import { markAllNotificationsRead } from "@/actions/notifications";
 import { Button, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { NotificationList } from "@/components/notification-list";
+import { SegmentedLinks } from "@/components/segmented-links";
 
 export const metadata = { title: "Notifications" };
 
@@ -43,9 +44,6 @@ export default async function NotificationsPage({ searchParams }: { searchParams
     const q = p.toString();
     return q ? `/notifications?${q}` : "/notifications";
   };
-
-  const chip = (active: boolean) => `shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${active ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 bg-surface text-gray-700"}`;
-
 
   // Explain an empty result in terms of the active filters, with one-click ways out.
   let empty: { title: string; body?: string; action?: React.ReactNode; tone?: "neutral" | "clear" };
@@ -95,20 +93,28 @@ export default async function NotificationsPage({ searchParams }: { searchParams
         }
       />
 
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label="Filters">
-        <Link href={filterHref(typeFilter, !unreadOnly)} aria-pressed={unreadOnly} className={`shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${unreadOnly ? "border-brand-600 bg-brand-600 text-white" : "border-gray-300 bg-surface text-gray-700"}`}>
-          Unread only · {unreadCount}
-          {unreadOnly ? <span aria-hidden="true"> ✕</span> : null}
-        </Link>
-        <Link href={filterHref(null, unreadOnly)} aria-pressed={!typeFilter} className={chip(!typeFilter)}>
-          All types
-        </Link>
-        {filterTypes.map((t) => (
-          <Link key={t} href={filterHref(t, unreadOnly)} aria-pressed={typeFilter === t} className={chip(typeFilter === t)}>
-            {labelFor(t)}
+      {/* "Unread only" is an independent toggle (colour swap); the type chips are one choice, so the
+          soft fill slides between them. */}
+      <SegmentedLinks
+        role="group"
+        aria-label="Filters"
+        fill="soft"
+        pressed
+        className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1"
+        itemClass="shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold"
+        activeClass="border-brand-600 bg-brand-50 text-brand-800"
+        inactiveClass="border-gray-300 bg-surface text-gray-700"
+        leading={
+          <Link href={filterHref(typeFilter, !unreadOnly)} aria-pressed={unreadOnly} className={`press-soft shrink-0 rounded-full border px-3 py-1.5 text-sm font-semibold ${unreadOnly ? "border-brand-600 bg-brand-600 text-white" : "border-gray-300 bg-surface text-gray-700"}`}>
+            Unread only · {unreadCount}
+            {unreadOnly ? <span aria-hidden="true"> ✕</span> : null}
           </Link>
-        ))}
-      </div>
+        }
+        items={[
+          { key: "all", href: filterHref(null, unreadOnly), label: "All types", active: !typeFilter },
+          ...filterTypes.map((t) => ({ key: t, href: filterHref(t, unreadOnly), label: labelFor(t), active: typeFilter === t })),
+        ]}
+      />
 
       {unreadOnly || typeFilter ? (
         <p className="text-xs text-gray-500">

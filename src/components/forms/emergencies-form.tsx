@@ -8,6 +8,11 @@ import { customEmergencyLabel, isCustomEmergency } from "@/lib/custom-emergencie
 import { Button, Checkbox, Field, Input } from "@/components/ui";
 import { FormFooter, type FormMode } from "@/components/form-footer";
 import { ActionForm } from "@/components/action-form";
+import { MotionList } from "@/components/motion-list";
+
+let seq = 0;
+/** Local row identity, so a removed emergency can leave (MotionList keys) — never an index. */
+const nextId = () => ++seq;
 
 /**
  * What counts as an emergency, who attends, and how much work fits in a day.
@@ -19,7 +24,7 @@ import { ActionForm } from "@/components/action-form";
  */
 export function EmergenciesForm({ account, emergencyTypes, defaultSlotMinutes, mode, backHref }: { account: AccountView; emergencyTypes: readonly ClassifiedReason[]; defaultSlotMinutes: number; mode: FormMode; backHref?: string }) {
   const [state, action, pending] = useActionState(saveEmergencies, null);
-  const [custom, setCustom] = useState<string[]>(() => account.emergencyTypes.filter(isCustomEmergency).map(customEmergencyLabel));
+  const [custom, setCustom] = useState<{ id: number; label: string }[]>(() => account.emergencyTypes.filter(isCustomEmergency).map((t) => ({ id: nextId(), label: customEmergencyLabel(t) })));
 
   return (
     <ActionForm action={action} className="space-y-5">
@@ -32,19 +37,19 @@ export function EmergenciesForm({ account, emergencyTypes, defaultSlotMinutes, m
       </Field>
 
       <Field label="Your own emergencies" hint="Anything else the AI should treat as an emergency, in your own words.">
-        <div className="space-y-2">
-          {custom.map((label, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <Input aria-label="Emergency description" name="customEmergencies" value={label} onChange={(e) => setCustom((prev) => prev.map((l, j) => (j === i ? e.target.value : l)))} maxLength={60} />
-              <button type="button" onClick={() => setCustom((prev) => prev.filter((_, j) => j !== i))} className="shrink-0 text-xs font-semibold text-red-600">
+        <MotionList as="div" className="space-y-2">
+          {custom.map(({ id, label }) => (
+            <div key={id} className="flex items-center gap-2">
+              <Input aria-label="Emergency description" name="customEmergencies" value={label} onChange={(e) => setCustom((prev) => prev.map((c) => (c.id === id ? { ...c, label: e.target.value } : c)))} maxLength={60} />
+              <button type="button" onClick={() => setCustom((prev) => prev.filter((c) => c.id !== id))} className="press-soft shrink-0 text-xs font-semibold text-red-600">
                 Remove
               </button>
             </div>
           ))}
-          <Button type="button" variant="secondary" size="sm" onClick={() => setCustom((prev) => [...prev, ""])}>
+          <Button key="add" type="button" variant="secondary" size="sm" onClick={() => setCustom((prev) => [...prev, { id: nextId(), label: "" }])}>
             + Add an emergency
           </Button>
-        </div>
+        </MotionList>
       </Field>
 
       <Field label="Who attends" htmlFor="technicianName" hint="Used when the AI says who is coming. Leave blank if it varies.">

@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { deleteProperty, deleteUnit, saveProperty, saveUnit } from "@/actions/property";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
 import { Reveal } from "@/components/reveal";
+import { MotionList } from "@/components/motion-list";
 import { PortfolioImporter } from "@/components/forms/portfolio-importer";
 
 export const metadata = { title: "Properties" };
@@ -30,7 +31,7 @@ export default async function PropertiesPage() {
         <form action={saveProperty} className="grid grid-cols-1 gap-2 sm:grid-cols-4">
           <input name="name" placeholder="Oakwood Court" required className="rounded-xl border border-gray-300 bg-surface px-3 py-2 text-sm" />
           <input name="address" placeholder="12 Oak Street, Newark NJ" className="rounded-xl border border-gray-300 bg-surface px-3 py-2 text-sm sm:col-span-2" />
-          <button type="submit" className="rounded-xl bg-brand-600 px-3 py-2 text-sm font-semibold text-white">
+          <button type="submit" className="press rounded-xl bg-brand-600 px-3 py-2 text-sm font-semibold text-white">
             Add
           </button>
         </form>
@@ -39,14 +40,15 @@ export default async function PropertiesPage() {
       {properties.length === 0 ? (
         <EmptyState title="No properties yet" body="Add one above, or import a spreadsheet if you have more than a handful." />
       ) : (
-        properties.map((p, i) => (
+        <MotionList as="div" className="space-y-4">
+          {properties.map((p, i) => (
           <Reveal index={i} key={p.id}>
             <Card
               title={p.name}
               action={
                 <form action={deleteProperty}>
                   <input type="hidden" name="id" value={p.id} />
-                  <button type="submit" className="text-xs font-semibold text-red-600">
+                  <button type="submit" className="press-soft text-xs font-semibold text-red-600">
                     Delete
                   </button>
                 </form>
@@ -54,7 +56,7 @@ export default async function PropertiesPage() {
             >
               {p.address ? <p className="-mt-1 mb-3 text-sm text-gray-500">{p.address}</p> : null}
 
-              <ul className="divide-y divide-gray-100">
+              <MotionList className="divide-y divide-gray-100">
                 {p.units.map((u) => (
                   <li key={u.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                     <div className="min-w-0">
@@ -66,25 +68,26 @@ export default async function PropertiesPage() {
                       {u.tenants.some((t) => t.permissionToEnter) ? <Badge tone="green">Entry OK</Badge> : null}
                       <form action={deleteUnit}>
                         <input type="hidden" name="id" value={u.id} />
-                        <button type="submit" className="text-xs font-semibold text-red-600">
+                        <button type="submit" className="press-soft text-xs font-semibold text-red-600">
                           Remove
                         </button>
                       </form>
                     </div>
                   </li>
                 ))}
-              </ul>
+              </MotionList>
 
               <form action={saveUnit} className="mt-3 flex gap-2">
                 <input type="hidden" name="propertyId" value={p.id} />
                 <input name="label" placeholder="Add a unit, e.g. 3B" required className="flex-1 rounded-xl border border-gray-300 bg-surface px-3 py-2 text-sm" />
-                <button type="submit" className="rounded-xl border border-gray-300 px-3 py-2 text-sm font-semibold">
+                <button type="submit" className="press rounded-xl border border-gray-300 px-3 py-2 text-sm font-semibold">
                   Add unit
                 </button>
               </form>
             </Card>
           </Reveal>
-        ))
+          ))}
+        </MotionList>
       )}
     </div>
   );
