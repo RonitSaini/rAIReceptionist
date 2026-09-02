@@ -2,7 +2,6 @@ import { requireAccount } from "@/lib/current-account";
 import { prisma } from "@/lib/prisma";
 import { deleteProperty, deleteUnit, saveProperty, saveUnit } from "@/actions/property";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
-import { Reveal } from "@/components/reveal";
 import { MotionList } from "@/components/motion-list";
 import { PortfolioImporter } from "@/components/forms/portfolio-importer";
 
@@ -41,8 +40,8 @@ export default async function PropertiesPage() {
         <EmptyState title="No properties yet" body="Add one above, or import a spreadsheet if you have more than a handful." />
       ) : (
         <MotionList as="div" className="space-y-4">
-          {properties.map((p, i) => (
-          <Reveal index={i} key={p.id}>
+          {properties.map((p) => (
+          <div key={p.id}>
             <Card
               title={p.name}
               action={
@@ -85,7 +84,7 @@ export default async function PropertiesPage() {
                 </button>
               </form>
             </Card>
-          </Reveal>
+          </div>
           ))}
         </MotionList>
       )}

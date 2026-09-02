@@ -7,7 +7,6 @@ import { formatUsPhone } from "@/lib/form";
 import { humanize } from "@/lib/constants";
 import { verticalFor, vocabularyFor } from "@/verticals";
 import { Badge, EmptyState, LinkButton, PageHeader } from "@/components/ui";
-import { Reveal } from "@/components/reveal";
 import { SegmentedLinks } from "@/components/segmented-links";
 import { JOB_STATUS_TONE, JOB_STATUS_ORDER } from "@/lib/jobs-ui";
 import { getGoogleCalendarStatus } from "@/lib/google-calendar-view";
@@ -77,8 +76,8 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
         <EmptyState title={`No ${words.booking.many}${active ? ` with status ${humanize(active)}` : ""}`} action={<LinkButton href="/jobs/new">Add one</LinkButton>} />
       ) : (
         <ul className="grid gap-3 xl:grid-cols-2">
-          {jobs.map((j, i) => (
-            <Reveal as="li" index={i} key={j.id} className="lift min-w-0 rounded-2xl border border-gray-200 bg-surface p-4">
+          {jobs.map((j) => (
+            <li key={j.id} className="lift min-w-0 rounded-2xl border border-gray-200 bg-surface p-4">
               <Link href={`/jobs/${j.id}`} className="flex items-start justify-between gap-3">
                 <span className="min-w-0">
                   <span className="block truncate font-semibold">
@@ -97,7 +96,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
                   {humanize(j.status)}
                 </Badge>
               </Link>
-            </Reveal>
+            </li>
           ))}
         </ul>
       )}

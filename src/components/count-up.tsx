@@ -13,7 +13,7 @@ type View = { value: number; prev?: string; dir?: 1 | -1 };
  * changed-digits behaviour of "Animate Digits" (unlumen) ported to CSS — no animation library.
  *
  * - Mount: tweens 0 → value with the expo-out arrival easing (550ms) — but only when there's a
- *   distance to travel. Below `threshold` it snaps and lets the surrounding `.reveal` carry it in.
+ *   distance to travel. Below `threshold` it snaps and simply shows the value.
  * - Change after mount: the container pops (`.badge-pop`). The pop is never on the digits: a value
  *   tween must not overshoot — a number that reads 13 then settles to 12 is a data lie.
  *   `live` values swap only the digits that changed (blur-slide in the direction of travel) instead

@@ -20,7 +20,7 @@ export function StatTile({
   delta?: { value: number; label: string } | null;
   note?: ReactNode;
   href: string;
-  /** Static (non-drawing) line icon: the tile's .reveal already covers its arrival. */
+  /** Static (non-drawing) line icon: it just appears with the tile. */
   icon?: IconName;
   /** Value that can change while mounted — animates the changed digits instead of re-tweening. */
   live?: boolean;

@@ -280,10 +280,10 @@ body {
 }
 
 /* Reveal: fade + lift + un-blur into view, staggered via --reveal-delay (set by <Reveal index>).
-   The visible class carries the END state and the keyframe only the start (fill: backwards), so once
-   the reveal has played the element's transform is `none` again: a later inline transform (a row
-   sliding to its new place in <MotionList>) is not overridden by a filled animation, and a settled
-   card is not a containing block for anything fixed. */
+   Landing page only since 2026-09-02 (spec §7.6): inside the app nothing enters on load. The visible
+   class carries the END state and the keyframe only the start (fill: backwards), so once the reveal
+   has played the element's transform is `none` again and a settled block is not a containing block
+   for anything fixed. */
 .js .reveal {
   opacity: 0;
   transform: translateY(12px);
@@ -1010,30 +1010,18 @@ button[aria-expanded="true"] .fold-arrow {
 /* Lists (<MotionList>): rows arrive, leave and slide. A row entering after mount fades up four
    pixels at the standard beat; a leaving row fades and settles at the exit beat and is then dropped;
    rows that moved get an inline transform from their old offset (FLIP, transform only). Urgent rows
-   arrive instantly and leave at the fast exit. Rows that are also <Reveal>s take these over the
-   reveal's own animation. */
+   arrive instantly and leave at the fast exit. Nothing animates on page load (spec §7.6). */
 .motion-list {
   position: relative;
 }
-.row-enter,
-.js .reveal.row-enter {
-  opacity: 1;
-  transform: none;
-  filter: none;
+.row-enter {
   animation: row-in var(--m-standard) var(--m-ease) backwards;
-  animation-delay: 0ms;
 }
-.row-exit,
-.js .reveal.row-exit {
-  opacity: 1;
-  transform: none;
-  filter: none;
+.row-exit {
   animation: row-out var(--m-exit) var(--m-ease) forwards;
-  animation-delay: 0ms;
   pointer-events: none;
 }
-.row-exit[data-urgent],
-.js .reveal.row-exit[data-urgent] {
+.row-exit[data-urgent] {
   animation-duration: var(--m-exit-fast);
 }
 @keyframes row-in {
@@ -1250,9 +1238,7 @@ button[aria-expanded="true"] .fold-arrow {
   .seg-ind-mid,
   .seg-ind-r,
   .row-enter,
-  .js .reveal.row-enter,
   .row-exit,
-  .js .reveal.row-exit,
   .badge-swap > .badge-in,
   .badge-swap > .badge-out,
   .tick-in,

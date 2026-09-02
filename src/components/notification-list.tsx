@@ -6,19 +6,18 @@ import { notificationHref, notificationIcon, notificationLabel } from "@/lib/not
 import type { Vocabulary } from "@/verticals/types";
 import { timeAgo } from "@/lib/time";
 import { Badge, StatusDot, notificationTone } from "@/components/ui";
-import { Reveal } from "@/components/reveal";
 import { MotionList } from "@/components/motion-list";
 
 export function NotificationList({ items, compact = false, grid = false, words }: { items: Notification[]; compact?: boolean; grid?: boolean; words?: Vocabulary }) {
   const now = new Date();
   return (
     <MotionList className={grid ? "grid gap-3 xl:grid-cols-2 3xl:grid-cols-3" : "divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-surface"}>
-      {items.map((n, i) => {
+      {items.map((n) => {
         const unread = !n.readAt;
         const needsAck = n.priority === "urgent" && !n.acknowledgedAt;
         const href = notificationHref(n);
         return (
-          <Reveal as="li" index={i} key={n.id} data-urgent={needsAck ? "true" : undefined} className={`flex gap-3 p-4 ${grid ? "lift rounded-2xl border border-gray-200 bg-surface" : ""} ${unread ? "bg-brand-50/40" : ""} ${needsAck ? "border-l-4 border-l-red-500" : ""}`}>
+          <li key={n.id} data-urgent={needsAck ? "true" : undefined} className={`flex gap-3 p-4 ${grid ? "lift rounded-2xl border border-gray-200 bg-surface" : ""} ${unread ? "bg-brand-50/40" : ""} ${needsAck ? "border-l-4 border-l-red-500" : ""}`}>
             <DrawIcon name={notificationIcon(n)} size={20} draw={false} className={`mt-0.5 shrink-0 ${needsAck ? "text-red-600" : "text-gray-400"}`} />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
@@ -64,7 +63,7 @@ export function NotificationList({ items, compact = false, grid = false, words }
                 ) : null}
               </div>
             </div>
-          </Reveal>
+          </li>
         );
       })}
     </MotionList>

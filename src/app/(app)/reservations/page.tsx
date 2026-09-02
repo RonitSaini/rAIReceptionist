@@ -7,7 +7,6 @@ import { humanize } from "@/lib/constants";
 import { setReservationStatus } from "@/actions/reservations";
 import { Badge, EmptyState, LinkButton, PageHeader, reservationTone } from "@/components/ui";
 import { RESERVATION_TRANSITIONS, StatusButtons } from "@/components/status-buttons";
-import { Reveal } from "@/components/reveal";
 import { getGoogleCalendarStatus } from "@/lib/google-calendar-view";
 import { calendarBlurbFor, calendarSettingsHref } from "@/lib/calendar-sync-ui";
 import { CalendarSyncPrompt } from "@/components/calendar-sync-prompt";
@@ -82,12 +81,12 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
 
       {view === "week" ? (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-7 md:gap-3">
-          {days.map((d, i) => {
+          {days.map((d) => {
             const items = byDay.get(d) ?? [];
             const isToday = d === today;
             const covers = items.filter((r) => !r.isWaitlist).reduce((s, r) => s + r.partySize, 0);
             return (
-              <Reveal key={d} index={i} className="flex flex-col gap-3">
+              <div key={d} className="flex flex-col gap-3">
                 <Link href={href(d, "day")} className="flex items-baseline gap-1.5 px-0.5" title={`Open ${formatDateString(d, { weekday: "long", month: "long", day: "numeric" })}`}>
                   <span className={`text-xs font-semibold uppercase tracking-wide ${isToday ? "text-brand-700" : "text-gray-500"}`}>{formatDateString(d, { weekday: "short" })}</span>
                   <span className={`text-lg font-bold leading-none ${isToday ? "text-brand-700" : "text-ink"}`}>{formatDateString(d, { day: "numeric" })}</span>
@@ -116,7 +115,7 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
                 <LinkButton href={`/reservations/new?date=${d}`} variant="secondary" size="sm" full className="shadow-sm">
                   + Add
                 </LinkButton>
-              </Reveal>
+              </div>
             );
           })}
         </div>
@@ -124,8 +123,8 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
         <EmptyState title="No reservations this day" action={<LinkButton href={`/reservations/new?date=${date}`}>Add a reservation</LinkButton>} />
       ) : (
         <ul className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
-          {(byDay.get(date) ?? []).map((r, i) => (
-            <Reveal as="li" index={i} key={r.id} className="lift flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-surface p-4">
+          {(byDay.get(date) ?? []).map((r) => (
+            <li key={r.id} className="lift flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-surface p-4">
               <div className="min-w-0">
                 <Link href={`/reservations/${r.id}`} className="block font-semibold">
                   {formatTime(r.startTime, tz)} · {r.guestName}
@@ -142,7 +141,7 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
                 <Badge tone={reservationTone[r.status]} className={sp.changed === r.id ? "badge-pop" : undefined}>{humanize(r.status)}</Badge>
                 <StatusButtons id={r.id} current={r.status} transitions={RESERVATION_TRANSITIONS[r.status].slice(0, 2)} action={setReservationStatus} returnTo={href(date)} size="sm" />
               </div>
-            </Reveal>
+            </li>
           ))}
         </ul>
       )}

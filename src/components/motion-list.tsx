@@ -22,9 +22,9 @@ type Seen = { el: HTMLElement; x: number; y: number; at: number };
  * Keys are read from the elements and written to the DOM only after hydration (data-row-key), so
  * a key minted by a client-side counter never has to match the server's. Transform and opacity
  * only: React commits the final layout at once and the motion is drawn on top, never a delay in
- * front of it. First mount animates nothing — arrival at page load belongs to the page (or a
- * <Reveal>), not to the row. A row carrying data-urgent enters instantly (an alarm does not fade in)
- * and exits at the quiet end of the ladder. Reduced motion: rows swap at once. Every child must be
+ * front of it. First mount animates nothing: inside the app nothing enters on load (spec §7.6), so
+ * a row that is on the page when it renders is simply there. A row carrying data-urgent enters
+ * instantly (an alarm does not fade in) and exits at the quiet end of the ladder. Reduced motion: rows swap at once. Every child must be
  * a keyed element; if the DOM and the keys ever disagree in number, that commit is left alone.
  */
 export function MotionList({ as: Tag = "ul", children, className, ...rest }: { as?: "ul" | "ol" | "div" | "section"; children: ReactNode; className?: string } & HTMLAttributes<HTMLElement>) {

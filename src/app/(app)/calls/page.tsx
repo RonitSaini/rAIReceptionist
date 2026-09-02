@@ -8,7 +8,6 @@ import { formatUsPhone } from "@/lib/form";
 import { classificationLabel } from "@/lib/constants";
 import { verticalFor, vocabularyFor } from "@/verticals";
 import { Badge, EmptyState, PageHeader, StatusDot, classificationTone } from "@/components/ui";
-import { Reveal } from "@/components/reveal";
 import { SegmentedLinks } from "@/components/segmented-links";
 
 export const metadata = { title: "Calls" };
@@ -52,10 +51,10 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
         />
       ) : (
         <ul className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
-          {calls.map((c, i) => {
+          {calls.map((c) => {
             const live = isCallLive(c);
             return (
-              <Reveal as="li" index={i} key={c.id} className="lift overflow-hidden rounded-2xl border border-gray-200 bg-surface">
+              <li key={c.id} className="lift overflow-hidden rounded-2xl border border-gray-200 bg-surface">
                 <Link href={`/calls/${c.id}`} className="block h-full p-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge tone={classificationTone[c.classification]}>{label(c.classification)}</Badge>
@@ -75,7 +74,7 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
                   <p className="text-sm text-gray-500">{formatDateTime(c.startedAt, account.timeZone)}</p>
                   {c.summary ? <p className="mt-1 line-clamp-2 text-sm text-gray-700">{c.summary}</p> : c.messageText ? <p className="mt-1 line-clamp-2 text-sm text-gray-700">{c.messageText}</p> : null}
                 </Link>
-              </Reveal>
+              </li>
             );
           })}
         </ul>

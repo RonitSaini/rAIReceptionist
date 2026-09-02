@@ -11,7 +11,6 @@ import { setJobStatus } from "@/actions/field-service";
 import { Badge, Card, LinkButton, PageHeader } from "@/components/ui";
 import { StatusButtons } from "@/components/status-buttons";
 import { JOB_STATUS_TONE, JOB_TRANSITIONS } from "@/lib/jobs-ui";
-import { Reveal } from "@/components/reveal";
 import { CountUp } from "@/components/count-up";
 import { StatTile } from "@/components/stat-tile";
 import { Columns } from "@/components/charts";
@@ -79,8 +78,8 @@ export async function FieldServiceHome({ account, previousSeenAt, changed }: { a
               action={<CardLink href={queueHref}>{queueLabel}</CardLink>}
             >
               <ul className="divide-y divide-gray-100">
-                {jobs.todaysJobs.map((job, i) => (
-                  <Reveal as="li" index={i + 1} key={job.id} className="flex items-center justify-between gap-3 py-3">
+                {jobs.todaysJobs.map((job) => (
+                  <li key={job.id} className="flex items-center justify-between gap-3 py-3">
                     <div className="min-w-0">
                       <Link href={`/jobs/${job.id}`} className="block font-semibold">
                         {job.scheduledStart ? `${formatTime(job.scheduledStart, tz)} · ` : ""}
@@ -97,7 +96,7 @@ export async function FieldServiceHome({ account, previousSeenAt, changed }: { a
                       </Badge>
                       <StatusButtons id={job.id} current={job.status} transitions={JOB_TRANSITIONS[job.status].slice(0, 1)} action={setJobStatus} returnTo="/dashboard" size="sm" />
                     </div>
-                  </Reveal>
+                  </li>
                 ))}
               </ul>
             </Card>
@@ -121,8 +120,8 @@ export async function FieldServiceHome({ account, previousSeenAt, changed }: { a
               action={<CardLink href="/jobs">All {words.booking.many}</CardLink>}
             >
               <ul className="divide-y divide-gray-100">
-                {jobs.unscheduled.map((job, i) => (
-                  <Reveal as="li" index={i + 1} key={job.id} className="flex items-center justify-between gap-3 py-3">
+                {jobs.unscheduled.map((job) => (
+                  <li key={job.id} className="flex items-center justify-between gap-3 py-3">
                     <div className="min-w-0">
                       <Link href={`/jobs/${job.id}`} className="block font-semibold">
                         {job.customerName}
@@ -133,7 +132,7 @@ export async function FieldServiceHome({ account, previousSeenAt, changed }: { a
                     <Badge tone={job.isEmergency ? "red" : "amber"} className="shrink-0">
                       {job.isEmergency ? "Emergency" : "Needs a slot"}
                     </Badge>
-                  </Reveal>
+                  </li>
                 ))}
               </ul>
             </Card>
@@ -174,12 +173,12 @@ export async function FieldServiceHome({ account, previousSeenAt, changed }: { a
       <PageHeader title="Home" subtitle={formatDateLong(now, tz)} action={<LinkButton href="/jobs/new" size="sm">+ {words.booking.One}</LinkButton>} />
 
       {/* KPI row — fixed, always first */}
-      <Reveal index={0} className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatTile label="Calls today" value={t.callsToday} icon="phone" live href="/calls" delta={{ value: t.callsDelta, label: "vs yesterday" }} note={t.liveCalls > 0 ? `${t.liveCalls} live now` : undefined} />
         <StatTile label={`${words.booking.Many} today`} value={j.jobsToday} icon="wrench" href={queueHref} delta={{ value: j.jobsDelta, label: "vs yesterday" }} />
         <StatTile label="Emergencies" value={j.openEmergencies} icon="siren" href="/jobs?status=emergency" note={j.openEmergencies === 0 ? "None open" : undefined} />
         <StatTile label="Unread" value={t.unread} icon="bell" live href="/notifications" note={t.unread === 0 ? <span className="text-green-700">All caught up</span> : undefined} />
-      </Reveal>
+      </div>
 
       <DashboardMasonry cards={cards} />
     </div>

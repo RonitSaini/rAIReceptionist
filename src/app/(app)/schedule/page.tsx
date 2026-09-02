@@ -7,7 +7,6 @@ import { addDays, dayBoundsUtc, formatDateString, formatTime, isValidDateString,
 import { humanize } from "@/lib/constants";
 import { verticalFor, vocabularyFor } from "@/verticals";
 import { Badge, LinkButton, PageHeader } from "@/components/ui";
-import { Reveal } from "@/components/reveal";
 import { JOB_STATUS_TONE } from "@/lib/jobs-ui";
 import { getGoogleCalendarStatus } from "@/lib/google-calendar-view";
 import { calendarBlurbFor, calendarSettingsHref } from "@/lib/calendar-sync-ui";
@@ -88,11 +87,11 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-7 md:gap-3">
-        {days.map((d, i) => {
+        {days.map((d) => {
           const items = byDay.get(d) ?? [];
           const isToday = d === today;
           return (
-            <Reveal key={d} index={i} className="flex flex-col gap-3">
+            <div key={d} className="flex flex-col gap-3">
               <div className="flex items-baseline gap-1.5 px-0.5">
                 <span className={`text-xs font-semibold uppercase tracking-wide ${isToday ? "text-brand-700" : "text-gray-500"}`}>{formatDateString(d, { weekday: "short" })}</span>
                 <span className={`text-lg font-bold leading-none ${isToday ? "text-brand-700" : "text-ink"}`}>{formatDateString(d, { day: "numeric" })}</span>
@@ -121,7 +120,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
               <LinkButton href={`/jobs/new?date=${d}`} variant="secondary" size="sm" full className="shadow-sm">
                 + Add
               </LinkButton>
-            </Reveal>
+            </div>
           );
         })}
       </div>

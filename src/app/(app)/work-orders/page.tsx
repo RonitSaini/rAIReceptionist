@@ -7,7 +7,6 @@ import { formatUsPhone } from "@/lib/form";
 import { humanize } from "@/lib/constants";
 import { vocabularyFor } from "@/verticals";
 import { Badge, EmptyState, LinkButton, PageHeader } from "@/components/ui";
-import { Reveal } from "@/components/reveal";
 import { SegmentedLinks } from "@/components/segmented-links";
 import { MotionList } from "@/components/motion-list";
 import { JOB_STATUS_TONE, JOB_STATUS_ORDER } from "@/lib/jobs-ui";
@@ -65,12 +64,12 @@ export default async function WorkOrdersPage({ searchParams }: { searchParams: P
         <EmptyState title={`No ${words.booking.many}`} body={`Anything ${account.hostName} takes on the phone arrives here.`} />
       ) : (
         <MotionList className="space-y-3">
-          {jobs.map((job, i) => {
+          {jobs.map((job) => {
             const details = (job.details ?? {}) as Record<string, unknown>;
             const unverified = details.unverified === true;
             const category = typeof details.category === "string" ? details.category : null;
             return (
-              <Reveal as="li" index={i} key={job.id} data-urgent={job.isEmergency ? "true" : undefined} className={`rounded-2xl border bg-surface p-4 ${job.isEmergency ? "border-red-300" : "border-gray-200"}`}>
+              <li key={job.id} data-urgent={job.isEmergency ? "true" : undefined} className={`rounded-2xl border bg-surface p-4 ${job.isEmergency ? "border-red-300" : "border-gray-200"}`}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <Link href={`/jobs/${job.id}`} className="block font-semibold">
@@ -91,7 +90,7 @@ export default async function WorkOrdersPage({ searchParams }: { searchParams: P
                   </div>
                 </div>
                 {job.scheduledStart ? <p className="mt-2 text-xs text-gray-500">Scheduled {formatDateTime(job.scheduledStart, account.timeZone)}</p> : null}
-              </Reveal>
+              </li>
             );
           })}
         </MotionList>

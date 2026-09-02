@@ -9,7 +9,6 @@ import { humanize } from "@/lib/constants";
 import { callSeriesFor, type loadDashboard } from "@/lib/dashboard";
 import { Badge, Card, classificationTone } from "@/components/ui";
 import { NotificationList } from "@/components/notification-list";
-import { Reveal } from "@/components/reveal";
 import { CountUp } from "@/components/count-up";
 import { StackedColumns } from "@/components/charts";
 
@@ -73,8 +72,8 @@ export function CallbacksCard({ callbacks, now }: { callbacks: Dash["callbacks"]
       action={<CardLink href="/calls?type=message">Messages</CardLink>}
     >
       <ul className="divide-y divide-gray-100">
-        {callbacks.map((c, i) => (
-          <Reveal as="li" index={i + 1} key={c.id} className="py-2.5">
+        {callbacks.map((c) => (
+          <li key={c.id} className="py-2.5">
             <Link href={`/calls/${c.id}`} className="lift -mx-2 flex items-start justify-between gap-3 rounded-lg px-2 py-1 hover:bg-gray-50">
               <span className="min-w-0">
                 <span className="block truncate font-semibold">
@@ -88,7 +87,7 @@ export function CallbacksCard({ callbacks, now }: { callbacks: Dash["callbacks"]
                 {c.escalationReason ? humanize(c.escalationReason) : humanize(c.classification)}
               </Badge>
             </Link>
-          </Reveal>
+          </li>
         ))}
       </ul>
     </Card>

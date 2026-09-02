@@ -9,7 +9,6 @@ import { vocabularyFor } from "@/verticals";
 import { setJobStatus } from "@/actions/field-service";
 import { Badge, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { StatusButtons } from "@/components/status-buttons";
-import { Reveal } from "@/components/reveal";
 import { MotionList } from "@/components/motion-list";
 import { JOB_STATUS_TONE, JOB_TRANSITIONS } from "@/lib/jobs-ui";
 
@@ -72,7 +71,7 @@ export default async function DispatchPage() {
         <EmptyState title="Nothing in the queue" body={`New ${words.booking.many} arrive here the moment ${account.hostName} takes them, oldest first.`} />
       ) : (
         <MotionList className="space-y-3">
-          {jobs.map((job, i) => {
+          {jobs.map((job) => {
             const mins = waited(job.createdAt);
             // Over the acknowledgement window and still nobody has touched it: say so loudly.
             const stale = job.status === "requested" && mins >= 5;
@@ -82,7 +81,7 @@ export default async function DispatchPage() {
             // of what its colour already says.
             const urgent = unreachable !== undefined || stale || job.isEmergency;
             return (
-              <Reveal as="li" index={i} key={job.id} data-urgent={urgent ? "true" : undefined} className={`rounded-2xl border bg-surface p-4 ${unreachable !== undefined ? "border-red-500 bg-red-50/40" : stale ? "border-red-300" : "border-gray-200"}`}>
+              <li key={job.id} data-urgent={urgent ? "true" : undefined} className={`rounded-2xl border bg-surface p-4 ${unreachable !== undefined ? "border-red-500 bg-red-50/40" : stale ? "border-red-300" : "border-gray-200"}`}>
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <Link href={`/jobs/${job.id}`} className="block font-semibold">
@@ -111,7 +110,7 @@ export default async function DispatchPage() {
                 <div className="mt-3 border-t border-gray-100 pt-3">
                   <StatusButtons id={job.id} current={job.status} transitions={JOB_TRANSITIONS[job.status]} action={setJobStatus} returnTo="/dispatch" size="sm" />
                 </div>
-              </Reveal>
+              </li>
             );
           })}
         </MotionList>

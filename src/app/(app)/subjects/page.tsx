@@ -7,7 +7,6 @@ import { humanize } from "@/lib/constants";
 import { vocabularyFor } from "@/verticals";
 import { subjectLabel } from "@/lib/shop-handlers";
 import { Badge, EmptyState, PageHeader } from "@/components/ui";
-import { Reveal } from "@/components/reveal";
 import { JOB_STATUS_TONE } from "@/lib/jobs-ui";
 
 export const metadata = { title: "Records" };
@@ -93,8 +92,8 @@ export default async function SubjectsPage({ searchParams }: { searchParams: Pro
         />
       ) : (
         <ul className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
-          {list.map((r, i) => (
-            <Reveal as="li" index={i} key={r.key} className="rounded-2xl border border-gray-200 bg-surface p-4">
+          {list.map((r) => (
+            <li key={r.key} className="rounded-2xl border border-gray-200 bg-surface p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate font-semibold">{r.subject}</p>
@@ -114,7 +113,7 @@ export default async function SubjectsPage({ searchParams }: { searchParams: Pro
               <p className="mt-2 text-xs text-gray-500">
                 {r.visits} {r.visits === 1 ? words.booking.one : words.booking.many} · last {formatDateTime(r.last, account.timeZone)} ({timeAgo(r.last, now)})
               </p>
-            </Reveal>
+            </li>
           ))}
         </ul>
       )}

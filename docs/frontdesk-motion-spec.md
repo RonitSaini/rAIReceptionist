@@ -672,3 +672,21 @@ Tabs* #24930 (sliding thumb — width-animated, hence the three-piece pill inste
 and *Stacked List* #10477 (Motion's `AnimatePresence` / `layout` — the DOM-diff `<MotionList>` does the same
 two things without the runtime); *Press Depth* #23547 (spring tilt toward the pointer — rejected, a press
 should not wobble) and *Bouncy Toggle* #9634 (bounce — rejected, rule 15).
+
+### 7.6 Closures after review (2026-09-02)
+
+1. **Inside the app nothing enters on load (rule 23).** The pass-1 scroll staggers — `<Reveal>` on every
+   list row, dashboard card, sidebar card and the stat-tile grid (27 usages across 19 files) — and the
+   settings panel's `<Reveal key={tab}>` are removed. Rows render placed; only data that arrives after
+   mount animates (`<MotionList>`). `<Reveal>` and `.reveal` are landing-page-only now; the §4 usage
+   counts for `.reveal` and `.lift` staggers describe the landing page. Still animating on load and left
+   as they were, flagged: `.bar-grow` chart bars (data drawing itself) and the `<CountUp>` mount tween
+   (rule 9's threshold means it rarely fires).
+2. **The saved check never gates input.** Measured: a second submit 1,961 ms into the 2 s "Saved" hold
+   showed "Saving…" 35 ms after the click, the button was enabled throughout, and a fresh "Saved" hold
+   followed; after it the verb returned.
+3. **Jobs list at 390 px.** The row's customer line truncates, and the row is `min-w-0`: an implicit
+   grid track sizes to its items' min-content, and a `nowrap` line inside a row can force the track past
+   the viewport, so the truncation only takes effect once the row itself may shrink. Smoke pass 352/352.
+4. The test rows the verification scripts created on vertical-dev (the "Frame Series", "Perf", "Reduce"
+   and "Probe" tow jobs, the "Frame Series Guest" reservation and its notification) are deleted.

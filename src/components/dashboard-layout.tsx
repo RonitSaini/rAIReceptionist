@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Reveal } from "@/components/reveal";
 import { orderDashCards, type DashCardState } from "@/lib/dashboard-cards";
 
 /**
@@ -40,13 +39,13 @@ function EmptyRow({ text, href, cta }: NonNullable<DashCard["empty"]>) {
   );
 }
 
-export function DashboardMasonry({ cards, startIndex = 1 }: { cards: readonly DashCard[]; startIndex?: number }) {
+export function DashboardMasonry({ cards }: { cards: readonly DashCard[] }) {
   const ordered = orderDashCards(cards);
   return (
     <div className="dash-masonry">
-      {ordered.map((c, i) => (
+      {ordered.map((c) => (
         <div key={c.key} className="dash-slot">
-          <Reveal index={i + startIndex}>{c.state === "empty" ? <EmptyRow {...(c.empty ?? { text: "Nothing here yet." })} /> : c.node}</Reveal>
+          {c.state === "empty" ? <EmptyRow {...(c.empty ?? { text: "Nothing here yet." })} /> : c.node}
         </div>
       ))}
     </div>

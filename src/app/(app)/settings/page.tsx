@@ -17,7 +17,6 @@ import { PortalButton } from "@/components/forms/billing-buttons";
 import { InvoicesCard } from "@/components/billing-invoices";
 import { AccountActions } from "@/components/account-actions";
 import { ChangeEmailForm, ChangePasswordForm } from "@/components/forms/account-credentials";
-import { Reveal } from "@/components/reveal";
 import { SegmentedLinks } from "@/components/segmented-links";
 import { getGoogleCalendarView } from "@/lib/google-calendar-view";
 import { calendarBlurbFor } from "@/lib/calendar-sync-ui";
@@ -101,7 +100,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         items={TABS.map((t) => ({ key: t.key, href: `/settings?tab=${t.key}`, label: t.label, active: tab === t.key }))}
       />
 
-      <Reveal key={tab} className={tab === "voice" ? "mx-auto max-w-6xl" : "mx-auto max-w-2xl 2xl:max-w-3xl"}>
+      <div className={tab === "voice" ? "mx-auto max-w-6xl" : "mx-auto max-w-2xl 2xl:max-w-3xl"}>
         {tab === "business" ? (
           <Card title="Business basics">
             <BusinessBasicsForm account={view} mode="settings" />
@@ -180,7 +179,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         {tab === "billing" ? <BillingTab account={account} view={view} checkout={parseCheckoutResult(checkout)} /> : null}
 
         {tab === "account" ? <AccountTab userId={userId} businessName={account.businessName} /> : null}
-      </Reveal>
+      </div>
     </div>
   );
 }

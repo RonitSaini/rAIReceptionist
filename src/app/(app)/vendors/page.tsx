@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { formatUsPhone } from "@/lib/form";
 import { deleteVendor, saveVendor } from "@/actions/property";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
-import { Reveal } from "@/components/reveal";
 import { MotionList } from "@/components/motion-list";
 
 export const metadata = { title: "Vendors" };
@@ -40,8 +39,8 @@ export default async function VendorsPage() {
         <EmptyState title="No vendors yet" body="Add the trades you call most. They show up as options on a work order." />
       ) : (
         <MotionList className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
-          {vendors.map((v, i) => (
-            <Reveal as="li" index={i} key={v.id} className="flex items-start justify-between gap-3 rounded-2xl border border-gray-200 bg-surface p-4">
+          {vendors.map((v) => (
+            <li key={v.id} className="flex items-start justify-between gap-3 rounded-2xl border border-gray-200 bg-surface p-4">
               <div className="min-w-0">
                 <p className="truncate font-semibold">{v.name}</p>
                 <p className="truncate text-sm text-gray-500">
@@ -55,7 +54,7 @@ export default async function VendorsPage() {
                   Remove
                 </button>
               </form>
-            </Reveal>
+            </li>
           ))}
         </MotionList>
       )}

@@ -6,7 +6,6 @@ import { formatUsPhone } from "@/lib/form";
 import { humanize } from "@/lib/constants";
 import { vocabularyFor } from "@/verticals";
 import { Badge, EmptyState, PageHeader } from "@/components/ui";
-import { Reveal } from "@/components/reveal";
 
 export const metadata = { title: "Residents" };
 
@@ -68,10 +67,10 @@ export default async function TenantsPage({ searchParams }: { searchParams: Prom
         <EmptyState title={query ? "Nobody matches that" : `No ${words.customer.many} yet`} body="Add units under Properties, or import a spreadsheet." />
       ) : (
         <ul className="grid gap-3 xl:grid-cols-2">
-          {tenants.map((t, i) => {
+          {tenants.map((t) => {
             const history = histories.filter((h) => h.unitId === t.unitId).slice(0, 4);
             return (
-              <Reveal as="li" index={i} key={t.id} className="rounded-2xl border border-gray-200 bg-surface p-4">
+              <li key={t.id} className="rounded-2xl border border-gray-200 bg-surface p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate font-semibold">{t.customer.name}</p>
@@ -108,7 +107,7 @@ export default async function TenantsPage({ searchParams }: { searchParams: Prom
                 ) : (
                   <p className="mt-3 border-t border-gray-100 pt-2 text-xs text-gray-400">Nothing reported yet.</p>
                 )}
-              </Reveal>
+              </li>
             );
           })}
         </ul>

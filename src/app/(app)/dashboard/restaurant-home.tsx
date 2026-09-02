@@ -9,7 +9,6 @@ import { setReservationStatus } from "@/actions/reservations";
 import { setTakeoutStatus } from "@/actions/takeout";
 import { Badge, Card, LinkButton, PageHeader, reservationTone, takeoutTone } from "@/components/ui";
 import { RESERVATION_TRANSITIONS, StatusButtons, TAKEOUT_TRANSITIONS } from "@/components/status-buttons";
-import { Reveal } from "@/components/reveal";
 import { CountUp } from "@/components/count-up";
 import { StatTile } from "@/components/stat-tile";
 import { Columns } from "@/components/charts";
@@ -75,8 +74,8 @@ export async function RestaurantHome({ account, previousSeenAt, changed }: { acc
               action={<CardLink href={`/reservations?date=${today}`}>Book</CardLink>}
             >
               <ul className="divide-y divide-gray-100">
-                {todaysReservations.map((r, i) => (
-                  <Reveal as="li" index={i + 1} key={r.id} className="flex items-center justify-between gap-3 py-3">
+                {todaysReservations.map((r) => (
+                  <li key={r.id} className="flex items-center justify-between gap-3 py-3">
                     <div className="min-w-0">
                       <Link href={`/reservations/${r.id}`} className="block font-semibold">
                         {formatTime(r.startTime, tz)} · {r.guestName}
@@ -91,7 +90,7 @@ export async function RestaurantHome({ account, previousSeenAt, changed }: { acc
                       <Badge tone={reservationTone[r.status]} className={changed === r.id ? "badge-pop" : undefined}>{humanize(r.status)}</Badge>
                       <StatusButtons id={r.id} current={r.status} transitions={RESERVATION_TRANSITIONS[r.status].slice(0, 1)} action={setReservationStatus} returnTo="/dashboard" size="sm" />
                     </div>
-                  </Reveal>
+                  </li>
                 ))}
               </ul>
             </Card>
@@ -115,8 +114,8 @@ export async function RestaurantHome({ account, previousSeenAt, changed }: { acc
               action={<CardLink href="/takeout">Takeout</CardLink>}
             >
               <ul className="divide-y divide-gray-100">
-                {openOrders.map((o, i) => (
-                  <Reveal as="li" index={i + 1} key={o.id} className="flex items-center justify-between gap-3 py-3">
+                {openOrders.map((o) => (
+                  <li key={o.id} className="flex items-center justify-between gap-3 py-3">
                     <div className="min-w-0">
                       <Link href={`/takeout/${o.id}`} className="block font-semibold">
                         {formatDateTime(o.pickupTime, tz)} · {o.guestName}
@@ -130,7 +129,7 @@ export async function RestaurantHome({ account, previousSeenAt, changed }: { acc
                       <Badge tone={takeoutTone[o.status]} className={changed === o.id ? "badge-pop" : undefined}>{humanize(o.status)}</Badge>
                       <StatusButtons id={o.id} current={o.status} transitions={TAKEOUT_TRANSITIONS[o.status].slice(0, 1)} action={setTakeoutStatus} returnTo="/dashboard" size="sm" />
                     </div>
-                  </Reveal>
+                  </li>
                 ))}
               </ul>
             </Card>
@@ -171,12 +170,12 @@ export async function RestaurantHome({ account, previousSeenAt, changed }: { acc
       <PageHeader title="Home" subtitle={formatDateLong(now, tz)} action={<LinkButton href="/reservations/new" size="sm">+ Reservation</LinkButton>} />
 
       {/* KPI row — fixed, always first */}
-      <Reveal index={0} className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatTile label="Calls today" value={t.callsToday} icon="phone" live href="/calls" delta={{ value: t.callsDelta, label: "vs yesterday" }} note={t.liveCalls > 0 ? `${t.liveCalls} live now` : undefined} />
         <StatTile label="Covers today" value={t.coversToday} icon="utensils" href={`/reservations?date=${today}`} delta={{ value: t.coversDelta, label: "vs yesterday" }} />
         <StatTile label="Open orders" value={t.openOrders} icon="bag" href="/takeout" />
         <StatTile label="Unread" value={t.unread} icon="bell" live href="/notifications" note={t.unread === 0 ? <span className="text-green-700">All caught up</span> : undefined} />
-      </Reveal>
+      </div>
 
       <DashboardMasonry cards={cards} />
     </div>

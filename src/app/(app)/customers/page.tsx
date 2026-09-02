@@ -5,7 +5,6 @@ import { formatDateTime } from "@/lib/time";
 import { formatUsPhone } from "@/lib/form";
 import { vocabularyFor } from "@/verticals";
 import { EmptyState, PageHeader } from "@/components/ui";
-import { Reveal } from "@/components/reveal";
 
 export const metadata = { title: "Customers" };
 
@@ -50,8 +49,8 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
         <EmptyState title={query ? `No ${words.customer.many} match "${query}"` : `No ${words.customer.many} yet`} body={query ? undefined : `They're added automatically the first time someone calls.`} />
       ) : (
         <ul className="grid gap-3 xl:grid-cols-2">
-          {customers.map((c, i) => (
-            <Reveal as="li" index={i} key={c.id} className="lift rounded-2xl border border-gray-200 bg-surface p-4">
+          {customers.map((c) => (
+            <li key={c.id} className="lift rounded-2xl border border-gray-200 bg-surface p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="font-semibold">{c.name}</p>
@@ -67,7 +66,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
                   {c._count.jobs} {c._count.jobs === 1 ? words.booking.one : words.booking.many}
                 </Link>
               </div>
-            </Reveal>
+            </li>
           ))}
         </ul>
       )}

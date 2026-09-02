@@ -9,7 +9,6 @@ import { subscriptionActive } from "@/lib/billing-ui";
 import { humanize } from "@/lib/constants";
 import { Badge, StatusDot, classificationTone } from "@/components/ui";
 import { DrawIcon } from "@/components/draw-icon";
-import { Reveal } from "@/components/reveal";
 
 function SectionTitle({ children, href }: { children: React.ReactNode; href?: string }) {
   const cls = "text-[11px] font-semibold uppercase tracking-wide text-gray-500";
@@ -38,7 +37,7 @@ export async function SidebarPanel({ account }: { account: Account }) {
 
   return (
     <div className="flex h-full flex-col gap-3 px-3 pt-2 short:gap-2 short:pt-1">
-      <Reveal index={1} className="rounded-2xl border border-gray-200 bg-surface p-3 short:p-2.5 micro:hidden">
+      <div className="rounded-2xl border border-gray-200 bg-surface p-3 short:p-2.5 micro:hidden">
         <SectionTitle href="/settings?tab=hours">Hours today</SectionTitle>
         <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold">
           {service.openNow ? (
@@ -64,9 +63,9 @@ export async function SidebarPanel({ account }: { account: Account }) {
             ))}
           </ul>
         ) : null}
-      </Reveal>
+      </div>
 
-      <Reveal index={2} className="rounded-2xl border border-gray-200 bg-surface p-3 short:p-2.5">
+      <div className="rounded-2xl border border-gray-200 bg-surface p-3 short:p-2.5">
         <SectionTitle>AI host</SectionTitle>
         {account.twilioNumber ? (
           <>
@@ -94,16 +93,16 @@ export async function SidebarPanel({ account }: { account: Account }) {
         <Link href="/settings?tab=voice" className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-gray-500 transition-colors hover:text-ink tiny:hidden">
           <DrawIcon name="headphones" size={14} draw={false} /> Test call in browser
         </Link>
-      </Reveal>
+      </div>
 
-      <Reveal index={3} className="flex min-h-0 flex-1 flex-col rounded-2xl border border-gray-200 bg-surface p-3 short:p-2.5 tiny:hidden">
+      <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-gray-200 bg-surface p-3 short:p-2.5 tiny:hidden">
         <SectionTitle href="/calls">Recent calls</SectionTitle>
         {recentCalls.length === 0 ? (
           <p className="mt-2 text-sm text-gray-500">No calls yet.</p>
         ) : (
           <ul className="fade-bottom relative mt-2 grid min-h-0 flex-1 auto-rows-[44px] content-start overflow-hidden pb-7">
-            {recentCalls.map((c, i) => (
-              <Reveal as="li" index={i + 1} key={c.id} className="min-h-0 min-w-0">
+            {recentCalls.map((c) => (
+              <li key={c.id} className="min-h-0 min-w-0">
                 <Link href={`/calls/${c.id}`} className="lift flex w-full min-w-0 items-center justify-between gap-2 rounded-lg px-1 py-1 hover:bg-gray-50">
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm text-gray-700">{c.callerName ?? (c.callerPhone ? formatUsPhone(c.callerPhone) : "Unknown caller")}</span>
@@ -113,11 +112,11 @@ export async function SidebarPanel({ account }: { account: Account }) {
                     {humanize(c.classification)}
                   </Badge>
                 </Link>
-              </Reveal>
+              </li>
             ))}
           </ul>
         )}
-      </Reveal>
+      </div>
     </div>
   );
 }
