@@ -32,7 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="min-h-dvh bg-paper md:flex">
       {/* Desktop sidebar */}
       <aside className="hidden w-60 shrink-0 flex-col border-r border-gray-200 bg-surface md:sticky md:top-0 md:flex md:h-dvh 2xl:w-64">
-        <div className="flex h-16 shrink-0 items-center justify-center px-5 short:h-14 tiny:h-12">
+        <div className="flex shrink-0 items-center px-4 pb-6 pt-4 short:pb-4 short:pt-2.5 tiny:pb-3 tiny:pt-2">
           <Logo />
         </div>
         <AppNav variant="sidebar" items={navItemsFor(account, "sidebar")} />
