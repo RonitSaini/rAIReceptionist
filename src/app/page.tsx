@@ -90,9 +90,10 @@ export default async function Home() {
                 style={beatVars(HERO_TIMING.pill)}
               >
                 {/* The rotating word goes LAST: the word-stack reserves the widest label's width, and at
-                    the end of the line that reads as pill padding instead of a mid-sentence hole. */}
+                    the end of the line that reads as pill padding instead of a mid-sentence hole. Each
+                    word carries its own period, so the sentence closes right after the word. */}
                 <span aria-hidden="true">
-                  Ten professions — built for <WordCarousel words={professionWords} className="font-bold" />
+                  Ten professions. Built for <WordCarousel words={professionWords.map((w) => `${w}.`)} className="font-bold" />
                 </span>
                 <span className="sr-only">Built for ten professions.</span>
               </p>
@@ -106,7 +107,7 @@ export default async function Home() {
               </h1>
             </div>
             <p className="hero-seq mt-4 max-w-xl text-lg text-gray-600" style={beatVars(HERO_TIMING.subhead)}>
-              FrontDesk AI is an AI receptionist that answers your business line 24/7 — it books the work, texts the customer a confirmation,
+              FrontDesk AI is an AI receptionist that answers your business line 24/7. It books the work, texts the customer a confirmation,
               and lets you know the moment something needs a human.
             </p>
             <div className="hero-seq" style={beatVars(HERO_TIMING.ctas)}>

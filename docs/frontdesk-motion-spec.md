@@ -547,3 +547,9 @@ reading order, after the conversation's first line and the strip's first node, a
 2900 ms — deliberately post-settle (rule 14), not a miss. It stays: the hero claims the whole first
 viewport, so the quiet arrow at its bottom edge is the page's one deliberate exception to the
 no-scroll-cue default.
+
+**Copy (same day).** The pill and the subhead end their sentences with periods instead of em-dashes:
+"Ten professions. Built for HVAC." — each rotating word carries its own period, so the sentence
+closes right after the word and the reserved width still reads as pill padding — and "…your business
+line 24/7. It books the work…". The pill stays on one line with the longest label in place at every
+measured width (see the verification numbers in the pass-8 report).
