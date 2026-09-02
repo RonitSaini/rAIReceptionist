@@ -48,7 +48,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
 
 
   // Explain an empty result in terms of the active filters, with one-click ways out.
-  let empty: { title: string; body?: string; action?: React.ReactNode };
+  let empty: { title: string; body?: string; action?: React.ReactNode; tone?: "neutral" | "clear" };
   if (totalCount === 0) {
     empty = {
       title: "No notifications yet",
@@ -72,7 +72,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
       ),
     };
   } else if (unreadOnly) {
-    empty = { title: "You're all caught up", body: "No unread notifications.", action: <LinkButton href="/notifications" size="sm">Show all notifications</LinkButton> };
+    empty = { title: "You're all caught up", tone: "clear" as const, body: "No unread notifications.", action: <LinkButton href="/notifications" size="sm">Show all notifications</LinkButton> };
   } else if (typeLabel) {
     empty = { title: `No ${typeLabel.toLowerCase()} notifications yet`, action: <LinkButton href="/notifications" size="sm" variant="secondary">Show all types</LinkButton> };
   } else {
@@ -125,7 +125,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
         </p>
       ) : null}
 
-      {items.length === 0 ? <EmptyState title={empty.title} body={empty.body} action={empty.action} /> : <NotificationList items={items} grid words={vocabularyFor(account)} />}
+      {items.length === 0 ? <EmptyState title={empty.title} body={empty.body} action={empty.action} tone={empty.tone} /> : <NotificationList items={items} grid words={vocabularyFor(account)} />}
     </div>
   );
 }

@@ -68,7 +68,7 @@ export function SidebarNav({ items }: { items: SidebarNavItem[] }) {
       {/* Gliding hover highlight */}
       <span ref={highlightRef} aria-hidden="true" className="nav-highlight pointer-events-none absolute left-3 right-3 top-0 rounded-xl bg-brand-50 opacity-0" />
       {/* Active accent bar on the left edge */}
-      <span ref={barRef} aria-hidden="true" className="nav-bar pointer-events-none absolute left-0 top-0 w-1 rounded-r-full bg-brand-600 opacity-0" />
+      <span ref={barRef} aria-hidden="true" className="nav-bar pointer-events-none absolute left-0 top-0 w-1 rounded-r-full bg-brand-500 opacity-0" />
 
       {items.map((it, i) => {
         const active = isActive(it.href);

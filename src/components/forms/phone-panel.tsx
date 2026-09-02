@@ -48,7 +48,7 @@ export function PhonePanel({ account, mode, status, backHref, nextHref }: { acco
       <Card title="Your FrontDesk AI number">
         {hasNumber ? (
           <>
-            <p className="text-3xl font-black tracking-tight text-brand-700">{formatUsPhone(account.twilioNumber)}</p>
+            <p className="text-3xl font-black tracking-tight text-green-700">{formatUsPhone(account.twilioNumber)}</p>
             <p className="mt-1 text-sm text-gray-500">Calls to this number are answered by {account.hostName}.</p>
           </>
         ) : (

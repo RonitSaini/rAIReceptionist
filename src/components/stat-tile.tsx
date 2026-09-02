@@ -38,7 +38,7 @@ export function StatTile({
         <CountUp to={value} format={format} live={live} />
       </p>
       {delta ? (
-        <p className={`mt-1 text-xs font-semibold ${up ? "text-green-700 dark:text-green-400" : down ? "text-red-700 dark:text-red-400" : "text-gray-500"}`}>
+        <p className={`mt-1 text-xs font-semibold ${up ? "text-green-700" : down ? "text-red-700 dark:text-red-400" : "text-gray-500"}`}>
           {up ? "▲" : down ? "▼" : "•"} {Math.abs(delta.value)} {delta.label}
         </p>
       ) : note ? (

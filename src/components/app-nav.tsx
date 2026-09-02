@@ -36,7 +36,7 @@ function MobileTabs({ items }: { items: NavItem[] }) {
     <div ref={ref} className="relative grid" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
       <span
         aria-hidden="true"
-        className="nav-bar pointer-events-none absolute left-0 top-0 h-0.5 rounded-b-full bg-brand-600"
+        className="nav-bar pointer-events-none absolute left-0 top-0 h-0.5 rounded-b-full bg-brand-500"
         style={{ width: `${100 / columns}%`, transform: `translateX(${Math.max(activeIndex, 0) * 100}%)`, opacity: activeIndex < 0 ? 0 : 1 }}
       />
       {items.map((it, i) => {

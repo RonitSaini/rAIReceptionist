@@ -105,7 +105,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
                 <ul className="flex flex-1 flex-col gap-1.5">
                   {items.map((j) => (
                     <li key={j.id}>
-                      <Link href={`/jobs/${j.id}`} className={`lift block rounded-xl border bg-surface px-2.5 py-2 text-sm shadow-sm hover:bg-gray-50 ${j.isEmergency ? "border-red-300" : isToday ? "border-brand-200" : "border-gray-200"}`}>
+                      <Link href={`/jobs/${j.id}`} className={`lift block rounded-xl border bg-surface px-2.5 py-2 text-sm shadow-sm hover:bg-gray-50 ${j.isEmergency ? "border-red-300" : isToday ? "border-brand-300" : "border-gray-200"}`}>
                         <span className="block font-semibold">{j.scheduledStart ? formatTime(j.scheduledStart, tz) : "TBC"}</span>
                         <span className="block truncate text-gray-700">{j.customerName}</span>
                         {j.address ? <span className="block truncate text-xs text-gray-500">{j.address.split(",")[0]}</span> : null}

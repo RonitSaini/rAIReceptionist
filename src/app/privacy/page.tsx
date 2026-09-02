@@ -29,7 +29,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function PrivacyPage() {
   return (
-    <main className="mx-auto w-full max-w-3xl px-5 py-10">
+    <main className="marketing mx-auto w-full max-w-3xl px-5 py-10">
       <div className="fixed right-4 top-4 z-10">
         <AnimatedThemeToggle />
       </div>
@@ -158,13 +158,13 @@ export default function PrivacyPage() {
       <footer className="mt-14 border-t border-gray-200 pt-6 text-sm text-gray-500">
         <div className="flex flex-wrap items-center gap-4">
           <span>© 2026 FrontDesk AI</span>
-          <Link href="/" className="font-semibold text-gray-600 hover:text-ink">
+          <Link href="/" className="font-semibold text-gray-600 hover:text-green-700">
             Home
           </Link>
-          <Link href="/terms" className="font-semibold text-gray-600 hover:text-ink">
+          <Link href="/terms" className="font-semibold text-gray-600 hover:text-green-700">
             Terms of Service
           </Link>
-          <Link href="/login" className="font-semibold text-gray-600 hover:text-ink">
+          <Link href="/login" className="font-semibold text-gray-600 hover:text-green-700">
             Log in
           </Link>
         </div>

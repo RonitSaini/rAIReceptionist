@@ -53,7 +53,7 @@ export function JobForm({ account, defaultDate }: { account: AccountView; defaul
         <Input id="assignedTo" name="assignedTo" defaultValue={account.technicianName ?? ""} placeholder="Mike" />
       </Field>
 
-      <Toggle name="isEmergency" label="Emergency" description="Flags it as urgent in the list and on the schedule." />
+      <Toggle tone="brand" name="isEmergency" label="Emergency" description="Flags it as urgent in the list and on the schedule." />
 
       <input type="hidden" name="mode" value="settings" />
       <Button type="submit" size="lg" full disabled={pending || !!state?.ok}>

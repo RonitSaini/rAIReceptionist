@@ -15,7 +15,7 @@ export const JOB_STATUS_TONE: Record<JobStatus, string> = {
   dispatched: "brand",
   en_route: "brand",
   in_progress: "green",
-  completed: "gray",
+  completed: "green",
   cancelled: "red",
 };
 

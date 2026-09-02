@@ -175,7 +175,7 @@ export async function RestaurantHome({ account, previousSeenAt, changed }: { acc
         <StatTile label="Calls today" value={t.callsToday} icon="phone" live href="/calls" delta={{ value: t.callsDelta, label: "vs yesterday" }} note={t.liveCalls > 0 ? `${t.liveCalls} live now` : undefined} />
         <StatTile label="Covers today" value={t.coversToday} icon="utensils" href={`/reservations?date=${today}`} delta={{ value: t.coversDelta, label: "vs yesterday" }} />
         <StatTile label="Open orders" value={t.openOrders} icon="bag" href="/takeout" />
-        <StatTile label="Unread" value={t.unread} icon="bell" live href="/notifications" note={t.unread === 0 ? "All caught up" : undefined} />
+        <StatTile label="Unread" value={t.unread} icon="bell" live href="/notifications" note={t.unread === 0 ? <span className="text-green-700">All caught up</span> : undefined} />
       </Reveal>
 
       <DashboardMasonry cards={cards} />

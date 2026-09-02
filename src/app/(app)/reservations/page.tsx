@@ -100,7 +100,7 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
                   <ul className="flex flex-1 flex-col gap-1.5">
                     {items.map((r) => (
                       <li key={r.id}>
-                        <Link href={`/reservations/${r.id}`} className={`lift block rounded-xl border bg-surface px-2.5 py-2 text-sm shadow-sm hover:bg-gray-50 ${isToday ? "border-brand-200" : "border-gray-200"}`}>
+                        <Link href={`/reservations/${r.id}`} className={`lift block rounded-xl border bg-surface px-2.5 py-2 text-sm shadow-sm hover:bg-gray-50 ${isToday ? "border-brand-300" : "border-gray-200"}`}>
                           <span className="block font-semibold">{formatTime(r.startTime, tz)}</span>
                           <span className="block truncate text-gray-700">{r.guestName}</span>
                           <span className="text-xs text-gray-500">

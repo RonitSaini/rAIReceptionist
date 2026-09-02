@@ -3,7 +3,7 @@ import type { CSSProperties } from "react";
 /**
  * Hero backdrop: call routes drawing themselves toward the receptionist — the site's stroke-draw
  * motif (pathLength="1" + dashoffset) at ambient scale. Server component, pure CSS loop; the
- * gradient stops read theme tokens so both themes get the right emerald. Shape adapted from the
+ * gradient stops read theme tokens so both themes get the right accent. Shape adapted from the
  * "background beams follow an SVG path" pattern on 21st.dev (aceternity #1152), ported to house CSS.
  */
 
@@ -27,9 +27,9 @@ export function HeroBeams({ className = "" }: { className?: string }) {
     >
       <defs>
         <linearGradient id="beam-grad" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" style={{ stopColor: "var(--color-brand-300)" }} stopOpacity="0" />
-          <stop offset="0.55" style={{ stopColor: "var(--color-brand-400)" }} stopOpacity="0.9" />
-          <stop offset="1" style={{ stopColor: "var(--color-brand-500)" }} stopOpacity="1" />
+          <stop offset="0" style={{ stopColor: "var(--color-green-300)" }} stopOpacity="0" />
+          <stop offset="0.55" style={{ stopColor: "var(--color-green-400)" }} stopOpacity="0.9" />
+          <stop offset="1" style={{ stopColor: "var(--color-green-500)" }} stopOpacity="1" />
         </linearGradient>
       </defs>
       {BEAMS.map((b) => (

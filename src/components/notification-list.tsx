@@ -23,7 +23,7 @@ export function NotificationList({ items, compact = false, grid = false, words }
               <div className="flex flex-wrap items-center gap-2">
                 <Badge tone={notificationTone[n.type]}>{notificationLabel(n, words)}</Badge>
                 {n.priority === "urgent" ? <Badge tone="red">Urgent</Badge> : null}
-                {unread ? <StatusDot className="text-brand-600" label="Unread" /> : null}
+                {unread ? <StatusDot className="text-brand-500" label="Unread" /> : null}
                 <span className="ml-auto text-xs text-gray-500">{timeAgo(n.createdAt, now)}</span>
               </div>
               {/* Opening marks it read, so it's a POST (server action), never a prefetchable GET. */}

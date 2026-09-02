@@ -125,8 +125,8 @@ export function CallDemo() {
           </div>
           <div className="flex items-center justify-between border-b border-gray-200 px-4 py-2.5">
             <p className="text-sm font-semibold">(555) 210-4477</p>
-            {/* brand-700 flips with the theme (brand-600 does not) — 12px text needs the contrast */}
-            <p className="flex items-center gap-2 text-xs font-semibold text-brand-700">
+            {/* A live call is an active state, so it is green; 700 flips with the theme, which 12px text needs. */}
+            <p className="flex items-center gap-2 text-xs font-semibold text-green-700">
               <span className="status-dot" aria-hidden="true" />
               Live call
             </p>
@@ -158,19 +158,19 @@ export function CallDemo() {
             <li key={step.label} className="flex items-start">
               {i > 0 && (
                 <span aria-hidden="true" className="relative mx-1 mt-[17px] block h-0.5 w-5 overflow-hidden rounded-full bg-gray-200 sm:w-8">
-                  <span className={`cd-seg absolute inset-0 rounded-full bg-brand-400 ${activeStep >= i ? "is-on" : ""}`.trim()} />
+                  <span className={`cd-seg absolute inset-0 rounded-full bg-green-500 ${activeStep >= i ? "is-on" : ""}`.trim()} />
                 </span>
               )}
               <span className="flex w-16 flex-col items-center gap-1 sm:w-[4.5rem]">
                 <span
                   className={`cd-node flex h-9 w-9 items-center justify-center rounded-full border transition-colors ${
-                    active ? "border-brand-500 bg-brand-50 text-brand-700" : done ? "border-brand-300 bg-surface text-brand-500" : "border-gray-300 bg-surface text-gray-400"
+                    active ? "border-green-500 bg-green-50 text-green-700" : done ? "border-green-300 bg-surface text-green-500" : "border-gray-300 bg-surface text-gray-400"
                   }`}
                 >
                   {/* Redraws on activation — an active-state change, the sanctioned trigger (and ≥18px). */}
                   <DrawIcon name={step.icon} size={18} draw={active} />
                 </span>
-                <span className={`cd-label text-[11px] font-semibold transition-colors ${active || done ? "text-brand-700" : "text-gray-500"}`}>{step.label}</span>
+                <span className={`cd-label text-[11px] font-semibold transition-colors ${active || done ? "text-green-700" : "text-gray-500"}`}>{step.label}</span>
               </span>
             </li>
           );
@@ -182,7 +182,7 @@ export function CallDemo() {
         {CHIPS.map((chip, i) => (
           <li
             key={chip.label}
-            className={`cd-chip inline-flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-800 ${chipShown(i) ? "is-on" : ""}`.trim()}
+            className={`cd-chip inline-flex items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-3 py-1.5 text-xs font-semibold text-green-800 ${chipShown(i) ? "is-on" : ""}`.trim()}
           >
             <DrawIcon name={chip.icon} size={14} draw={false} />
             {chip.label}

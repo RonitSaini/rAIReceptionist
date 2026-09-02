@@ -121,7 +121,7 @@ export function VoiceForm({ account, mode, backHref }: { account: AccountView; m
             const sample = samples[v.id];
             const playable = sample?.previewUrl ? true : canSpeak;
             return (
-              <div key={v.id} className={`flex items-center justify-between gap-3 rounded-2xl border-2 p-4 ${selected ? "border-brand-600 bg-brand-50" : "border-gray-200 bg-surface"}`}>
+              <div key={v.id} className={`flex items-center justify-between gap-3 rounded-2xl border-2 p-4 ${selected ? "border-brand-500 bg-brand-50" : "border-gray-200 bg-surface"}`}>
                 <button type="button" onClick={() => setVoiceId(v.id)} className="flex-1 text-left">
                   <span className="block font-semibold">{v.name}</span>
                   <span className="block text-sm text-gray-500">{v.description}</span>
@@ -136,7 +136,7 @@ export function VoiceForm({ account, mode, backHref }: { account: AccountView; m
         </div>
 
         {custom ? (
-          <div className="rounded-2xl border-2 border-brand-600 bg-brand-50 p-4">
+          <div className="rounded-2xl border-2 border-brand-500 bg-brand-50 p-4">
             <p className="font-semibold">
               Selected: {custom.name} <span className="text-sm font-normal text-gray-500">· {PROVIDER_LABEL[custom.provider] ?? custom.provider}{custom.accent ? ` · ${custom.accent}` : ""}</span>
             </p>
@@ -157,7 +157,7 @@ export function VoiceForm({ account, mode, backHref }: { account: AccountView; m
               <div className="border-t border-gray-100 p-3">
                 <div className="mb-3 flex flex-wrap gap-2">
                   {(["", "female", "male"] as const).map((g) => (
-                    <button key={g || "all"} type="button" onClick={() => setFilter((f) => ({ ...f, gender: g }))} className={`rounded-full border px-3 py-1.5 text-sm font-semibold ${filter.gender === g ? "border-brand-600 bg-brand-50 text-brand-800" : "border-gray-300 text-gray-700"}`}>
+                    <button key={g || "all"} type="button" onClick={() => setFilter((f) => ({ ...f, gender: g }))} className={`rounded-full border px-3 py-1.5 text-sm font-semibold ${filter.gender === g ? "border-brand-500 bg-brand-50 text-brand-800" : "border-gray-300 text-gray-700"}`}>
                       {g === "" ? "All" : g === "female" ? "Female" : "Male"}
                     </button>
                   ))}

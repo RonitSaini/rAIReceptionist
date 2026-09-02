@@ -11,7 +11,7 @@ type Variant = "primary" | "secondary" | "danger" | "ghost";
 type Size = "md" | "lg" | "sm";
 
 const variantClass: Record<Variant, string> = {
-  primary: "bg-brand-600 text-white hover:bg-brand-700 active:bg-brand-800 disabled:bg-brand-300",
+  primary: "bg-brand-600 text-white hover:bg-brand-hover active:bg-brand-press disabled:bg-brand-300",
   secondary: "bg-surface text-ink border border-gray-300 hover:bg-gray-50 active:bg-gray-100 disabled:text-gray-400",
   danger: "bg-red-600 text-white hover:bg-red-700 active:bg-red-800 disabled:bg-red-300",
   ghost: "bg-transparent text-brand-700 hover:bg-brand-50 active:bg-brand-100 disabled:text-gray-400",
@@ -74,7 +74,12 @@ export function Field({ label, hint, htmlFor, children, className }: { label: st
   );
 }
 
-export function Toggle({ label, description, name, defaultChecked, checked, onChange }: { label: string; description?: string; name?: string; defaultChecked?: boolean; checked?: boolean; onChange?: (v: boolean) => void }) {
+/**
+ * ON is green: a switch that is on is the system doing the thing. The exception is a switch that
+ * flags something for attention rather than enabling a capability (an emergency, a waitlist entry).
+ * Those pass tone="brand" and stay blue, because green there would read as "all good".
+ */
+export function Toggle({ label, description, name, defaultChecked, checked, onChange, tone = "go" }: { label: string; description?: string; name?: string; defaultChecked?: boolean; checked?: boolean; onChange?: (v: boolean) => void; tone?: "go" | "brand" }) {
   return (
     <label className="flex min-h-14 cursor-pointer items-center justify-between gap-4 rounded-xl border border-gray-200 bg-surface px-4 py-3">
       <span>
@@ -89,7 +94,12 @@ export function Toggle({ label, description, name, defaultChecked, checked, onCh
         onChange={onChange ? (e) => onChange(e.target.checked) : undefined}
         className="peer sr-only"
       />
-      <span className="relative h-7 w-12 shrink-0 rounded-full bg-gray-300 transition-colors duration-300 peer-checked:bg-brand-600 after:absolute after:left-0.5 after:top-0.5 after:h-6 after:w-6 after:rounded-full after:bg-white after:shadow-sm after:transition-transform after:duration-300 after:[transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)] peer-checked:after:translate-x-5" />
+      <span
+        className={cx(
+          "relative h-7 w-12 shrink-0 rounded-full bg-gray-300 transition-colors duration-300 after:absolute after:left-0.5 after:top-0.5 after:h-6 after:w-6 after:rounded-full after:bg-white after:shadow-sm after:transition-transform after:duration-300 after:[transition-timing-function:cubic-bezier(0.34,1.56,0.64,1)] peer-checked:after:translate-x-5",
+          tone === "brand" ? "peer-checked:bg-brand-500" : "peer-checked:bg-green-500",
+        )}
+      />
     </label>
   );
 }
@@ -131,10 +141,13 @@ export function PageHeader({ title, subtitle, action }: { title: string; subtitl
   );
 }
 
-export function EmptyState({ title, body, action }: { title: string; body?: string; action?: ReactNode }) {
+/** tone="clear" is an empty state that is GOOD NEWS (nothing unread, nothing overdue) rather than
+ *  an absence (no customers yet). Absence stays neutral, so "empty" never flatly reads as "fine". */
+export function EmptyState({ title, body, action, tone = "neutral" }: { title: string; body?: string; action?: ReactNode; tone?: "neutral" | "clear" }) {
+  const clear = tone === "clear";
   return (
-    <div className="rounded-2xl border border-dashed border-gray-300 bg-surface/60 px-4 py-10 text-center">
-      <p className="font-semibold">{title}</p>
+    <div className={cx("rounded-2xl border border-dashed bg-surface/60 px-4 py-10 text-center", clear ? "border-green-300" : "border-gray-300")}>
+      <p className={cx("font-semibold", clear && "text-green-700")}>{title}</p>
       {body ? <p className="mt-1 text-sm text-gray-500">{body}</p> : null}
       {action ? <div className="mt-4 flex justify-center">{action}</div> : null}
     </div>
@@ -144,7 +157,7 @@ export function EmptyState({ title, body, action }: { title: string; body?: stri
 export function Alert({ kind = "error", children }: { kind?: "error" | "success" | "info"; children: ReactNode }) {
   const cls = {
     error: "border-red-200 bg-red-50 text-red-800",
-    success: "border-green-200 bg-green-50 text-green-800",
+    success: "border-green-400 bg-green-50 text-green-800",
     info: "border-blue-200 bg-blue-50 text-blue-800",
   }[kind];
   return <div className={cx("slide-in rounded-xl border px-4 py-3 text-sm", cls)} role={kind === "error" ? "alert" : "status"}>{children}</div>;
@@ -173,7 +186,7 @@ export function Badge({ children, tone = "gray", className }: { children: ReactN
 
 export const reservationTone: Record<string, keyof typeof badgeTone> = {
   booked: "blue",
-  confirmed: "brand",
+  confirmed: "green", // Sage: the confirmed state is what the palette reserves green for
   seated: "green",
   completed: "gray",
   cancelled: "red",
@@ -182,7 +195,7 @@ export const reservationTone: Record<string, keyof typeof badgeTone> = {
 
 export const takeoutTone: Record<string, keyof typeof badgeTone> = {
   new: "blue",
-  confirmed: "brand",
+  confirmed: "green", // Sage, as above
   ready: "green",
   picked_up: "gray",
   cancelled: "red",

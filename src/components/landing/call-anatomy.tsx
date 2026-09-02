@@ -178,7 +178,7 @@ export function CallAnatomy({
             onClick={playing ? stop : play}
             className="ca-play press h-9 shrink-0 items-center gap-2 whitespace-nowrap rounded-xl border border-gray-300 bg-surface px-3.5 text-sm font-semibold text-ink transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400"
           >
-            <DrawIcon name="phone" size={16} draw={false} className={playing ? "text-brand-600" : "text-gray-500"} />
+            <DrawIcon name="phone" size={16} draw={false} className={playing ? "text-green-700" : "text-gray-500"} />
             {playing ? "Skip to the end" : played ? "Play it again" : "Play the call"}
           </button>
         )}
@@ -187,7 +187,7 @@ export function CallAnatomy({
       <ol className="space-y-5 px-5 py-5 sm:px-6" aria-live={playing ? "off" : undefined}>
         {beats.map((beat, b) => (
           <li key={beat.lead} className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-3 sm:gap-x-4 lg:grid-cols-[1.5rem_minmax(0,1fr)_16rem] lg:gap-x-6">
-            <span className={`ca-beat pt-0.5 text-sm font-bold tabular-nums leading-snug text-brand-700 ${beatOn(b) ? "is-on" : ""}`.trim()} aria-hidden="true">
+            <span className={`ca-beat pt-0.5 text-sm font-bold tabular-nums leading-snug text-green-700 ${beatOn(b) ? "is-on" : ""}`.trim()} aria-hidden="true">
               {b + 1}
             </span>
 
@@ -208,11 +208,11 @@ export function CallAnatomy({
               })}
             </div>
 
-            <aside className={`ca-beat col-start-2 mt-2 self-start border-l-2 border-brand-200 pl-3 text-[13px] leading-snug text-gray-500 lg:col-start-3 lg:mt-0 ${beatOn(b) ? "is-on" : ""}`.trim()}>
-              <span className="font-bold tabular-nums text-brand-700" aria-hidden="true">
+            <aside className={`ca-beat col-start-2 mt-2 self-start border-l-2 border-green-300 pl-3 text-[13px] leading-snug text-gray-500 lg:col-start-3 lg:mt-0 ${beatOn(b) ? "is-on" : ""}`.trim()}>
+              <span className="font-bold tabular-nums text-green-700" aria-hidden="true">
                 {b + 1}{" "}
               </span>
-              <span className="font-semibold text-ink">{beat.lead}. </span>
+              <span className="font-semibold text-green-700">{beat.lead}. </span>
               {beat.note}
             </aside>
           </li>
@@ -220,7 +220,7 @@ export function CallAnatomy({
 
         {/* The one message that follows: the caller's confirmation text, the real template. */}
         <li className="grid grid-cols-[1.5rem_minmax(0,1fr)] gap-x-3 sm:gap-x-4 lg:grid-cols-[1.5rem_minmax(0,1fr)_16rem] lg:gap-x-6">
-          <span className={`ca-beat pt-0.5 text-sm font-bold tabular-nums leading-snug text-brand-700 ${!playing || pos > smsIndex ? "is-on" : ""}`.trim()} aria-hidden="true">
+          <span className={`ca-beat pt-0.5 text-sm font-bold tabular-nums leading-snug text-green-700 ${!playing || pos > smsIndex ? "is-on" : ""}`.trim()} aria-hidden="true">
             {beats.length + 1}
           </span>
           <div>
@@ -231,11 +231,11 @@ export function CallAnatomy({
               {sms.after}
             </p>
           </div>
-          <aside className={`ca-beat col-start-2 mt-2 self-start border-l-2 border-brand-200 pl-3 text-[13px] leading-snug text-gray-500 lg:col-start-3 lg:mt-0 ${!playing || pos > smsIndex ? "is-on" : ""}`.trim()}>
-            <span className="font-bold tabular-nums text-brand-700" aria-hidden="true">
+          <aside className={`ca-beat col-start-2 mt-2 self-start border-l-2 border-green-300 pl-3 text-[13px] leading-snug text-gray-500 lg:col-start-3 lg:mt-0 ${!playing || pos > smsIndex ? "is-on" : ""}`.trim()}>
+            <span className="font-bold tabular-nums text-green-700" aria-hidden="true">
               {beats.length + 1}{" "}
             </span>
-            <span className="font-semibold text-ink">The text. </span>
+            <span className="font-semibold text-green-700">The text. </span>
             The exact template the code sends, with your name in the slot. Reply CANCEL cancels the booking; STOP is honored. You are never texted: your side
             is the notification.
           </aside>

@@ -65,14 +65,14 @@ export function Questions({ className = "" }: { className?: string }) {
               >
                 <span>
                   <span className="block text-base font-bold tracking-tight text-ink">{item.q}</span>
-                  <span className="mt-1 block text-lg font-semibold leading-snug text-brand-800">{item.short}</span>
+                  <span className="mt-1 block text-lg font-semibold leading-snug text-green-800">{item.short}</span>
                 </span>
                 {/* The arrow redraws on each toggle (shaft, then head) and turns to point up when open. */}
                 <span
                   className="fold-arrow mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-300 bg-surface text-gray-500 transition-colors group-hover:border-gray-400 group-hover:text-ink"
                   aria-hidden="true"
                 >
-                  <DrawIcon key={ticks[item.id] ?? 0} name="arrow-down" size={18} draw={(ticks[item.id] ?? 0) > 0} className={isOpen ? "text-brand-700" : ""} />
+                  <DrawIcon key={ticks[item.id] ?? 0} name="arrow-down" size={18} draw={(ticks[item.id] ?? 0) > 0} className={isOpen ? "text-green-700" : ""} />
                 </span>
               </button>
             </h3>

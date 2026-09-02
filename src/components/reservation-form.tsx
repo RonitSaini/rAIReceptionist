@@ -104,7 +104,7 @@ export function ReservationForm({ action, initial, largePartyThreshold }: { acti
       <Field label="Special requests" htmlFor="specialRequests">
         <Textarea id="specialRequests" name="specialRequests" defaultValue={initial.specialRequests} rows={2} placeholder="Birthday, allergy, stroller…" />
       </Field>
-      <Toggle name="isWaitlist" label="Waitlist entry" description="Not a confirmed booking — call the guest if a table opens." defaultChecked={initial.isWaitlist} />
+      <Toggle tone="brand" name="isWaitlist" label="Waitlist entry" description="Not a confirmed booking — call the guest if a table opens." defaultChecked={initial.isWaitlist} />
 
       <FormFooter state={state} pending={pending} mode="settings" submitLabel={initial.id ? "Save changes" : "Book it"} />
     </ActionForm>

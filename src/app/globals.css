@@ -11,16 +11,46 @@
 @theme {
   /* Surfaces (cards, inputs, headers). Separate from --color-white so text-white stays white in dark mode. */
   --color-surface: #ffffff;
-  --color-brand-50: #eef7f4;
-  --color-brand-100: #d5ede4;
-  --color-brand-200: #a9dbc8;
-  --color-brand-300: #6fc2a5;
-  --color-brand-400: #3ea684;
-  --color-brand-500: #1f8a6b;
-  --color-brand-600: #176f57;
-  --color-brand-700: #145947;
-  --color-brand-800: #12483a;
-  --color-brand-900: #0f3b31;
+  /*
+   * Brand = the interactive voice, everywhere: primary buttons, links, active nav and tabs,
+   * selected states, focus rings, toggles, progress. Baltic Blue #05668D is the 600 fill and
+   * Steel Blue #427AA1 the 500; 300/400 are Steel re-lit, 50/100/200 are Alice Blue #EBF2FA
+   * stepped down. 600 is a FILL token and never flips with the theme, because white sits on it in
+   * both; accent TEXT always reads 700, which does flip. See the palette report for every ratio.
+   */
+  --color-brand-50: #ebf2fa;
+  --color-brand-100: #dbe8f7;
+  --color-brand-200: #bed5f0;
+  --color-brand-300: #6f99b9;
+  --color-brand-400: #5286ac;
+  --color-brand-500: #427aa1;
+  --color-brand-600: #05668d;
+  --color-brand-700: #005379;
+  --color-brand-800: #003f62;
+  --color-brand-900: #002f4f;
+  /*
+   * The primary button's other two fills. 600 cannot flip and 700 is the bright text tint, so a
+   * button hovering to 700 in dark puts white on #84AFD0 at 2.33:1. These two flip, but only far
+   * enough to keep white readable: hover lifts off the ground in dark and deepens in light, press
+   * returns toward the resting fill.
+   */
+  --color-brand-hover: #00476a;
+  --color-brand-press: #003553;
+  /*
+   * Green = Sage #679436, and in the app it means exactly one thing: confirmed, succeeded, lit.
+   * Booked and confirmed states, success alerts, completed checkmarks, an acknowledged escalation.
+   * It is never decorative here -- that relaxation exists only inside .marketing below.
+   */
+  --color-green-50: #eff4eb;
+  --color-green-100: #e1ebd9;
+  --color-green-200: #c8dbb9;
+  --color-green-300: #789f51;
+  --color-green-400: #6b963e;
+  --color-green-500: #608d2e;
+  --color-green-600: #537929;
+  --color-green-700: #456621;
+  --color-green-800: #345013;
+  --color-green-900: #263d07;
   --color-ink: #16201c;
   --color-paper: #f7f8f7;
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -61,21 +91,27 @@ html {
   --color-gray-800: #e1e7e4;
   --color-gray-900: #f1f4f2;
 
-  --color-brand-50: #10271e;
-  --color-brand-100: #153627;
-  --color-brand-200: #1b4a37;
-  --color-brand-700: #4fb08f;
-  --color-brand-800: #7fcbb0;
-  --color-brand-900: #a9dbc8;
+  /* Both accent families re-light the same six steps: tint surfaces down, text tints up.
+     300-600 stay shared with the light theme, because 600 is a fill and 500 a hairline. */
+  --color-brand-50: #06212f;
+  --color-brand-100: #0c2e3f;
+  --color-brand-200: #17435a;
+  --color-brand-700: #84afd0;
+  --color-brand-800: #bdcee2;
+  --color-brand-900: #e1ebf5;
+  --color-brand-hover: #0a76a1;
+  --color-brand-press: #05668d;
 
   --color-red-50: #2a1416;
   --color-red-100: #3a1a1d;
   --color-red-200: #5a2429;
   --color-red-800: #fca5a5;
-  --color-green-50: #10261a;
-  --color-green-100: #143321;
-  --color-green-200: #1c4a2f;
-  --color-green-800: #86efac;
+  --color-green-50: #19250d;
+  --color-green-100: #243314;
+  --color-green-200: #354c1f;
+  --color-green-700: #a0c382;
+  --color-green-800: #c9deb8;
+  --color-green-900: #e6f1dd;
   --color-blue-50: #101c2e;
   --color-blue-100: #142640;
   --color-blue-200: #1d3760;
@@ -85,6 +121,44 @@ html {
   --color-amber-900: #fde68a;
   --color-purple-100: #2a1a3d;
   --color-purple-800: #d8b4fe;
+}
+
+/*
+ * The palette lives in @theme and .dark above and applies to the whole product. This block is the
+ * ONE place the two surfaces differ, and it is a difference of RULE, not of hue.
+ *
+ * In the app, Sage is semantic: confirmed, succeeded, lit, and nothing else. On the public pages
+ * -- the landing page, /privacy, /terms and the header and footer inside them, marked by a
+ * .marketing class on each <main> -- Sage is a co-lead accent and also carries the step strip, the
+ * day-timeline rail, the switcher's active state, outcome chips, the hero beams and glow, and link
+ * hover. Blue stays the product's voice on both surfaces.
+ *
+ * Re-declaring the green ramp here pins the decorative usage to its own values. The numbers happen
+ * to match the app's today; if the app's success green is ever re-tuned to make a badge pop, the
+ * hero beams will not move with it, and vice versa. That independence is the point of the scope.
+ * The values themselves are documented at @theme; 500 is Sage re-lit to L .590, the one lightness
+ * that clears 3:1 against --color-gray-200 in both themes.
+ */
+.marketing {
+  --color-green-50: #eff4eb;
+  --color-green-100: #e1ebd9;
+  --color-green-200: #c8dbb9;
+  --color-green-300: #789f51;
+  --color-green-400: #6b963e;
+  --color-green-500: #608d2e;
+  --color-green-600: #537929;
+  --color-green-700: #456621;
+  --color-green-800: #345013;
+  --color-green-900: #263d07;
+}
+
+.dark .marketing {
+  --color-green-50: #19250d;
+  --color-green-100: #243314;
+  --color-green-200: #354c1f;
+  --color-green-700: #a0c382;
+  --color-green-800: #c9deb8;
+  --color-green-900: #e6f1dd;
 }
 
 body {
@@ -550,8 +624,8 @@ body {
 /* Static hero glow (no motion, so no reduced-motion entry needed). */
 .landing-glow {
   background:
-    radial-gradient(600px 420px at 72% 18%, color-mix(in oklab, var(--color-brand-400) 13%, transparent), transparent 70%),
-    radial-gradient(520px 380px at 12% 85%, color-mix(in oklab, var(--color-brand-300) 7%, transparent), transparent 70%);
+    radial-gradient(600px 420px at 72% 18%, color-mix(in oklab, var(--color-green-400) 13%, transparent), transparent 70%),
+    radial-gradient(520px 380px at 12% 85%, color-mix(in oklab, var(--color-green-300) 7%, transparent), transparent 70%);
 }
 
 /* Rotating profession in the hero: all words stacked in one grid cell (the widest sets the width, so
@@ -601,11 +675,11 @@ body {
    The server renders them unlit because only the running demo knows how far the call got, so the
    gray start belongs to .js and the stylesheet paints the finished look when .js is absent. */
 html:not(.js) .cd-node {
-  border-color: var(--color-brand-300);
-  color: var(--color-brand-500);
+  border-color: var(--color-green-300);
+  color: var(--color-green-500);
 }
 html:not(.js) .cd-label {
-  color: var(--color-brand-700);
+  color: var(--color-green-700);
 }
 
 /* Profession switcher rail: the indicator GLIDES to the picked item, translate-only (rule 5).
@@ -623,8 +697,8 @@ html:not(.js) .cd-label {
   width: 100%;
   height: 2.75rem; /* = the h-11 rail items; uniform, so translate-only is exact */
   border-radius: 9999px;
-  background: var(--color-brand-50);
-  border: 1px solid var(--color-brand-200);
+  background: var(--color-green-50);
+  border: 1px solid var(--color-green-200);
   transform: translateY(var(--pv-y, 0px));
   transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
   will-change: transform;
@@ -637,7 +711,9 @@ html:not(.js) .cd-label {
   width: 100px; /* fixed base width; --pv-sx scales it to the active item (never a width tween) */
   height: 2px;
   border-radius: 9999px;
-  background: var(--color-brand-600);
+  /* 500, not 600: 600 is the fill token, and a 2px indicator drawn in it on the dark paper is
+     2.85:1 — under the 3:1 an active-state indicator needs. 500 carries it at 4.08:1. */
+  background: var(--color-green-500);
   transform: translateX(var(--pv-x, 0px)) scaleX(var(--pv-sx, 0));
   transform-origin: left center;
   transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
@@ -762,7 +838,7 @@ button[aria-expanded="true"] .fold-arrow {
 .day-fill {
   position: absolute;
   inset: 0;
-  background: var(--color-brand-500);
+  background: var(--color-green-500);
   transform: scaleY(var(--day-progress, 0));
   transform-origin: top center;
   transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
@@ -880,20 +956,20 @@ button[aria-expanded="true"] .fold-arrow {
      the hydration swap changes nothing visible, and nothing transitions (rule 7). Not gated on .js:
      the unlit state is server-rendered, not a JS-only hidden state. */
   .cd-node {
-    border-color: var(--color-brand-300);
-    color: var(--color-brand-500);
+    border-color: var(--color-green-300);
+    color: var(--color-green-500);
     transition: none;
   }
   .cd-label {
-    color: var(--color-brand-700);
+    color: var(--color-green-700);
     transition: none;
   }
   /* The day timeline's nodes, for the same reason: the component renders every moment lit under
      reduced motion, but only after hydration, so the stylesheet paints the lit look and nothing
      transitions. The rail itself already lands fully drawn (.day-fill above). */
   .day-node {
-    border-color: var(--color-brand-300);
-    color: var(--color-brand-600);
+    border-color: var(--color-green-300);
+    color: var(--color-green-700); /* the foreground token — matches the lit node in day-timeline.tsx */
     transition: none;
   }
   .bar-grow {
@@ -931,24 +1007,24 @@ textarea {
 
 /* ---------- Data-viz tokens (validated: see dataviz skill; light surface #ffffff, dark #161c19) ---------- */
 :root {
-  --viz-series-1: #2a78d6; /* blue   — reservations */
-  --viz-series-2: #eb6834; /* orange — takeout */
-  --viz-series-3: #1baf7a; /* aqua   — questions & messages */
-  --viz-series-4: #eda100; /* yellow — needs attention */
-  --viz-single: #1f8a6b;   /* brand, single-series bars */
-  --viz-single-soft: #a9dbc8;
+  --viz-series-1: #05668d; /* Baltic Blue    — reservations */
+  --viz-series-2: #c2571c; /* deep orange    — takeout */
+  --viz-series-3: #6f99b9; /* Steel Blue, lit — questions & messages */
+  --viz-series-4: #e0a106; /* amber          — escalations & missed */
+  --viz-single: #537929;   /* Sage: a single series is work landing, and has nothing to clash with */
+  --viz-single-soft: #c8dbb9;
   --viz-grid: #e5e7eb;
-  --viz-good: #0ca30c;
+  --viz-good: #608d2e;
   --viz-neutral: #9ca3af;
   --viz-critical: #d03b3b;
 }
 .dark {
-  --viz-series-1: #3987e5;
-  --viz-series-2: #d95926;
-  --viz-series-3: #199e70;
-  --viz-series-4: #c98500;
-  --viz-single: #4fb08f;
-  --viz-single-soft: #1b4a37;
+  --viz-series-1: #3f8fb8;
+  --viz-series-2: #d9713a;
+  --viz-series-3: #8fbcd8;
+  --viz-series-4: #e5b02e;
+  --viz-single: #6b963e;
+  --viz-single-soft: #354c1f;
   --viz-grid: #2e3934;
   --viz-neutral: #7d8b84;
 }

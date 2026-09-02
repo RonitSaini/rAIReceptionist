@@ -148,7 +148,7 @@ export function DayTimeline({ cancelReply, className = "" }: { cancelReply: { be
             <span
               data-day-node
               className={`day-node relative z-10 flex h-9 w-9 items-center justify-center rounded-full border bg-surface transition-colors ${
-                isLit ? "border-brand-300 text-brand-600" : "border-gray-300 text-gray-400"
+                isLit ? "border-green-300 text-green-700" : "border-gray-300 text-gray-400"
               }`}
             >
               {/* Draws once when the rail reaches it — an activation (rule 8), 18px. */}

@@ -44,7 +44,9 @@ export default async function Home() {
   const exhibits = callExhibits();
 
   return (
-    <main className="min-h-dvh">
+    // .marketing scopes the public accent palette (globals.css) to this subtree — header and footer
+    // included. The app behind login keeps the emerald brand tokens.
+    <main className="marketing min-h-dvh">
       <header className="sticky top-0 z-40 border-b border-gray-200 bg-[color-mix(in_oklab,var(--color-paper)_82%,transparent)] backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-2.5">
           <Logo href="/" />
@@ -53,7 +55,7 @@ export default async function Home() {
               <LinkButton href="/dashboard">Go to dashboard</LinkButton>
             ) : (
               <>
-                <Link href="/login" className="rounded-xl px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:text-ink">
+                <Link href="/login" className="rounded-xl px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:text-green-700">
                   Log in
                 </Link>
                 <LinkButton href="/signup">Get started</LinkButton>
@@ -101,7 +103,9 @@ export default async function Home() {
                 <span className="hero-slide block" style={beatVars(HERO_TIMING.lineOne)}>
                   Your phone, answered.
                 </span>{" "}
-                <span className="hero-slide block text-brand-600" style={beatVars(HERO_TIMING.lineTwo)}>
+                {/* 700, the accent FOREGROUND token: 600 is the fill token and does not flip with the
+                    theme, so on the dark paper it renders 2.85:1 — under the 3:1 large text needs. */}
+                <span className="hero-slide block text-brand-700" style={beatVars(HERO_TIMING.lineTwo)}>
                   Every time.
                 </span>
               </h1>
@@ -130,7 +134,9 @@ export default async function Home() {
               <ul className="mt-6 flex flex-wrap gap-x-5 gap-y-2 text-sm text-gray-500">
                 {["Answers 24/7", "Books into a real schedule", "US & Canada"].map((point) => (
                   <li key={point} className="flex items-center gap-1.5">
-                    <DrawIcon name="check" size={14} draw={false} className="text-brand-500" />
+                    {/* Sage green, the palette's reserved success color: these ticks mean "confirmed",
+                        so they read the semantic token, not the brand ramp. */}
+                    <DrawIcon name="check" size={14} draw={false} className="text-green-700" />
                     {point}
                   </li>
                 ))}
@@ -189,7 +195,7 @@ export default async function Home() {
 
       <section className="mx-auto w-full max-w-6xl px-5 pb-20 pt-4">
         {/* Gradient stops and button label use brand-500/600 only — the tokens the dark theme does
-            NOT remap — so the banner stays deep emerald with readable text in both themes. */}
+            NOT remap — so the banner stays Steel-into-Baltic with readable text in both themes. */}
         <Reveal className="rounded-3xl bg-[linear-gradient(135deg,var(--color-brand-500),var(--color-brand-600))] px-6 py-12 text-center sm:px-12">
           <h2 className="text-3xl font-extrabold tracking-tight text-white">Stop losing the calls you can&apos;t pick up.</h2>
           <p className="mx-auto mt-3 max-w-xl text-white/80">
@@ -210,20 +216,20 @@ export default async function Home() {
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-5 py-8 text-sm text-gray-500 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
             <span>© 2026 FrontDesk AI</span>
-            <Link href="/privacy" className="font-semibold text-gray-600 transition-colors hover:text-ink">
+            <Link href="/privacy" className="font-semibold text-gray-600 transition-colors hover:text-green-700">
               Privacy Policy
             </Link>
-            <Link href="/terms" className="font-semibold text-gray-600 transition-colors hover:text-ink">
+            <Link href="/terms" className="font-semibold text-gray-600 transition-colors hover:text-green-700">
               Terms of Service
             </Link>
-            <Link href="/login" className="font-semibold text-gray-600 transition-colors hover:text-ink">
+            <Link href="/login" className="font-semibold text-gray-600 transition-colors hover:text-green-700">
               Log in
             </Link>
-            <Link href="/signup" className="font-semibold text-gray-600 transition-colors hover:text-ink">
+            <Link href="/signup" className="font-semibold text-gray-600 transition-colors hover:text-green-700">
               Create account
             </Link>
           </div>
-          <a href="mailto:ssaibusiness101@gmail.com" className="font-semibold text-gray-600 transition-colors hover:text-ink">
+          <a href="mailto:ssaibusiness101@gmail.com" className="font-semibold text-gray-600 transition-colors hover:text-green-700">
             ssaibusiness101@gmail.com
           </a>
         </div>

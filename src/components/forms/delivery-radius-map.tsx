@@ -101,7 +101,7 @@ export function DeliveryRadiusMap({ center, radiusMiles, radiusLabel, label }: {
         if (cancelled || !elRef.current) return;
         const [{ Map, Circle }, { Marker }] = await Promise.all([g.maps.importLibrary("maps"), g.maps.importLibrary("marker")]);
         if (cancelled || !elRef.current) return;
-        const brand = getComputedStyle(document.documentElement).getPropertyValue("--color-brand-600").trim() || "#0f766e";
+        const brand = getComputedStyle(document.documentElement).getPropertyValue("--color-brand-600").trim() || "#05668d";
         const map = new Map(elRef.current, {
           center,
           zoom: 12,

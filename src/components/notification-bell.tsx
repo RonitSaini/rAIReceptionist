@@ -151,7 +151,7 @@ export function NotificationBell({ initialCount, initialItems }: { initialCount:
               </button>
             ))}
             {/* Equal-width tabs, so the indicator only translates. */}
-            <span aria-hidden="true" className="nav-bar pointer-events-none absolute bottom-0 left-0 h-0.5 w-24 rounded-t-full bg-brand-600" style={{ transform: `translateX(${tab === "all" ? 0 : 100}%)` }} />
+            <span aria-hidden="true" className="nav-bar pointer-events-none absolute bottom-0 left-0 h-0.5 w-24 rounded-t-full bg-brand-500" style={{ transform: `translateX(${tab === "all" ? 0 : 100}%)` }} />
           </div>
           {count > 0 ? (
             <form action={markAll}>
@@ -164,7 +164,7 @@ export function NotificationBell({ initialCount, initialItems }: { initialCount:
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {shown.length === 0 ? (
-            <p className="px-4 py-8 text-center text-sm text-gray-500">{tab === "unread" ? "You're all caught up." : "Nothing here yet."}</p>
+            <p className={`px-4 py-8 text-center text-sm ${tab === "unread" ? "text-green-700" : "text-gray-500"}`}>{tab === "unread" ? "You're all caught up." : "Nothing here yet."}</p>
           ) : (
             <ul>
               {shown.map((n) => {
@@ -179,7 +179,7 @@ export function NotificationBell({ initialCount, initialItems }: { initialCount:
                       <button type="submit" className="block w-full text-left">
                       <span className="flex items-center gap-2">
                         <span className={`truncate text-sm ${unread ? "font-bold" : "font-semibold"}`}>{n.title}</span>
-                        {unread ? <StatusDot className="text-brand-600" label="Unread" /> : null}
+                        {unread ? <StatusDot className="text-brand-500" label="Unread" /> : null}
                       </span>
                       {n.body ? <span className="block line-clamp-1 text-xs text-gray-600">{n.body}</span> : null}
                       {/* Relative time differs between server render and hydration by design; patch, don't warn. */}

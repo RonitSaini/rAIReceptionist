@@ -90,7 +90,7 @@ export function WebTestCall({ hostName, compact = false }: { hostName: string; c
   const ss = String(seconds % 60).padStart(2, "0");
 
   return (
-    <div className={`rounded-2xl border p-4 ${live ? "border-brand-600 bg-brand-50" : "border-gray-200 bg-surface"}`}>
+    <div className={`rounded-2xl border p-4 ${live ? "border-brand-500 bg-brand-50" : "border-gray-200 bg-surface"}`}>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="font-semibold">Test call in your browser</p>
@@ -99,7 +99,7 @@ export function WebTestCall({ hostName, compact = false }: { hostName: string; c
             {status === "starting" && "Connecting… allow microphone access if asked."}
             {status === "connected" && (
               <span className="inline-flex items-center gap-2">
-                <span className={`inline-block h-2.5 w-2.5 rounded-full ${agentTalking ? "animate-pulse bg-brand-600" : "bg-green-500"}`} />
+                <span className={`inline-block h-2.5 w-2.5 rounded-full ${agentTalking ? "animate-pulse bg-brand-500" : "bg-green-500"}`} />
                 {agentTalking ? `${hostName} is speaking` : "Listening"} · {mm}:{ss}
               </span>
             )}

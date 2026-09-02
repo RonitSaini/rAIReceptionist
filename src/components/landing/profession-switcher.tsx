@@ -110,11 +110,11 @@ export function ProfessionSwitcher({ professions, className = "" }: { profession
                 data-active={isActive || undefined}
                 onClick={() => select(i)}
                 className={`relative z-10 flex h-11 shrink-0 items-center gap-2.5 whitespace-nowrap rounded-full px-3.5 text-sm font-semibold transition-colors lg:w-full ${
-                  isActive ? "text-brand-800" : "text-gray-600 hover:text-ink"
+                  isActive ? "text-green-800" : "text-gray-600 hover:text-green-700"
                 }`}
               >
                 {/* Redraws when a selection lands on it — an active-state change (rule 8), 18px. */}
-                <DrawIcon name={p.icon} size={18} draw={isActive && touched} className={isActive ? "text-brand-700" : "text-gray-400"} />
+                <DrawIcon name={p.icon} size={18} draw={isActive && touched} className={isActive ? "text-green-700" : "text-gray-400"} />
                 {p.label}
               </button>
             );
