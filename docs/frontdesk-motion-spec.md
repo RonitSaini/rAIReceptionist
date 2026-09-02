@@ -320,3 +320,129 @@ place → zero CLS, complete without JS).
 Verified: CLS 0 in 6 viewport/theme/motion configs (loop + scroll pass), LCP 52–96ms unthrottled
 (rule 13 came from this pass), Lighthouse on the build 98/100/100/100, no-JS and reduced-motion
 complete, goldens byte-identical.
+
+### Landing page pass 2 (2026-09-01) — professions switcher + day timeline
+
+The `/` professions and features sections redone. framer-motion again pre-approved, again not
+needed — both patterns ported to the house system, one motion system stands. New classes
+(`.pv-rail`, `.pv-pill`, `.pv-underline`, `.pv-stage`/`.pv-panel`, `.day-track`, `.day-fill`) are
+all in the reduced-motion block, landing on end states; hidden initial states gated on `.js`
+(no-JS reads all ten profession panels stacked and the timeline complete, trackless).
+
+| Search | Where it went | Status |
+|---|---|---|
+| scroll-driven timeline | `<DayTimeline>` — shape of aceternity *Timeline* #857 (the one paid retrieval): static track + advancing fill, first-node-center → last-node-center geometry. Its framer `useScroll` height scrub replaced by IntersectionObserver activations driving settled 550ms `scaleY` fills on `--day-progress` (rule 5: transform only; "draws once", never rewound). Node icons `<DrawIcon>`-draw on activation (rule 8, 18px) | ✅ (in-house port) |
+| segmented control / animated tabs | `<ProfessionSwitcher>` rail — no retrieval: rule 5 already records both sanctioned indicators. ≥ lg a full pill translates over uniform h-11 items (the sidebar `.nav-bar` idiom); < lg the 2px underline (`translateX` + `scaleX`) rides the rail hairline. Candidates (educalvolpz #24930, cnippet #24956, ddoemonn #23552) all slide pills across variable widths — rejected again | ✅ (in-house) |
+| text/content crossfade | `.pv-panel` stage — shape of ibelick *Transition Panel* #1649 (metadata only): all panels server-rendered into one grid cell (tallest sets height → zero layout shift), opacity+blur crossfade 350ms, user-triggered only, no timers | ✅ (in-house) |
+
+### Landing page pass 3 (2026-09-01) — call anatomy + visible FAQ
+
+"How it works" is now `<CallAnatomy>` (one plumbing call as an annotated script: gutter numerals,
+speaker labels, margin notes; the greeting, the confirmation text and the notification title are
+the real templates via `voice-data.ts`) and "Questions, answered" is `<Questions>` (six answers
+fully visible, a sticky index ≥ lg, FAQPage JSON-LD built from the same list). Both are server
+components with **no motion at all** — the page's motion budget went to the day timeline, and
+nothing here needs to move. The FAQ accordion (`<Faq>`, `.faq-panel`, `.faq-chevron`) was retired
+with it, so rule 5's pre-registered `grid-template-rows` collapse exception is **unused again**.
+21st.dev was searched (annotated-transcript, editorial FAQ, numbered process); the catalog's FAQ
+family is accordion-shaped and its process sections are numbered cards — both are exactly what the
+brief left behind, so nothing was retrieved.
+
+### Landing page pass 4 (2026-09-01) — the two sections designed
+
+Form pass on pass 3's content (every verified word kept). "How it works" is now a transcript
+surface with two voices (receptionist flush in ink under a brand name, caller indented and lighter),
+margin notes anchored by a shared numeral and a brand-200 rule, and ONE user-triggered motion
+moment: "Play the call" (`.ca-*`) holds lines and beats at opacity 0 and lets them arrive with the
+house entrance as the play position passes them, each note lighting 250 ms after its beat's first
+line. Nothing moves on scroll. "Questions, answered" is a full-width grid (sticky index ≥ lg with a
+translate-only marker `.qi-bar`, question + short answer left, elaboration right) with functional
+motion only: an IntersectionObserver scrollspy (shape from 21st.dev ddoemonn *Scroll Spy* #23554,
+the second retrieval of the day — its scroll listener was NOT kept), smooth anchor scrolls from the
+index (`auto` under reduced motion), and a below-lg fold on each elaboration (`.fold`, the
+grid-template-rows exception, back in use; the short answer stays visible). Reduced motion: no play
+control, instant fold, instant marker. No-JS: control hidden, folds open, index = plain anchors.
+Measured at 1440×900: "How it works" 1074 px, FAQ 1156 px (brief: ≤ 1.5 viewports = 1350 px).
+
+### Landing page pass 5 (2026-09-01) — the FAQ becomes an accordion
+
+"Questions, answered" is now a single-column accordion (`<Questions>`): one row per question
+showing the question and its short answer, elaboration folded beneath, all collapsed by default at
+every width, rows independent. The index and scrollspy are gone. Motion is the expansion only:
+`.fold` (the grid-template-rows exception) with the paragraph fading in, and `.fold-arrow` turning
+180° (transform only) while its `<DrawIcon name="arrow-down">` redraws on every toggle — the
+profession rail's idiom (rule 8: draw on an active-state change, never on mount; keyed on a
+per-row toggle count so the draw restarts; 18px, the floor). Reduced motion toggles instantly with
+the arrow fully drawn. Collapsed panels stay in the DOM (crawlable, FAQPage JSON-LD unchanged) and
+leave the accessibility tree via the delayed visibility swap; headers are real buttons with
+aria-expanded/aria-controls, a visible focus ring, and Up/Down/Home/End. An `arrow-down` glyph
+joined `icon-paths.ts`. 21st.dev: the plus/minus accordion
+family (cnippet #24907, ddoemonn #23530, coss #11312) was the shape; retrievals were exhausted for
+the day, and those are Base UI / spring-height builds anyway, so the pattern was built in-house.
+
+### Landing page pass 6 (2026-09-01) — the hero owns the first screen
+
+Layout only; palette, copy and components unchanged. The hero section is `.hero-fill`
+(`min-height: calc(100svh - 4.625rem)`, the header's intrinsic height in rem; min-, never fixed) and
+a flex column whose grid centers itself with `my-auto`; columns top-align so the demo sits level
+with the headline block. The call demo's conversation now lives in a fixed-height window
+(`.cd-window`, 15rem under `.js`, auto without JS) and the list translates up (`--cd-scroll`, set by
+the component from measured line bottoms; 550 ms expo-out, `transition: none` while the demo is
+faded out for its reset) so the newest lines always fill the frame and the frame's height never
+changes while it plays (measured 466 px → 466 px mid-loop). Reduced motion parks the window on the
+end of the exchange. The step rail is tucked to the frame (mt-3). A quiet scroll cue (`.hero-cue`,
+a 6 px translateY bob, static under reduce, lg and up only) sits at the bottom edge, the one
+sanctioned scroll cue on the page because the section now claims the whole first screen. Measured:
+hero bottom = viewport bottom at 2560×1440, 1920×1080, 1440×900 and 1440×800; professions heading
+below the fold at all four; nothing clipped at 800 tall.
+
+### Landing page pass 7 (2026-09-01) — hero entrance and conversation, final
+
+The phone holds the whole exchange again: the frame is sized by the full seven-line list from
+first paint and bubbles fade into reserved space (the pass-6 scroll window is gone). The demo plays
+ONCE per page load and holds — no loop, no reset, no IntersectionObserver start/stop; the strip's
+nodes light as their beats land. The entrance is one CSS-timed sequence, `.hero-seq` with `--seq`
+delays: 350 ms of composed background, then headline block 350, subhead 500, CTAs + check-row 650,
+phone 800, cue 2200; conversation from ~1.3 s at 1.4 s a line. Gated on `.js`, opacity/transform
+only, `both` fill, so no flash-then-restart and zero layout shift (CLS 0 measured across four
+viewports × two motion modes). **Rule 13 re-measured and confirmed:** the headline block entering
+from opacity 0 handed LCP to the logo image (~200 ms) in Chromium; it now uses `.hero-seq-lcp`
+(translateY + blur 8px, never opacity) and LCP is the H1 at 150–210 ms in both modes. Reduced
+motion: the finished hero, immediately, conversation complete. Fit: hero bottom = fold at
+2560×1440, 1920×1080 and 1440×800; every line unclipped at 14 px (14.875 px at 3xl); scroll away
+and back holds 7/7 lines.
+
+Follow-up (same day, "text gets blurred then loads in later"): the headline's blurred stillness beat
+read as text loading late, so `.hero-seq-lcp` is now transform-only (an 8 px lift at 400 ms, never
+blur, never opacity) — the headline is legible from the first styled frame. Delays widened (subhead
+550, CTAs 700, phone 900, cue 2300, 600 ms each) and the conversation's first line is anchored to
+the page clock (`performance.now()`, 1.8 s after navigation, at least 300 ms after mount) so it can
+never land in a frame still fading in. Reload repro (3 loads, 40 ms samples): stylesheet and `.js`
+applied by ~100 ms, animations start at ~90–145 ms, no console errors, LCP = H1, CLS 0.
+
+Second follow-up ("the headline has no animation"): an 8 px lift is not read as an entrance, so
+a masked rise was tried (block translated 108 % below an overflow-hidden wrapper, sliding up) —
+**measured: a clipped headline is excluded from LCP exactly like an opacity-0 one** (LCP → logo IMG
+at 130–190 ms in every motion-mode run). Rule 13 therefore generalizes: the LCP element must be
+painted AND unclipped at first paint; opacity, blur-to-invisible and clip masks all hand LCP to the
+next-largest element. The headline now rises 40 px into place over 700 ms at 400 ms — a visible
+entrance while it stays legible. The alternative (headline hidden during the stillness beat, LCP
+reported as the logo at ~200 ms) is the user's call, not a default.
+
+**Decision (2026-09-01, the user's call): the left group slides in from behind a clip edge.** The
+pill, headline line one and headline line two are separate `.hero-slide` elements inside an
+`overflow-x: clip` wrapper, each at `translateX(-110%)` from first paint and sliding along the
+reading direction on its beat (400 / 520 / 640 ms, 450 ms each, settled by ~1.1 s). Transform only,
+clip horizontal only (descenders safe), reduced motion lands everything in place instantly. The
+pill's word carousel holds its first rotation until the pill has landed (page clock, ≥ 1.2 s) and
+never rotates under reduced motion. **Deliberate LCP trade, measured:** with the headline hidden at
+first paint Chromium credits LCP to the logo image at 128–176 ms (reduced motion: the subhead at
+144–188 ms, since the headline is now two smaller blocks). CLS 0 across four viewports × two
+motion modes; no console errors across three reloads. Rule 13 stands as the default; this hero is
+its recorded exception.
+
+Honesty plumbing worth keeping: panel content renders from the vertical registry via
+`voice-data.ts` (nouns, intake-schema keys, emergency labels, the greeting and cancellationReply
+templates split over a `\u0000` business-name sentinel so the slot stays visible). Known template
+bug surfaced by this pass, NOT fixed (SMS goldens): field-service `cancellationReply` says
+"a ${staff}", which renders "a engineer" / "a electrician" for vowel-initial staff nouns.

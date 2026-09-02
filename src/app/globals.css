@@ -498,15 +498,52 @@ body {
   100% { stroke-dashoffset: 0; opacity: 0; }
 }
 
-/* Hero text entrance: lift + un-blur, NEVER opacity — content hidden by opacity:0 is excluded from
-   Largest Contentful Paint, and this block holds the page's LCP element (the h1). Pure CSS, so it
-   needs no .js gate; 'both' lands it on the end state. */
-.hero-enter {
-  animation: hero-enter 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+/* Hero entrance: one CSS-timed sequence. Each .hero-seq block sits at its final position from first
+   paint and arrives with the house entrance at its own --seq delay (headline lift 400 ms, subhead
+   550, CTAs 700, phone 900, cue 2300). Gated on `.js` (set by the inline head script before first
+   paint, so nothing flashes and then restarts) and 'both', so it lands on the end state. Opacity and
+   transform only: zero layout shift. */
+.js .hero-seq {
+  opacity: 0;
+  animation: hero-seq 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--seq, 0ms);
 }
-@keyframes hero-enter {
-  from { transform: translateY(10px); filter: blur(4px); }
-  to { transform: translateY(0); filter: blur(0); }
+@keyframes hero-seq {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+/* The left-entrance group (pill, headline line one, line two): each starts fully left of its
+   wrapper's clip edge and slides into place along the reading direction on its beat (400 / 520 /
+   640 ms, 450 ms each, settled by ~1.1 s). Transform only; the wrapper clips horizontally only.
+   Deliberate LCP trade (rule 13, measured): a headline invisible at first paint is not Chromium's LCP
+   element, so LCP is credited to the logo image instead — accepted by the user 2026-09-01. */
+.js .hero-slide {
+  transform: translateX(-110%);
+  animation: hero-slide 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--seq, 0ms);
+}
+@keyframes hero-slide {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(0); }
+}
+
+/* The hero owns the first screen: the viewport minus the sticky header. 4.625rem is the header's
+   intrinsic height (40px controls, py-2.5, 1px border) in rem so it tracks the 3xl root-size bump.
+   svh, so mobile browser chrome never resizes it mid-scroll; min-height, never a fixed height, so a
+   short viewport grows and scrolls instead of clipping. */
+.hero-fill {
+  min-height: calc(100vh - 4.625rem);
+  min-height: calc(100svh - 4.625rem);
+}
+
+/* Quiet scroll cue at the hero's bottom edge: a slow 6px bob, transform only. Static under reduce. */
+.hero-cue {
+  display: inline-block;
+  animation: hero-cue 2.4s ease-in-out infinite;
+}
+@keyframes hero-cue {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(6px); }
 }
 
 /* Static hero glow (no motion, so no reduced-motion entry needed). */
@@ -524,6 +561,8 @@ body {
 .word-stack > .word.is-in { visibility: visible; }
 .js .word-stack > .word.is-in { animation: word-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .js .word-stack > .word.is-out { visibility: visible; animation: word-out 0.35s cubic-bezier(0.22, 1, 0.36, 1) both; }
+/* The word that is current at first paint never blurs in — only a rotation animates. */
+.js .word-stack > .word.is-still { animation: none; }
 @keyframes word-in {
   from { opacity: 0; transform: translateY(0.45em); filter: blur(4px); }
   to { opacity: 1; transform: translateY(0); filter: blur(0); }
@@ -554,34 +593,167 @@ body {
 /* Outcome chips arrive with the badge pop — the pop IS the entrance, one signal per event. */
 .js .cd-chip { opacity: 0; }
 .js .cd-chip.is-on { opacity: 1; animation: badge-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
-/* Whole-demo crossfade when the loop restarts. */
-.cd-fade { transition: opacity 0.3s ease; }
-.js .cd-fade.is-resetting { opacity: 0; }
 
-/* FAQ collapse: the pre-registered grid-template-rows exception (motion spec rule 5) — collapse has
-   no transform-only solution. Collapsed only under `.js` (no-JS visitors get every answer open), and
-   a delayed visibility swap keeps closed panels out of the accessibility tree and tab order. The
-   chevron rotates in sympathy. */
-.faq-panel {
+/* Profession switcher rail: the indicator GLIDES to the picked item, translate-only (rule 5).
+   ≥ lg the rail is vertical with uniform-height items, so the indicator is a full pill riding
+   behind them (the sidebar .nav-bar idiom); < lg the rail scrolls horizontally with variable-width
+   items, so it's the sanctioned 2px underline (translateX + scaleX — a line has no corners to
+   distort). Geometry comes from CSS vars the component measures. */
+.pv-rail {
+  position: relative;
+}
+.pv-pill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2.75rem; /* = the h-11 rail items; uniform, so translate-only is exact */
+  border-radius: 9999px;
+  background: var(--color-brand-50);
+  border: 1px solid var(--color-brand-200);
+  transform: translateY(var(--pv-y, 0px));
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+  pointer-events: none;
+}
+.pv-underline {
+  position: absolute;
+  bottom: -1px; /* rides the rail's hairline */
+  left: 0;
+  width: 100px; /* fixed base width; --pv-sx scales it to the active item (never a width tween) */
+  height: 2px;
+  border-radius: 9999px;
+  background: var(--color-brand-600);
+  transform: translateX(var(--pv-x, 0px)) scaleX(var(--pv-sx, 0));
+  transform-origin: left center;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+  pointer-events: none;
+}
+/* The stage: under .js all ten panels share one grid cell — the tallest sets the height, so
+   switching never shifts layout — and swap with a pure opacity+blur crossfade (user-triggered
+   only). Without JavaScript the panels stack in flow and every profession simply reads. */
+.pv-stage {
+  display: grid;
+  gap: 1rem;
+}
+.js .pv-stage {
+  gap: 0;
+}
+.js .pv-stage > .pv-panel {
+  grid-area: 1 / 1;
+  visibility: hidden;
+}
+.js .pv-stage > .pv-panel.is-in {
+  visibility: visible;
+  animation: pv-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.js .pv-stage > .pv-panel.is-out {
+  visibility: visible;
+  animation: pv-out 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes pv-in {
+  from { opacity: 0; filter: blur(6px); }
+  to { opacity: 1; filter: blur(0); }
+}
+@keyframes pv-out {
+  from { opacity: 1; filter: blur(0); }
+  to { opacity: 0; filter: blur(6px); }
+}
+
+/* Call anatomy ("How it works"): the call PLAYS on request. Everything sits in its final position;
+   while .is-playing, lines and their beats (numeral + note) not yet reached are held at opacity 0
+   and arrive with the house entrance as the play position passes them. The control itself only
+   exists with JavaScript. */
+.ca-play {
+  display: none;
+}
+.js .ca-play {
+  display: inline-flex;
+}
+.js .ca.is-playing .ca-line:not(.is-on),
+.js .ca.is-playing .ca-beat:not(.is-on) {
+  opacity: 0;
+}
+.js .ca.is-playing .ca-line.is-on {
+  animation: ca-line-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.js .ca.is-playing .ca-beat.is-on {
+  animation: ca-beat-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: 0.25s; /* the note lights just after its beat's first line lands */
+}
+@keyframes ca-line-in {
+  from { opacity: 0; transform: translateY(6px); filter: blur(4px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+@keyframes ca-beat-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Questions accordion. The fold is the pre-registered grid-template-rows collapse exception
+   (motion spec rule 5: collapse has no transform-only solution); the paragraph fades in with it and
+   the arrow indicator turns to point up (transform only) while its <DrawIcon> redraws (rule 8: an
+   active-state change, 18px). Collapsed only under `.js`, so a no-JS
+   visitor reads every answer; the delayed visibility swap keeps closed text out of the
+   accessibility tree and tab order while it stays in the DOM. */
+.fold {
   display: grid;
   grid-template-rows: 1fr;
 }
-.faq-panel > div { overflow: hidden; min-height: 0; }
-.js .faq-panel {
+.fold > div {
+  overflow: hidden;
+  min-height: 0;
+}
+.js .fold {
   grid-template-rows: 0fr;
   transition: grid-template-rows 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.js .faq-panel > div {
+.js .fold > div {
   visibility: hidden;
-  transition: visibility 0s linear 0.3s;
+  opacity: 0;
+  transition: visibility 0s linear 0.3s, opacity 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.js .faq-panel.is-open { grid-template-rows: 1fr; }
-.js .faq-panel.is-open > div {
+.js .fold.is-open {
+  grid-template-rows: 1fr;
+}
+.js .fold.is-open > div {
   visibility: visible;
+  opacity: 1;
   transition-delay: 0s;
 }
-.faq-chevron { transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1); }
-.faq-open .faq-chevron { transform: rotate(180deg); }
+.fold-arrow {
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.15s ease, color 0.15s ease;
+}
+button[aria-expanded="true"] .fold-arrow {
+  transform: rotate(180deg);
+}
+
+/* Day timeline: the page's one orchestrated scroll moment. A static hairline track (positioned by
+   the component: first node center → last node center) holds a brand fill that advances to each
+   moment the first time it scrolls into view — settled 550ms arrivals on scaleY, never scrubbed,
+   never rewound. Hidden without JavaScript (the content reads complete on its own). */
+.day-track {
+  display: none;
+  position: absolute;
+  width: 2px;
+  height: 0;
+  background: var(--color-gray-200);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 8%, black 92%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, black 8%, black 92%, transparent);
+}
+.js .day-track {
+  display: block;
+}
+.day-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--color-brand-500);
+  transform: scaleY(var(--day-progress, 0));
+  transform-origin: top center;
+  transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
 
 /* Buttons: soft press. */
 .press {
@@ -620,15 +792,34 @@ body {
   .js .cd-seg.is-on,
   .js .cd-chip,
   .js .cd-chip.is-on,
-  .cd-fade,
-  .js .faq-panel,
-  .js .faq-panel > div,
-  .faq-chevron,
-  .hero-enter {
+  .js .hero-seq,
+  .pv-pill,
+  .pv-underline,
+  .js .pv-stage > .pv-panel.is-in,
+  .js .pv-stage > .pv-panel.is-out,
+  .day-fill,
+  .js .ca.is-playing .ca-line.is-on,
+  .js .ca.is-playing .ca-beat.is-on,
+  .js .fold,
+  .js .fold > div,
+  .fold-arrow,
+  .hero-cue {
     animation: none;
     transition: none;
   }
-  .hero-enter {
+  /* The play control is not rendered under reduced motion; if a play is somehow mid-flight when the
+     preference flips, everything lands visible. */
+  .js .ca.is-playing .ca-line,
+  .js .ca.is-playing .ca-beat {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+  /* The finished hero, immediately: every sequenced block lands visible and in place. */
+  .js .hero-seq,
+  .js .hero-slide {
+    animation: none;
+    opacity: 1;
     transform: none;
     filter: none;
   }
@@ -655,6 +846,16 @@ body {
     opacity: 1;
     transform: none;
     filter: none;
+  }
+  .js .pv-stage > .pv-panel.is-in {
+    opacity: 1;
+    filter: none;
+  }
+  .js .pv-stage > .pv-panel.is-out {
+    visibility: hidden; /* the leaving panel lands gone; the entering one above lands visible */
+  }
+  .day-fill {
+    transform: none; /* the rail lands fully drawn (the component renders every moment lit) */
   }
   .js .cd-seg {
     transform: none;

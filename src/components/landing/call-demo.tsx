@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { DrawIcon } from "@/components/draw-icon";
 import type { IconName } from "@/components/icon-paths";
 
@@ -13,10 +13,15 @@ import type { IconName } from "@/components/icon-paths";
  * Honesty: every beat is a shipped behavior — qualify-then-book (field-service handlers), the SMS
  * confirmation, and the owner's in-app notification. No fake customer, no fake stats.
  *
- * Everything is laid out in its final position from the server render and only animates
- * opacity/transform/blur into place, so nothing ever shifts (zero CLS) and the full conversation is
- * simply visible without JavaScript. Under prefers-reduced-motion the demo renders complete and
- * runs no timers. Timers only run while the demo is on screen.
+ * The frame holds the whole exchange: every bubble is laid out in its final position from the
+ * server render and only ever animates opacity/transform/blur into place, so the frame is at its
+ * final size from first paint and nothing moves, grows or scrolls as the call plays. The step strip
+ * is the conversation's progress: each node lights as its beat lands.
+ *
+ * It plays exactly once per page load, after the hero's entrance sequence, and holds its final
+ * state — no loop, no restart on scroll or tab return. Under prefers-reduced-motion (or without
+ * IntersectionObserver-era browsers' animation support) the demo renders complete and runs no
+ * timers; without JavaScript the full conversation is simply visible.
  */
 
 const LINES: { who: "caller" | "ai"; text: string; step: number }[] = [
@@ -42,78 +47,43 @@ const CHIPS: { icon: IconName; label: string }[] = [
   { icon: "bell", label: "Owner notified" },
 ];
 
-const LINE_MS = 1500;
+/* The frame has fully faded in 1.5 s after first paint (see the .hero-seq delays), so the first line
+   lands at 1.8 s on the page's own clock — anchored to navigation, not to hydration, so a fast or
+   slow hydration never puts a line in a frame that is still arriving. If hydration itself is late,
+   the call starts a beat after mount instead. */
+const FIRST_LINE_AT_MS = 1800;
+const MIN_START_MS = 300;
+const LINE_MS = 1400;
 const CHIP_MS = 900;
-const HOLD_MS = 4500;
 const TOTAL_BEATS = LINES.length + CHIPS.length;
 
 /* Reduced motion as an external store (the AnimatedThemeToggle idiom): SSR says "animate", and the
-   snapshot also parks the demo in its complete state where IntersectionObserver doesn't exist. */
+   snapshot parks the demo in its complete state for reduced-motion visitors. */
 function subscribeMotionPrefs(onChange: () => void) {
   const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
   mq.addEventListener("change", onChange);
   return () => mq.removeEventListener("change", onChange);
 }
 function motionPrefsSnapshot() {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches || typeof IntersectionObserver === "undefined";
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 export function CallDemo() {
-  const rootRef = useRef<HTMLElement>(null);
   const [beat, setBeat] = useState(-1);
-  const [resetting, setResetting] = useState(false);
   const staticAll = useSyncExternalStore(subscribeMotionPrefs, motionPrefsSnapshot, () => false);
 
+  /* One run, from mount, then hold. */
   useEffect(() => {
     if (staticAll) return;
-    const el = rootRef.current;
-    if (!el) return;
-
     let timer: number | undefined;
-    let beatNow = -1;
-    let stopped = true;
-
-    const schedule = (ms: number, fn: () => void) => {
-      timer = window.setTimeout(fn, ms);
-    };
-
+    let at = -1;
     const advance = () => {
-      if (stopped) return;
-      if (beatNow < TOTAL_BEATS - 1) {
-        beatNow += 1;
-        setBeat(beatNow);
-        schedule(beatNow >= LINES.length - 1 ? CHIP_MS : LINE_MS, advance);
-      } else {
-        schedule(HOLD_MS, () => {
-          setResetting(true);
-          schedule(400, () => {
-            beatNow = -1;
-            setBeat(-1);
-            setResetting(false);
-            schedule(500, advance);
-          });
-        });
-      }
+      at += 1;
+      setBeat(at);
+      if (at < TOTAL_BEATS - 1) timer = window.setTimeout(advance, at >= LINES.length - 1 ? CHIP_MS : LINE_MS);
     };
-
-    const io = new IntersectionObserver(
-      (entries) => {
-        const visible = entries.some((e) => e.isIntersecting);
-        if (visible && stopped) {
-          stopped = false;
-          schedule(400, advance);
-        } else if (!visible && !stopped) {
-          stopped = true;
-          window.clearTimeout(timer);
-        }
-      },
-      { threshold: 0.3 },
-    );
-    io.observe(el);
-    return () => {
-      window.clearTimeout(timer);
-      io.disconnect();
-    };
+    timer = window.setTimeout(advance, Math.max(MIN_START_MS, FIRST_LINE_AT_MS - performance.now()));
+    return () => window.clearTimeout(timer);
   }, [staticAll]);
 
   const activeStep = staticAll ? STEPS.length - 1 : beat < 0 ? -1 : beat >= LINES.length ? STEPS.length - 1 : LINES[beat].step;
@@ -121,12 +91,12 @@ export function CallDemo() {
   const chipShown = (i: number) => staticAll || beat >= LINES.length + i;
 
   return (
-    <figure ref={rootRef} className={`cd-fade mx-auto w-full max-w-sm ${resetting ? "is-resetting" : ""}`.trim()}>
+    <figure className="mx-auto w-full max-w-sm">
       <figcaption className="sr-only">
         Example call: FrontDesk AI answers, asks the qualifying question, books the visit, and the customer and owner are both told.
       </figcaption>
 
-      {/* Phone frame */}
+      {/* Phone frame: sized by the full conversation, so it never changes while the call plays. */}
       <div className="rounded-[2.5rem] border border-gray-300 bg-gray-100 p-2 shadow-lg shadow-black/5">
         <div className="overflow-hidden rounded-[2rem] border border-gray-200 bg-surface">
           <div className="flex justify-center pt-2.5" aria-hidden="true">
@@ -140,7 +110,7 @@ export function CallDemo() {
               Live call
             </p>
           </div>
-          <ul className="space-y-2.5 px-3.5 py-4">
+          <ul className="space-y-2 px-3.5 py-3">
             {LINES.map((line, i) => (
               <li key={i} className={`cd-item flex ${line.who === "ai" ? "justify-start" : "justify-end"} ${lineShown(i) ? "is-on" : ""}`.trim()}>
                 <p
@@ -158,8 +128,8 @@ export function CallDemo() {
         </div>
       </div>
 
-      {/* Step rail: answer → qualify → book → notify */}
-      <ol className="mt-5 flex items-start justify-center" aria-label="What happened on this call">
+      {/* Step strip: the conversation's progress. Tucked to the frame, one composed unit. */}
+      <ol className="mt-3 flex items-start justify-center" aria-label="What happened on this call">
         {STEPS.map((step, i) => {
           const done = activeStep > i || staticAll;
           const active = !staticAll && activeStep === i;
@@ -187,7 +157,7 @@ export function CallDemo() {
       </ol>
 
       {/* Outcomes — each one is a real shipped behavior */}
-      <ul className="mt-4 flex flex-wrap justify-center gap-2">
+      <ul className="mt-3 flex flex-wrap justify-center gap-2">
         {CHIPS.map((chip, i) => (
           <li
             key={chip.label}
