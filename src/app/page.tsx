@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import type { CSSProperties } from "react";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
+import { HERO_TIMING, beatVars } from "@/lib/motion";
 import { VERTICAL_CATALOG } from "@/verticals";
 import { Logo } from "@/components/logo";
 import { AnimatedThemeToggle } from "@/components/ui/animated-theme-toggle";
@@ -70,22 +70,24 @@ export default async function Home() {
       <section className="landing-glow hero-fill relative flex flex-col overflow-hidden">
         {/* Hidden on small screens: at phone widths the beams cross the hero text. */}
         <HeroBeams className="hidden md:block" />
-        {/* The entrance is one CSS-timed sequence (.hero-seq, delays in --seq): a beat of composed
-            background, then headline, subhead, CTAs with the check-row, the phone, and last the cue.
-            Everything is in the DOM at its final position from first paint and only opacity and
-            transform animate; the sequence needs no JavaScript and plays once per page load. */}
+        {/* The entrance is one CSS-timed sequence on the sequence clock, tuned in ONE place: HERO_TIMING in
+            src/lib/motion.ts hands every block its start and duration (--seq / --dur, via beatVars).
+            One thing moves at a time, in reading order: pill, headline line one, line two, subhead,
+            CTAs with the check-row, the phone, then the conversation and, last, the cue. Everything is
+            in the DOM at its final position from first paint and only opacity and transform animate;
+            the sequence needs no JavaScript and plays once per page load. Timeline: motion spec, pass 8. */}
         <div className="relative mx-auto my-auto grid w-full max-w-6xl items-start gap-10 px-5 pb-14 pt-8 sm:pt-10 lg:grid-cols-[1.1fr_1fr] lg:gap-12">
           <div>
             {/* The left-entrance group: pill, headline line one, headline line two. Each is hidden at
                 first paint behind this wrapper's left clip edge and slides into place along the reading
-                direction on its beat (400 / 520 / 640 ms; .hero-slide). Transform only. A deliberate
-                trade, recorded in the motion spec: a headline hidden at first paint is not the LCP
-                element in Chromium, so LCP is credited to the logo. Clip is horizontal only, so
-                descenders are never cut. */}
+                direction on its beat (HERO_TIMING.pill / lineOne / lineTwo; .hero-slide). Transform
+                only. A deliberate trade, recorded in the motion spec: a headline hidden at first paint
+                is not the LCP element in Chromium, so LCP is credited to the logo. Clip is horizontal
+                only, so descenders are never cut. */}
             <div className="overflow-x-clip">
               <p
                 className="hero-slide inline-flex flex-wrap items-center rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-800"
-                style={{ "--seq": "400ms" } as CSSProperties}
+                style={beatVars(HERO_TIMING.pill)}
               >
                 {/* The rotating word goes LAST: the word-stack reserves the widest label's width, and at
                     the end of the line that reads as pill padding instead of a mid-sentence hole. */}
@@ -95,19 +97,19 @@ export default async function Home() {
                 <span className="sr-only">Built for ten professions.</span>
               </p>
               <h1 className="mt-5 text-4xl font-extrabold tracking-tight sm:text-5xl">
-                <span className="hero-slide block" style={{ "--seq": "520ms" } as CSSProperties}>
+                <span className="hero-slide block" style={beatVars(HERO_TIMING.lineOne)}>
                   Your phone, answered.
                 </span>{" "}
-                <span className="hero-slide block text-brand-600" style={{ "--seq": "640ms" } as CSSProperties}>
+                <span className="hero-slide block text-brand-600" style={beatVars(HERO_TIMING.lineTwo)}>
                   Every time.
                 </span>
               </h1>
             </div>
-            <p className="hero-seq mt-4 max-w-xl text-lg text-gray-600" style={{ "--seq": "550ms" } as CSSProperties}>
+            <p className="hero-seq mt-4 max-w-xl text-lg text-gray-600" style={beatVars(HERO_TIMING.subhead)}>
               FrontDesk AI is an AI receptionist that answers your business line 24/7 — it books the work, texts the customer a confirmation,
               and lets you know the moment something needs a human.
             </p>
-            <div className="hero-seq" style={{ "--seq": "700ms" } as CSSProperties}>
+            <div className="hero-seq" style={beatVars(HERO_TIMING.ctas)}>
               <div className="mt-7 flex flex-wrap gap-3">
                 {signedIn ? (
                   <LinkButton href="/dashboard" size="lg">
@@ -134,14 +136,14 @@ export default async function Home() {
               </ul>
             </div>
           </div>
-          <div className="hero-seq" style={{ "--seq": "900ms" } as CSSProperties}>
+          <div className="hero-seq" style={beatVars(HERO_TIMING.phone)}>
             <CallDemo />
           </div>
         </div>
         {/* A quiet cue at the bottom edge, last to arrive, since the section claims the whole first
             screen. Only where the hero actually ends at the fold (lg and up). */}
         <div className="pointer-events-none absolute bottom-4 left-1/2 hidden -translate-x-1/2 text-gray-400 lg:block" aria-hidden="true">
-          <div className="hero-seq" style={{ "--seq": "2300ms" } as CSSProperties}>
+          <div className="hero-seq" style={beatVars(HERO_TIMING.cue)}>
             <span className="hero-cue">
               <DrawIcon name="arrow-down" size={18} draw={false} />
             </span>

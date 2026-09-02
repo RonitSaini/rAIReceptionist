@@ -201,7 +201,8 @@ there. Don't mix the two.
    - `cubic-bezier(.34,1.56,.64,1)` (back-out) → "pops": badges, counts, confirmations.
    - Plain `ease` / `ease-in-out` → state swaps and oscillations.
 4. **Duration ladder:** 150 ms hover colors · 300–350 ms entrances · 500 ms pops ·
-   550 ms scroll reveals · 700 ms icon state swaps and physical motions.
+   550 ms scroll reveals · 700 ms icon state swaps and physical motions · 500 ms hero-sequence
+   moves (two 250 ms beats each, so at most two are ever in motion — pass 8).
 5. **Only `transform`, `opacity`, `filter: blur()`, and stroke properties animate.** Nothing
    animates layout. No `width`/`height`/`top`/`left` transitions.
    - Sliding indicators (nav highlight, active bar, tab pill) **translate only**. Items are
@@ -273,6 +274,13 @@ there. Don't mix the two.
    then the eyebrow pill at 2.7s). Content in the load-time viewport enters with transform + blur
    only (`.hero-enter`); `.reveal` stays a *scroll* reveal for content below the fold, where LCP
    can't see it.
+14. **An entrance's settle window governs content, not codas.** Everything a visitor reads or clicks
+   in the hero has landed by ~2.2 s on the sequence clock (pass 8: the phone lands at 2150). Ambient
+   and coda motion — the scroll cue, the pill's word rotation — is deliberately post-settle, so it
+   never competes with content arriving and never counts against the window. The cue itself is the
+   page's one deliberate scroll cue: the hero claims the whole first viewport (pass 6), so a quiet
+   arrow at its bottom edge is the recorded exception to the no-scroll-cue default — the user's call,
+   2026-09-02.
 
 ---
 
@@ -398,6 +406,9 @@ below the fold at all four; nothing clipped at 800 tall.
 
 ### Landing page pass 7 (2026-09-01) — hero entrance and conversation, final
 
+*The timing in this section is historical: pass 8 (below) rebuilt every beat around one principle
+and moved the numbers into `src/lib/motion.ts`. The moves, the guards and the LCP trade stand.*
+
 The phone holds the whole exchange again: the frame is sized by the full seven-line list from
 first paint and bubbles fade into reserved space (the pass-6 scroll window is gone). The demo plays
 ONCE per page load and holds — no loop, no reset, no IntersectionObserver start/stop; the strip's
@@ -446,3 +457,89 @@ Honesty plumbing worth keeping: panel content renders from the vertical registry
 templates split over a `\u0000` business-name sentinel so the slot stays visible). Known template
 bug surfaced by this pass, NOT fixed (SMS goldens): field-service `cancellationReply` says
 "a ${staff}", which renders "a engineer" / "a electrician" for vowel-initial staff nouns.
+
+### Landing page pass 8 (2026-09-02) — the hero entrance re-choreographed
+
+Timing only. Every element and every move of pass 7 stands — the left group slides in from the clip
+edge, the blocks rise 10 px with opacity, the phone plays once and holds, the cue bobs — and the LCP
+trade is unchanged. What was rebuilt is *when* things happen, around one principle, and where that
+is written down.
+
+**Principle: one thing moves at a time.** An element (or a tight group: the CTAs with their
+check-row; a strip node with its connector and colour swap) begins only once the previous one is at
+least three-quarters home. Starts are 250 ms apart — 300 before the subhead, which must not begin
+until headline line two has essentially landed — and every move runs 500 ms, exactly two gaps, so at
+most two things are ever in motion and the eye can follow the sequence element by element. Every
+move keeps the house expo-out (rule 3): 76 % home at a quarter of its duration, 96 % at half, 98 %
+at 60 % — fast arrival, soft landing, no bounce. Reading order is strict: pill → headline line one →
+line two → subhead → CTAs with the check-row → phone frame → conversation → step-strip lighting on
+its own beats → scroll cue. Pass 7 had the subhead (550) starting before headline line one (520)
+had landed, starts 30–150 ms apart, and five things moving at once between 700 and 970 ms; that
+inversion and that clump are gone.
+
+**One timing map.** `HERO_TIMING` in `src/lib/motion.ts` holds every beat time and duration,
+named. The page hands each block its start and duration as `--seq` / `--dur` (`beatVars()`),
+`.hero-seq` and `.hero-slide` read `var(--dur)`, `<CallDemo>` and `<WordCarousel>` import the same
+object, and the demo passes `--cd-bubble` / `--cd-segment` to the stylesheet. The next adjustment is
+numbers in that one file, not archaeology.
+
+**The sequence clock.** Beats count from the first styled frame — the moment the browser creates the
+hero's CSS animations (their shared `startTime`), ~100 ms after navigation in production, 170–300 ms
+on the dev server. The JS-timed beats (the conversation, the pill's word rotation) read that clock
+through `sequenceOrigin()` — the `startTime` of the nearest sequenced ancestor's animation — so the
+phone → conversation gap is the same whatever the stylesheet's arrival time. (Pass 7 anchored the
+conversation to navigation, so that gap drifted by the stylesheet's latency.) If hydration is later
+than the first line's beat, the call still starts `minStart` after mount, never earlier.
+
+| # | Element | Move | Starts | Runs | Lands | Also in motion |
+|---|---|---|---|---|---|---|
+| — | stillness | composed background, beams | 0 | 350 | — | — |
+| 1 | pill | slide from the clip edge | 350 | 500 | 850 | — |
+| 2 | headline line one | slide | 600 | 500 | 1100 | pill (96 % home) |
+| 3 | headline line two | slide | 850 | 500 | 1350 | line one |
+| 4 | subhead | rise + fade | 1150 | 500 | 1650 | line two (98 % home) |
+| 5 | CTAs + check-row | rise + fade | 1400 | 500 | 1900 | subhead |
+| 6 | phone frame | rise + fade | 1650 | 500 | 2150 | CTAs — **the page is settled**, bar the conversation |
+| 7 | bubble 1 (the greeting) | `cd-in` | 1900 | 350 | 2250 | phone |
+| 8 | strip: Answered | node draw 700 + colour swap | 2150 | 700 | 2850 | bubble |
+| 9 | scroll cue | rise + fade, then the bob | 2400 | 500 | 2900 | strip — post-settle by design (rule 14) |
+| — | word rotation 1 | blur-slide | 2900 | 350 | 3250 | — (then every 2800: two conversation beats, in the quiet half of a beat) |
+| — | bubble *n* | `cd-in` | 1900 + 1400 (*n* − 1) | 350 | | its strip node lights +250 (fill 550 + draw 700) |
+| — | chips | `badge-pop` | 900 apart after line 7 | 500 | | the last node lights +250 after line 7 |
+
+```
+beat                                    0    250  500  750  1000 1250 1500 1750 2000 2250 2500 2750 3000 3250 3500 3750 4000 4250
+stillness (background, beams)           ░░░░░░░   ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·
+pill                                    ·    · ██████████   ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·
+headline line one                       ·    ·    · ██████████   ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·
+headline line two                       ·    ·    ·    · ██████████   ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·
+subhead                                 ·    ·    ·    ·    ·  ██████████  ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·
+CTAs + check-row                        ·    ·    ·    ·    ·    ·  ██████████  ·    ·    ·    ·    ·    ·    ·    ·    ·    ·
+phone frame                             ·    ·    ·    ·    ·    ·    ·  ██████████  ·    ·    ·    ·    ·    ·    ·    ·    ·
+bubble 1 (greeting)                     ·    ·    ·    ·    ·    ·    ·    ·  ███████·    ·    ·    ·    ·    ·    ·    ·    ·
+strip: Answered (draw 700)              ·    ·    ·    ·    ·    ·    ·    ·    ·  ██████████████   ·    ·    ·    ·    ·    ·
+scroll cue                              ·    ·    ·    ·    ·    ·    ·    ·    ·    ·  ██████████  ·    ·    ·    ·    ·    ·
+word rotation 1                         ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·  ███████·    ·    ·    ·    ·
+bubble 2                                ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·███████  ·    ·    ·
+strip: Qualified (fill 550 + draw 700)  ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·    ·██████████████·
+(one cell = 50 ms; never more than two rows filled in any column)
+```
+
+**Measured (dev server, 2560×1440, sequence clock; `scratchpad/hero-frames.js`: CDP screencast +
+`document.getAnimations()`):** the CSS beats start on the map to the millisecond; the JS beats land
+17–34 ms late (timer slop) and the strip a further ~50 ms (React commit). Maximum things in motion 2
+(pass 7: 5). Frames at 200 ms show one element mid-flight and at most one settling. LCP: the logo
+IMG at 132–212 ms in motion mode (the recorded trade), the subhead at 144–200 ms under reduced
+motion; CLS 0 at 2560×1440, 1920×1080, 1440×900, 1440×800 and 390×844 in both modes; 7/7 lines,
+3/3 chips and 4/4 nodes at the end everywhere; scroll away and back holds. The headline text is in
+the server HTML and the `.js` gating is unchanged, so nothing flashes and restarts. Reduced motion:
+the finished hero from the first frame — except that the strip's four nodes still turn green at
+hydration (~270 ms) with the 150 ms `transition-colors` they carry, a pass-7 behaviour this pass did
+not touch.
+
+**Decisions (2026-09-02, the user's call).** The settle window governs *content*: everything a
+visitor reads or clicks has landed at 2150 ms, when the phone lands. The scroll cue is last in the
+reading order, after the conversation's first line and the strip's first node, and lands at
+2900 ms — deliberately post-settle (rule 14), not a miss. It stays: the hero claims the whole first
+viewport, so the quiet arrow at its bottom edge is the page's one deliberate exception to the
+no-scroll-cue default.

@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import type { CSSProperties } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { DrawIcon } from "@/components/draw-icon";
+import { HERO_TIMING, sequenceOrigin } from "@/lib/motion";
 import type { IconName } from "@/components/icon-paths";
 
 /**
@@ -18,7 +20,7 @@ import type { IconName } from "@/components/icon-paths";
  * final size from first paint and nothing moves, grows or scrolls as the call plays. The step strip
  * is the conversation's progress: each node lights as its beat lands.
  *
- * It plays exactly once per page load, after the hero's entrance sequence, and holds its final
+ * It plays exactly once per page load, on the hero's beat (HERO_TIMING), and holds its final
  * state — no loop, no restart on scroll or tab return. Under prefers-reduced-motion (or without
  * IntersectionObserver-era browsers' animation support) the demo renders complete and runs no
  * timers; without JavaScript the full conversation is simply visible.
@@ -47,15 +49,16 @@ const CHIPS: { icon: IconName; label: string }[] = [
   { icon: "bell", label: "Owner notified" },
 ];
 
-/* The frame has fully faded in 1.5 s after first paint (see the .hero-seq delays), so the first line
-   lands at 1.8 s on the page's own clock — anchored to navigation, not to hydration, so a fast or
-   slow hydration never puts a line in a frame that is still arriving. If hydration itself is late,
-   the call starts a beat after mount instead. */
-const FIRST_LINE_AT_MS = 1800;
-const MIN_START_MS = 300;
-const LINE_MS = 1400;
-const CHIP_MS = 900;
+/* Every beat is a number in HERO_TIMING (src/lib/motion.ts). The first line sits on the sequence
+   clock — the hero's CSS animations' own start, read through sequenceOrigin(), never hydration — one
+   gap after the phone starts rising, so a fast or slow stylesheet or hydration never puts a line in a
+   frame that is still arriving; if hydration itself is late, the call starts a beat after mount
+   instead. The step strip lights one gap AFTER the bubble that earns the step begins (the strip is its
+   own beat, never simultaneous with the bubble), and the CSS reads the beat lengths as --cd-bubble /
+   --cd-segment on the figure. */
+const { firstLine: FIRST_LINE_AT_MS, minStart: MIN_START_MS, line: LINE_MS, chip: CHIP_MS, stripLag: STRIP_LAG_MS } = HERO_TIMING;
 const TOTAL_BEATS = LINES.length + CHIPS.length;
+const BEAT_VARS = { "--cd-bubble": `${HERO_TIMING.bubble}ms`, "--cd-segment": `${HERO_TIMING.segment}ms` } as CSSProperties;
 
 /* Reduced motion as an external store (the AnimatedThemeToggle idiom): SSR says "animate", and the
    snapshot parks the demo in its complete state for reduced-motion visitors. */
@@ -70,28 +73,38 @@ function motionPrefsSnapshot() {
 
 export function CallDemo() {
   const [beat, setBeat] = useState(-1);
+  const [lit, setLit] = useState(-1);
+  const figureRef = useRef<HTMLElement>(null);
   const staticAll = useSyncExternalStore(subscribeMotionPrefs, motionPrefsSnapshot, () => false);
 
-  /* One run, from mount, then hold. */
+  /* One run, from mount, then hold. The strip lights one gap behind the beat that earns each step. */
   useEffect(() => {
     if (staticAll) return;
-    let timer: number | undefined;
+    const timers: number[] = [];
+    const later = (fn: () => void, ms: number) => timers.push(window.setTimeout(fn, ms));
     let at = -1;
+    let step = -1;
     const advance = () => {
       at += 1;
-      setBeat(at);
-      if (at < TOTAL_BEATS - 1) timer = window.setTimeout(advance, at >= LINES.length - 1 ? CHIP_MS : LINE_MS);
+      const now = at;
+      setBeat(now);
+      const earned = now >= LINES.length ? STEPS.length - 1 : LINES[now].step;
+      if (earned > step) {
+        step = earned;
+        later(() => setLit(earned), STRIP_LAG_MS);
+      }
+      if (now < TOTAL_BEATS - 1) later(advance, now >= LINES.length - 1 ? CHIP_MS : LINE_MS);
     };
-    timer = window.setTimeout(advance, Math.max(MIN_START_MS, FIRST_LINE_AT_MS - performance.now()));
-    return () => window.clearTimeout(timer);
+    later(advance, Math.max(MIN_START_MS, sequenceOrigin(figureRef.current) + FIRST_LINE_AT_MS - performance.now()));
+    return () => timers.forEach((t) => window.clearTimeout(t));
   }, [staticAll]);
 
-  const activeStep = staticAll ? STEPS.length - 1 : beat < 0 ? -1 : beat >= LINES.length ? STEPS.length - 1 : LINES[beat].step;
+  const activeStep = staticAll ? STEPS.length - 1 : lit;
   const lineShown = (i: number) => staticAll || beat >= i;
   const chipShown = (i: number) => staticAll || beat >= LINES.length + i;
 
   return (
-    <figure className="mx-auto w-full max-w-sm">
+    <figure ref={figureRef} className="mx-auto w-full max-w-sm" style={BEAT_VARS}>
       <figcaption className="sr-only">
         Example call: FrontDesk AI answers, asks the qualifying question, books the visit, and the customer and owner are both told.
       </figcaption>

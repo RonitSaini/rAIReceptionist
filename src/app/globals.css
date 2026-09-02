@@ -498,14 +498,15 @@ body {
   100% { stroke-dashoffset: 0; opacity: 0; }
 }
 
-/* Hero entrance: one CSS-timed sequence. Each .hero-seq block sits at its final position from first
-   paint and arrives with the house entrance at its own --seq delay (headline lift 400 ms, subhead
-   550, CTAs 700, phone 900, cue 2300). Gated on `.js` (set by the inline head script before first
-   paint, so nothing flashes and then restarts) and 'both', so it lands on the end state. Opacity and
-   transform only: zero layout shift. */
+/* Hero entrance: one CSS-timed sequence, tuned in ONE place — HERO_TIMING in src/lib/motion.ts hands
+   every block its start (--seq) and duration (--dur); the timeline is drawn in the motion spec, pass
+   8. Each .hero-seq block sits at its final position from first paint and rises into place with the
+   house expo-out. Gated on `.js` (set by the inline head script before first paint, so nothing
+   flashes and then restarts) and 'both', so it lands on the end state. Opacity and transform only:
+   zero layout shift. */
 .js .hero-seq {
   opacity: 0;
-  animation: hero-seq 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: hero-seq var(--dur, 0.5s) cubic-bezier(0.22, 1, 0.36, 1) both;
   animation-delay: var(--seq, 0ms);
 }
 @keyframes hero-seq {
@@ -513,13 +514,13 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 /* The left-entrance group (pill, headline line one, line two): each starts fully left of its
-   wrapper's clip edge and slides into place along the reading direction on its beat (400 / 520 /
-   640 ms, 450 ms each, settled by ~1.1 s). Transform only; the wrapper clips horizontally only.
+   wrapper's clip edge and slides into place along the reading direction on its beat (start and
+   duration from HERO_TIMING as --seq / --dur). Transform only; the wrapper clips horizontally only.
    Deliberate LCP trade (rule 13, measured): a headline invisible at first paint is not Chromium's LCP
    element, so LCP is credited to the logo image instead — accepted by the user 2026-09-01. */
 .js .hero-slide {
   transform: translateX(-110%);
-  animation: hero-slide 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: hero-slide var(--dur, 0.5s) cubic-bezier(0.22, 1, 0.36, 1) both;
   animation-delay: var(--seq, 0ms);
 }
 @keyframes hero-slide {
@@ -574,19 +575,20 @@ body {
 
 /* Call demo: every bubble/step/chip is laid out in its final position from the server render and only
    ever animates opacity/transform/blur into place — nothing moves anything else (no layout shift, and
-   the full conversation is simply visible without JS). */
+   the full conversation is simply visible without JS). Beat lengths come from HERO_TIMING, set on the
+   figure as --cd-bubble / --cd-segment. */
 .js .cd-item {
   opacity: 0;
   transform: translateY(8px);
   filter: blur(4px);
 }
-.js .cd-item.is-on { animation: cd-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.js .cd-item.is-on { animation: cd-in var(--cd-bubble, 0.35s) cubic-bezier(0.22, 1, 0.36, 1) forwards; }
 @keyframes cd-in {
   to { opacity: 1; transform: translateY(0); filter: blur(0); }
 }
 /* Step-rail connector fills toward the next step; a plain line, so scaleX distorts nothing (rule 5). */
 .js .cd-seg { transform: scaleX(0); transform-origin: left center; }
-.js .cd-seg.is-on { animation: seg-fill 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+.js .cd-seg.is-on { animation: seg-fill var(--cd-segment, 0.55s) cubic-bezier(0.22, 1, 0.36, 1) forwards; }
 @keyframes seg-fill {
   to { transform: scaleX(1); }
 }
