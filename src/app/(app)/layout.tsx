@@ -69,7 +69,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <Link href="/dashboard" className="truncate text-base font-bold md:hidden">
               {account.businessName}
             </Link>
-            <span className="hidden text-sm text-gray-500 md:block">{account.businessName}</span>
+            <span className="hidden text-[0.9375rem] font-semibold tracking-tight md:block">{account.businessName}</span>
             <div className="flex items-center gap-1">
               <AnimatedThemeToggle />
               <NotificationBell initialCount={unread} initialItems={recent} />
