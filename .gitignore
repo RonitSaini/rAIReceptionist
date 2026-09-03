@@ -28,3 +28,6 @@ secrets/
 
 .vercel
 .env*
+
+# dev server log (scratch, never committed)
+dev.log

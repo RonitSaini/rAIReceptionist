@@ -64,6 +64,8 @@ export type StripeSubscription = Stripe.Subscription;
 export type StripeSubscriptionStatus = Stripe.Subscription.Status;
 export type StripeCheckoutSession = Stripe.Checkout.Session;
 export type StripeInvoice = Stripe.Invoice;
+export type StripeCoupon = Stripe.Coupon;
+export type StripeCustomerBalanceTransaction = Stripe.CustomerBalanceTransaction;
 export type StripePortalConfiguration = Stripe.BillingPortal.Configuration;
 export type StripeWebhookEvent = Stripe.Event;
 
@@ -100,6 +102,8 @@ export type CheckoutSessionInput = {
   cancelUrl: string;
   metadata: Record<string, string>;
   subscriptionMetadata: Record<string, string>;
+  /** A one-off coupon covering this account's referral credit, when it has any. */
+  couponId?: string | null;
 };
 
 /**
@@ -116,7 +120,11 @@ export function createCheckoutSession(input: CheckoutSessionInput) {
     cancel_url: input.cancelUrl,
     metadata: input.metadata,
     subscription_data: { metadata: input.subscriptionMetadata },
-    allow_promotion_codes: true,
+    // Stripe accepts `discounts` or `allow_promotion_codes`, never both. Referral credit wins when
+    // there is any: it is money already owed to this account, whereas a promotion code is one they
+    // may or may not have. The discount is a coupon rather than a customer balance credit so that
+    // the customer SEES the money come off on Stripe's own page, which is the whole promise.
+    ...(input.couponId ? { discounts: [{ coupon: input.couponId }] } : { allow_promotion_codes: true }),
     billing_address_collection: "auto",
     customer_update: { address: "auto", name: "auto" },
     // Acceptance is captured a second time at the payment step, in Stripe's own records. Requires
@@ -128,6 +136,40 @@ export function createCheckoutSession(input: CheckoutSessionInput) {
     consent_collection: { terms_of_service: "required" },
     integration_identifier: CHECKOUT_INTEGRATION_ID,
   });
+}
+
+/**
+ * A single-use amount-off coupon. Minted per checkout rather than kept as one reusable coupon
+ * because the amount varies: an account can be owed one credit or three.
+ */
+export function createCoupon(input: { amountOffCents: number; currency: string; name: string; metadata: Record<string, string>; redeemByEpoch?: number }) {
+  return stripe().coupons.create({
+    amount_off: input.amountOffCents,
+    currency: input.currency,
+    duration: "once",
+    name: input.name,
+    max_redemptions: 1,
+    metadata: input.metadata,
+    ...(input.redeemByEpoch ? { redeem_by: input.redeemByEpoch } : {}),
+  });
+}
+
+export function getCoupon(id: string) {
+  return stripe().coupons.retrieve(id);
+}
+
+/**
+ * Put money on the customer's invoice balance. A NEGATIVE amount is the credit; Stripe applies it to
+ * the next invoice it finalizes, up to that invoice's total, and carries any remainder forward.
+ *
+ * `idempotencyKey` is the credit's own row id, so a webhook redelivery cannot credit twice.
+ */
+export function creditCustomerBalance(customer: string, input: { amountCents: number; currency: string; description: string; metadata: Record<string, string>; idempotencyKey: string }) {
+  return stripe().customers.createBalanceTransaction(
+    customer,
+    { amount: -Math.abs(input.amountCents), currency: input.currency, description: input.description, metadata: input.metadata },
+    { idempotencyKey: input.idempotencyKey },
+  );
 }
 
 export function getSubscription(id: string) {

@@ -8,10 +8,14 @@ import { Alert, Button, Field, Input } from "@/components/ui";
 import { GoogleButton } from "@/components/google-button";
 import { VerticalPicker } from "@/components/forms/vertical-picker";
 import { TermsCheckbox } from "@/components/terms-checkbox";
+import { ReferralField } from "@/components/forms/referral-field";
 import type { VerticalCatalogEntry } from "@/verticals/types";
 
-export function SignupForm({ googleEnabled, catalog }: { googleEnabled: boolean; catalog: readonly VerticalCatalogEntry[] }) {
+export function SignupForm({ googleEnabled, catalog, referralCode = null }: { googleEnabled: boolean; catalog: readonly VerticalCatalogEntry[]; referralCode?: string | null }) {
   const [vertical, setVertical] = useState("");
+  // Controlled so it survives the form reset React does after every action: an unrelated failure
+  // (the email is taken) must not make someone re-type an eight-character code.
+  const [code, setCode] = useState(referralCode ?? "");
   // Unchecked by default, and both signup paths key off it: the submit button stays disabled and
   // the Google button won't leave for OAuth until it's ticked. The server checks again regardless.
   const [agreed, setAgreed] = useState(false);
@@ -45,6 +49,7 @@ export function SignupForm({ googleEnabled, catalog }: { googleEnabled: boolean;
         <Field label="Password" htmlFor="password" hint="At least 8 characters.">
           <Input id="password" name="password" type="password" required minLength={8} autoComplete="new-password" placeholder="••••••••" />
         </Field>
+        <ReferralField value={code} onChange={setCode} prefilled={!!referralCode} />
         <TermsCheckbox checked={agreed} onChange={setAgreed} />
         <Button type="submit" size="lg" full disabled={pending || !!state?.ok || !vertical || !agreed}>
           {pending ? "Creating account…" : "Create account"}
@@ -61,7 +66,9 @@ export function SignupForm({ googleEnabled, catalog }: { googleEnabled: boolean;
               form it sits in, and someone who came here to use Google may never have looked at it.
               Step 1 asks them once they are back, having chosen an account — and no Account exists
               until they answer. */}
-          <GoogleButton callbackUrl="/onboarding/1" label="Sign up with Google" />
+          {/* The code rides in the callback URL because OAuth leaves this page entirely: step 1 is
+              where a Google sign-up actually creates its account, so that is where it has to arrive. */}
+          <GoogleButton callbackUrl={referralCode ? `/onboarding/1?ref=${referralCode}` : "/onboarding/1"} label="Sign up with Google" />
         </>
       ) : null}
     </div>

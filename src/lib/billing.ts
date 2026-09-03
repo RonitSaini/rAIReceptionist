@@ -4,19 +4,35 @@ import { createNotification } from "./notifications";
 import { appUrl, billingRequired, stripeConfigured } from "./env";
 import { subscriptionActive } from "./billing-ui";
 import {
+  createCoupon,
   createPortalConfiguration,
+  creditCustomerBalance,
+  getCoupon,
   getPrice,
   getSubscription,
   idOf,
   invoiceSubscriptionId,
+  isStripeNotFound,
   listPortalConfigurations,
   listSubscriptions,
+  stripeErrorMessage,
   type StripeCheckoutSession,
   type StripeInvoice,
   type StripeSubscription,
   type StripeSubscriptionStatus,
   type StripeWebhookEvent,
 } from "./stripe";
+import {
+  REFERRAL_CREDIT_CENTS,
+  pendingCredits,
+  qualifyReferral,
+  reserveCreditsForCheckout,
+  selectCreditsUpTo,
+  settleBalanceCredit,
+  settleCheckoutCredits,
+  sumCents,
+  type ReferralCredit,
+} from "./referrals";
 
 /**
  * Billing state lives in Stripe; the Account row mirrors just enough to gate the app
@@ -139,6 +155,7 @@ export async function handleStripeEvent(event: StripeWebhookEvent): Promise<void
       if (!subscriptionActive({ subscriptionStatus: before }) && subscriptionActive({ subscriptionStatus: after })) {
         await createNotification({ accountId, type: "system", title: "Payment received", body: "Your FrontDesk AI subscription is active. Thanks for joining!" });
       }
+      await settleReferrals(accountId, { couponId: idOf(s.discounts?.[0]?.coupon), checkoutSessionId: s.id, active: subscriptionActive({ subscriptionStatus: after }) });
       return;
     }
 
@@ -170,7 +187,8 @@ export async function handleStripeEvent(event: StripeWebhookEvent): Promise<void
       if (!subId) return;
       const account = await findAccountForStripe(idOf(inv.customer), inv.metadata?.accountId);
       if (!account) return;
-      await applySubscription(account.id, await getSubscription(subId));
+      const status = await applySubscription(account.id, await getSubscription(subId));
+      await settleReferrals(account.id, { active: subscriptionActive({ subscriptionStatus: status }) });
       return;
     }
 
@@ -258,4 +276,146 @@ export async function getPlanPrices(): Promise<PlanPrices | null> {
     console.error("[billing] could not load prices:", e instanceof Error ? e.message : e);
     return null;
   }
+}
+
+// ---------- Referral credit ----------
+
+/**
+ * Turning referral credit into money. The ledger (src/lib/referrals.ts) decides who is owed what;
+ * everything here decides how Stripe is told, and there are exactly two ways:
+ *
+ *   A one-off COUPON on the Checkout Session, for an account that has not subscribed yet. Chosen
+ *   over a customer balance credit — which Stripe would also apply — because a coupon shows up as a
+ *   line on Stripe's own checkout page. "$100 off your first month" that the customer cannot see
+ *   until the receipt arrives is not the offer we made.
+ *
+ *   A CUSTOMER BALANCE credit, for an account that already has a subscription. Stripe applies it to
+ *   the next invoice it finalizes, up to that invoice's total, and carries the remainder forward —
+ *   which is exactly "$100 off your next month", with no coupon to expire and nothing to redeem.
+ */
+
+/**
+ * The most a Checkout coupon should be worth: what the first invoice can actually absorb. A coupon
+ * discounts one invoice and throws away the rest, so anything above this stays in the ledger and
+ * goes onto the invoice balance later instead, where it carries over.
+ *
+ * If the prices can't be read, one credit — the advertised offer, and never more than a real invoice.
+ */
+async function checkoutDiscountCapCents(chargeSetupFee: boolean): Promise<number> {
+  const prices = await getPlanPrices();
+  if (!prices?.monthly) return REFERRAL_CREDIT_CENTS;
+  return prices.monthly.amount + (chargeSetupFee ? (prices.setupFee?.amount ?? 0) : 0);
+}
+
+/**
+ * Mint (or reuse) the coupon for whatever this account is owed, and tie the credits to it.
+ *
+ * Reuse matters more than it looks. Someone who opens Checkout, wanders off, and comes back gets a
+ * second session; if that session carried a SECOND coupon for the same credits, the first coupon
+ * would still be redeemable by the still-open first session, and only one of the two could ever be
+ * settled against the ledger. One coupon per set of credits keeps the accounting exact.
+ *
+ * Returns null when nothing is owed — the caller then falls back to promotion codes.
+ */
+export async function reserveReferralDiscount(accountId: string, chargeSetupFee: boolean): Promise<{ couponId: string; amountCents: number } | null> {
+  const owed = await pendingCredits(accountId);
+  if (owed.length === 0) return null;
+
+  // One currency per checkout (the plan is USD-only; this is belt and braces, not a feature).
+  const currency = owed[0].currency;
+  const credits = selectCreditsUpTo(owed.filter((c) => c.currency === currency), await checkoutDiscountCapCents(chargeSetupFee));
+  if (credits.length === 0) return null;
+  const amountCents = sumCents(credits);
+
+  const existing = credits[0].stripeCouponId;
+  if (existing && credits.every((c) => c.stripeCouponId === existing)) {
+    const coupon = await getCoupon(existing).catch((e) => {
+      if (isStripeNotFound(e)) return null;
+      throw e;
+    });
+    if (coupon && !coupon.deleted && coupon.valid && coupon.amount_off === amountCents && coupon.currency === currency) {
+      return { couponId: existing, amountCents };
+    }
+  }
+
+  const coupon = await createCoupon({
+    amountOffCents: amountCents,
+    currency,
+    name: `Referral credit (${credits.length} x $${(REFERRAL_CREDIT_CENTS / 100).toFixed(0)})`,
+    metadata: { accountId, referralCreditIds: credits.map((c) => c.id).join(",") },
+    // Two days. A Checkout Session expires after 24 hours, so this outlives any session that could
+    // still redeem it and then stops being a loose end: an unredeemed coupon going invalid is what
+    // releases its credits back to the invoice-balance path below.
+    redeemByEpoch: Math.floor(Date.now() / 1000) + 2 * 24 * 60 * 60,
+  });
+  await reserveCreditsForCheckout(credits.map((c) => c.id), coupon.id);
+  return { couponId: coupon.id, amountCents };
+}
+
+/**
+ * Whether a credit is still spoken for by a checkout that might yet complete.
+ *
+ * A reserved credit must not also be pushed onto the invoice balance, or an account gets the same
+ * $100 twice. Stripe is the authority on that, not us: the coupon is single-use, so once it has been
+ * redeemed or its `redeem_by` has passed, `valid` is false and the credit is free again.
+ */
+async function heldByLiveCoupon(credit: ReferralCredit): Promise<boolean> {
+  if (!credit.stripeCouponId) return false;
+  try {
+    const coupon = await getCoupon(credit.stripeCouponId);
+    return !coupon.deleted && coupon.valid;
+  } catch (e) {
+    if (isStripeNotFound(e)) return false;
+    throw e; // an unreadable coupon is not a licence to spend the credit twice
+  }
+}
+
+/**
+ * Push everything this account is owed onto its Stripe invoice balance.
+ *
+ * Only for an account that already has a subscription: without one there is no invoice coming, and
+ * the credit is better spent as the coupon on their own checkout, where they can see it.
+ * Returns the total credited, in cents.
+ */
+export async function applyPendingCreditsToBalance(accountId: string): Promise<number> {
+  const account = await prisma.account.findUnique({ where: { id: accountId }, select: { stripeCustomerId: true, subscriptionStatus: true } });
+  if (!account?.stripeCustomerId || !subscriptionActive(account)) return 0;
+
+  let applied = 0;
+  for (const credit of await pendingCredits(accountId)) {
+    try {
+      if (await heldByLiveCoupon(credit)) continue;
+      const txn = await creditCustomerBalance(account.stripeCustomerId, {
+        amountCents: credit.amountCents,
+        currency: credit.currency,
+        description: "FrontDesk AI referral credit",
+        metadata: { accountId, referralCreditId: credit.id },
+        // The row id, so a redelivered webhook re-sends the same request instead of a second credit.
+        idempotencyKey: `referral-credit-${credit.id}`,
+      });
+      await settleBalanceCredit(credit.id, txn.id);
+      applied += credit.amountCents;
+    } catch (e) {
+      // Leave it pending rather than losing it: the next activation, invoice or "Refresh status"
+      // tries again, and the idempotency key makes a retry safe.
+      console.error(`[referrals] could not credit ${credit.id}:`, stripeErrorMessage(e));
+      break;
+    }
+  }
+  return applied;
+}
+
+/**
+ * Everything that has to happen to the referral ledger when an account's money moves.
+ *
+ * Order is not arbitrary: the coupon this checkout carried has to be marked spent BEFORE the sweep
+ * onto the invoice balance, or the same credit leaves twice.
+ */
+export async function settleReferrals(accountId: string, opts: { couponId?: string | null; checkoutSessionId?: string; active: boolean }): Promise<void> {
+  if (opts.couponId && opts.checkoutSessionId) await settleCheckoutCredits(accountId, opts.couponId, opts.checkoutSessionId);
+  if (!opts.active) return;
+  await applyPendingCreditsToBalance(accountId);
+  // This account has now paid, which is the moment the referrer earns their half.
+  const qualified = await qualifyReferral(accountId);
+  if (qualified) await applyPendingCreditsToBalance(qualified.referrerAccountId);
 }

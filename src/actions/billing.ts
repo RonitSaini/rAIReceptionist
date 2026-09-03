@@ -8,7 +8,7 @@ import { str, type ActionState } from "@/lib/form";
 import { appUrl, stripeConfigured, stripePricesConfigured } from "@/lib/env";
 import { humanize } from "@/lib/constants";
 import { subscriptionActive } from "@/lib/billing-ui";
-import { refreshFromStripe, resolvePortalConfiguration } from "@/lib/billing";
+import { refreshFromStripe, reserveReferralDiscount, resolvePortalConfiguration, settleReferrals } from "@/lib/billing";
 import { createCheckoutSession, createCustomer, createPortalSession, getCustomer, isStripeNotFound, stripeErrorMessage } from "@/lib/stripe";
 
 type Mode = "onboarding" | "settings";
@@ -53,14 +53,18 @@ export async function startCheckout(_prev: ActionState, fd: FormData): Promise<A
   let url: string | null;
   try {
     const customer = await ensureCustomer(account.id, userId, account.businessName, account.stripeCustomerId);
+    // Referral credit rides along as a coupon so it is visible on Stripe's page, not just the receipt.
+    // The credits are only marked spent when the webhook says this session completed.
+    const discount = await reserveReferralDiscount(account.id, chargeSetupFee);
     const session = await createCheckoutSession({
       customer,
       clientReferenceId: account.id,
       lineItems: [...(chargeSetupFee ? [{ price: setupFeePrice as string, quantity: 1 }] : []), { price: monthlyPrice, quantity: 1 }],
       successUrl: `${base}${returnPath}${sep}checkout=success&session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${base}${returnPath}${sep}checkout=cancelled`,
-      metadata: { accountId: account.id, setupFee: chargeSetupFee ? "1" : "0" },
+      metadata: { accountId: account.id, setupFee: chargeSetupFee ? "1" : "0", referralDiscountCents: String(discount?.amountCents ?? 0) },
       subscriptionMetadata: { accountId: account.id },
+      couponId: discount?.couponId ?? null,
     });
     url = session.url;
   } catch (e) {
@@ -99,6 +103,10 @@ export async function refreshBillingStatus(): Promise<ActionState> {
   if (!account.stripeCustomerId) return { ok: false, error: "No billing account yet — subscribe first." };
   try {
     const status = await refreshFromStripe(account);
+    // The same referral settlement the webhook does, for the same reason this action exists: a
+    // delivery that never arrived (local dev without `stripe listen`, or a delayed retry) must not
+    // leave a referrer waiting on credit they have already earned.
+    await settleReferrals(account.id, { active: subscriptionActive({ subscriptionStatus: status }) });
     revalidatePath("/", "layout");
     return { ok: true, message: `Subscription status: ${humanize(status)}.` };
   } catch (e) {

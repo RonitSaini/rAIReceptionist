@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { requireAccount } from "@/lib/current-account";
 import { hasAcceptedCurrentTerms } from "@/lib/terms-acceptance";
+import { isReferralCodeShape, normalizeReferralCode } from "@/lib/referrals";
 import { serializeAccount, serializeMenuItem, serializeServiceOffering } from "@/lib/serialize";
 import { MAX_ONBOARDING_STEPS, VERTICAL_CATALOG, onboardingStepsFor, verticalFor } from "@/verticals";
 import { OnboardingProgress } from "@/components/onboarding-progress";
@@ -37,9 +38,13 @@ function Frame({ progress, wide = false, children }: { progress: React.ReactNode
   );
 }
 
-export default async function OnboardingStepPage({ params, searchParams }: { params: Promise<{ step: string }>; searchParams: Promise<{ checkout?: string; google?: string; message?: string }> }) {
+export default async function OnboardingStepPage({ params, searchParams }: { params: Promise<{ step: string }>; searchParams: Promise<{ checkout?: string; google?: string; message?: string; ref?: string }> }) {
   const { step: stepParam } = await params;
-  const { google: googleStatus, message: googleMessage } = await searchParams;
+  const { google: googleStatus, message: googleMessage, ref } = await searchParams;
+  // A referral code carried here by the invite link (see signup-form.tsx). Only step 1 reads it:
+  // after that the account exists, and the code is typed on the payment step instead.
+  const rawRef = normalizeReferralCode(ref ?? "");
+  const referralCode = isReferralCodeShape(rawRef) ? rawRef : null;
   const step = Number.parseInt(stepParam, 10);
   if (!Number.isInteger(step) || step < 1 || step > MAX_ONBOARDING_STEPS) notFound();
 
@@ -57,7 +62,7 @@ export default async function OnboardingStepPage({ params, searchParams }: { par
     if (user?.accountId) redirect("/onboarding/2");
     return (
       <Frame progress={<OnboardingProgress step={1} />}>
-        <CreateAccountForm catalog={VERTICAL_CATALOG} needsTerms={!accepted} />
+        <CreateAccountForm catalog={VERTICAL_CATALOG} needsTerms={!accepted} referralCode={referralCode} />
       </Frame>
     );
   }

@@ -15,10 +15,12 @@ import { PhoneStep } from "@/components/forms/phone-step";
 import { PaymentStep } from "@/components/forms/payment-step";
 import { PortalButton } from "@/components/forms/billing-buttons";
 import { InvoicesCard } from "@/components/billing-invoices";
+import { ReferralCard } from "@/components/referral-card";
 import { AccountActions } from "@/components/account-actions";
 import { ChangeEmailForm, ChangePasswordForm } from "@/components/forms/account-credentials";
 import { SegmentedLinks } from "@/components/segmented-links";
 import { getGoogleCalendarView } from "@/lib/google-calendar-view";
+import { referralSummary } from "@/lib/referrals";
 import { calendarBlurbFor } from "@/lib/calendar-sync-ui";
 import { verticalFor } from "@/verticals";
 import { serializeServiceOffering } from "@/lib/serialize";
@@ -201,6 +203,7 @@ async function BillingTab({ account, view, checkout }: { account: Account; view:
   return (
     <div className="space-y-4">
       <PaymentStep account={view} mode="settings" checkout={checkout} />
+      <ReferralCard summary={await referralSummary(account.id)} />
       <Card title="Billing portal">
         <p className="text-sm text-gray-500">Update your card, download invoices, or cancel from the Stripe billing portal.</p>
         <div className="mt-3">

@@ -5,10 +5,12 @@ import { formatUsd } from "@/lib/form";
 import { formatDateLong } from "@/lib/time";
 import { stripeConfigured, stripePricesConfigured } from "@/lib/env";
 import { getPlanPrices, type PlanPrice } from "@/lib/billing";
+import { REFERRAL_CREDIT_CENTS, referralSummary } from "@/lib/referrals";
 import { parseCheckoutResult, subscriptionActive, subscriptionTone, type CheckoutResult } from "@/lib/billing-ui";
 import { Alert, Badge, Button, Card } from "@/components/ui";
 import { BackLink, type FormMode } from "@/components/form-footer";
 import { CheckoutButton, RefreshStatusButton } from "@/components/forms/billing-buttons";
+import { ReferralClaimForm } from "@/components/forms/referral-claim";
 
 export { parseCheckoutResult };
 
@@ -26,6 +28,10 @@ export async function PaymentStep({ account, mode, checkout = null, backHref }: 
   const periodEnd = account.subscriptionCurrentPeriodEnd ? formatDateLong(new Date(account.subscriptionCurrentPeriodEnd), account.timeZone) : null;
   const setupFeeLabel = account.setupFeePaidAt ? "Paid" : money(prices?.setupFee ?? null, process.env.STRIPE_PRICE_SETUP_FEE ? "Set in Stripe" : "None");
   const reactivating = account.subscriptionStatus === "past_due" || account.subscriptionStatus === "cancelled";
+  // Referral credit belongs on this card: it is money already owed, and a plan summary that leaves
+  // it out is lying by omission. A read — nothing here writes (AGENTS.md).
+  const referral = await referralSummary(account.id);
+  const canClaim = !active && !account.setupFeePaidAt && !referral.claimedCode;
 
   return (
     <div className="space-y-4">
@@ -50,6 +56,12 @@ export async function PaymentStep({ account, mode, checkout = null, backHref }: 
             <span>Monthly subscription</span>
             <span className="font-semibold">{money(prices?.monthly ?? null, "Set in Stripe")}</span>
           </div>
+          {referral.pendingCents > 0 ? (
+            <div className="flex items-center justify-between text-brand-700">
+              <span>Referral credit</span>
+              <span className="font-semibold">-{formatUsd(referral.pendingCents / 100)}</span>
+            </div>
+          ) : null}
           <div className="flex items-center justify-between border-t border-gray-100 pt-2">
             <span>Status</span>
             <Badge tone={subscriptionTone[account.subscriptionStatus]}>{humanize(account.subscriptionStatus)}</Badge>
@@ -80,6 +92,8 @@ export async function PaymentStep({ account, mode, checkout = null, backHref }: 
           </div>
         ) : null}
       </Card>
+
+      {canClaim ? <ReferralClaimForm creditLabel={formatUsd(REFERRAL_CREDIT_CENTS / 100)} /> : null}
 
       {mode === "onboarding" ? (
         <form action={completePaymentStep} data-guided="3" className="space-y-3 pt-2">

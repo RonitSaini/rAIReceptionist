@@ -6,6 +6,7 @@ import { AnimatedThemeToggle } from "@/components/ui/animated-theme-toggle";
 import { BackToHome } from "@/components/back-to-home";
 import { Logo } from "@/components/logo";
 import { Alert } from "@/components/ui";
+import { isReferralCodeShape, normalizeReferralCode } from "@/lib/referrals";
 
 export const metadata = { title: "Sign up" };
 
@@ -13,8 +14,12 @@ export const metadata = { title: "Sign up" };
 // reliably available during the build's static prerender on Vercel.
 export const dynamic = "force-dynamic";
 
-export default async function SignupPage({ searchParams }: { searchParams: Promise<{ deleted?: string }> }) {
-  const { deleted } = await searchParams;
+export default async function SignupPage({ searchParams }: { searchParams: Promise<{ deleted?: string; ref?: string }> }) {
+  const { deleted, ref } = await searchParams;
+  // Normalized here so a mangled link (a trailing bracket, a copied space) still lands, and so junk
+  // never reaches the form dressed as a real code.
+  const raw = normalizeReferralCode(ref ?? "");
+  const referralCode = isReferralCodeShape(raw) ? raw : null;
   return (
     // Guided arrival (motion spec §8): the step line, then the card, then the footer; the logo and the
     // corner controls are the room the page arrives into and never move.
@@ -35,7 +40,7 @@ export default async function SignupPage({ searchParams }: { searchParams: Promi
             <Alert kind="info">Your account and all of its data were deleted. You can sign up again any time.</Alert>
           </div>
         ) : null}
-        <SignupForm googleEnabled={googleEnabled} catalog={VERTICAL_CATALOG} />
+        <SignupForm googleEnabled={googleEnabled} catalog={VERTICAL_CATALOG} referralCode={referralCode} />
       </div>
       <p data-guided="3" className="mt-6 text-center text-sm text-gray-600">
         Already have an account?{" "}

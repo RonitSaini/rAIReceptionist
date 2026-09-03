@@ -85,18 +85,18 @@ model Account {
   /// The trading name, for every vertical. The column is still called `restaurantName` because
   /// renaming it would be a destructive migration for zero user-visible gain; @map lets the code
   /// say what the field means without touching the database.
-  businessName String @map("restaurantName")
-  ownerName      String?
-  cellPhone      String?
-  addressLine1   String?
-  addressLine2   String?
-  city           String?
-  state          String?
-  country        String  @default("US") // "US" or "CA" — drives address format, time zones, distance units
-  zip            String?
-  timeZone       String  @default("America/New_York")
-  cuisineType    String?
-  priceRange     String? // "$" | "$$" | "$$$" | "$$$$"
+  businessName String  @map("restaurantName")
+  ownerName    String?
+  cellPhone    String?
+  addressLine1 String?
+  addressLine2 String?
+  city         String?
+  state        String?
+  country      String  @default("US") // "US" or "CA" — drives address format, time zones, distance units
+  zip          String?
+  timeZone     String  @default("America/New_York")
+  cuisineType  String?
+  priceRange   String? // "$" | "$$" | "$$$" | "$$$$"
 
   // Integrations (filled in later phases)
   twilioNumber                  String?            @unique
@@ -110,6 +110,12 @@ model Account {
   subscriptionCurrentPeriodEnd  DateTime?
   subscriptionCancelAtPeriodEnd Boolean            @default(false)
   setupFeePaidAt                DateTime?
+
+  /// The code this account hands out. Issued once at sign-up and never re-rolled: it gets printed
+  /// on a card and pasted into messages, so changing it would break links already in the world.
+  /// Nullable only because the column had to be added additively — the migration backfilled every
+  /// existing row and account creation always sets one (src/lib/referrals.ts).
+  referralCode String? @unique
 
   // Voice + greeting
   voiceId  String  @default("11labs-Adrian")
@@ -139,7 +145,7 @@ model Account {
   takesTakeoutOrders     Boolean  @default(true)
   offersDelivery         Boolean  @default(false)
   serviceAreaZip         String?  @map("deliveryZip")
-  serviceAreaRadiusMiles Decimal? @db.Decimal(5, 1) @map("deliveryRadiusMiles")
+  serviceAreaRadiusMiles Decimal? @map("deliveryRadiusMiles") @db.Decimal(5, 1)
 
   // Field service
   /// Who turns up. Spoken by the agent ("Mike will call you within 15 minutes") and the default
@@ -179,8 +185,8 @@ model Account {
   //
   /// Who to point a caller at when their vehicle cannot be driven in. Optional: a shop without a
   /// towing partner says so rather than inventing one.
-  towingPartnerName  String?
-  towingPartnerPhone String?
+  towingPartnerName      String?
+  towingPartnerPhone     String?
   /// Where to send an animal in trouble when the clinic is shut. Required for a veterinary account
   /// in onboarding, because the alternative to having it is dead air on the worst call of the day.
   emergencyReferralPhone String?
@@ -212,6 +218,9 @@ model Account {
   serviceOfferings    ServiceOffering[]
   properties          Property[]
   vendors             Vendor[]
+  referralsGiven      Referral[]                @relation("ReferralsGiven")
+  referralClaimed     Referral?                 @relation("ReferralClaimed")
+  referralCredits     ReferralCredit[]
 }
 
 // ---------- Property management ----------
@@ -406,7 +415,7 @@ model Job {
   unitId     String?
   unit       Unit?     @relation(fields: [unitId], references: [id], onDelete: SetNull)
 
-  googleEventId String?
+  googleEventId   String?
   /// Why the last Google Calendar sync failed, cleared on success. Sync is best-effort — a Google
   /// outage must never block a booking — so failures land here and the escalation sweep retries them.
   googleSyncError String?
@@ -462,6 +471,83 @@ model StripeEvent {
   id          String   @id // Stripe event id (evt_...)
   type        String
   processedAt DateTime @default(now())
+}
+
+// ---------- Referrals ----------
+
+enum ReferralSide {
+  referrer
+  referred
+}
+
+/// One account claiming another account's code, and the only row that says the two are connected.
+///
+/// The claim has to happen BEFORE the claiming account pays — that is the whole offer — so this row
+/// is written while `referredAccountId` still has no subscription, and `qualifiedAt` is stamped later,
+/// when their first payment actually clears. Nothing is owed to the referrer until then: without that
+/// gap, ten throwaway sign-ups would mint a thousand dollars of credit that no one ever paid for.
+model Referral {
+  id String @id @default(cuid())
+
+  /// The code as typed, kept even if the referrer's account is later deleted — this row is a record
+  /// of something that happened, and it has to still read correctly with the referrer gone.
+  code String
+
+  /// SetNull, not Cascade: a referrer closing their account must not delete the credit the person
+  /// they referred was promised.
+  referrerAccountId String?
+  referrer          Account? @relation("ReferralsGiven", fields: [referrerAccountId], references: [id], onDelete: SetNull)
+
+  /// One claim per account, ever. The unique index is the enforcement, not the check in the action.
+  referredAccountId String  @unique
+  referred          Account @relation("ReferralClaimed", fields: [referredAccountId], references: [id], onDelete: Cascade)
+
+  claimedAt   DateTime  @default(now())
+  /// The referred account's first payment cleared. Null means nothing is owed to the referrer yet.
+  qualifiedAt DateTime?
+
+  credits ReferralCredit[]
+
+  @@index([referrerAccountId])
+}
+
+/// A single $100 owed to one account, and the record of how it was spent.
+///
+/// A ledger rather than a running balance on Account, because the two ways a credit can leave are
+/// different objects in Stripe and both have to be traceable back to the referral that created them:
+/// a Checkout discount (a one-off coupon, for an account that has not subscribed yet) or a customer
+/// balance credit (for an account that already has a subscription, applied to its next invoice).
+model ReferralCredit {
+  id        String  @id @default(cuid())
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  referralId String
+  referral   Referral @relation(fields: [referralId], references: [id], onDelete: Cascade)
+
+  /// Which end of the referral this credit belongs to. With the unique index below it is also the
+  /// idempotency key: granting the same side of the same referral twice is a no-op, which matters
+  /// because Stripe redelivers webhooks.
+  side ReferralSide
+
+  amountCents Int
+  currency    String @default("usd")
+
+  /// Null while the credit is still owed. Set when Stripe has actually taken it off something.
+  appliedAt DateTime?
+
+  /// The coupon minted for a Checkout Session, and the session it was attached to. Both are set when
+  /// the session is created; `appliedAt` waits for the webhook, because a session can be abandoned.
+  stripeCouponId          String?
+  stripeCheckoutSessionId String?
+
+  /// The customer balance transaction, for the other path.
+  stripeBalanceTransactionId String?
+
+  createdAt DateTime @default(now())
+
+  @@unique([referralId, side])
+  @@index([accountId, appliedAt])
 }
 
 // ---------- Notifications (in-app) ----------

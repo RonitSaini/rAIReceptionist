@@ -6,6 +6,7 @@ import { createAccountForCurrentUser } from "@/actions/auth";
 import { Alert, Button, Field, Input } from "@/components/ui";
 import { VerticalPicker } from "@/components/forms/vertical-picker";
 import { TermsCheckbox } from "@/components/terms-checkbox";
+import { ReferralField } from "@/components/forms/referral-field";
 import type { VerticalCatalogEntry } from "@/verticals/types";
 
 /**
@@ -18,8 +19,9 @@ import type { VerticalCatalogEntry } from "@/verticals/types";
  * cannot cover it: that lives in the (app) layout, behind requireAccount(), and these users have no
  * account yet. So this is the one place left to ask, and without the box the refusal was a dead end.
  */
-export function CreateAccountForm({ catalog, needsTerms = false }: { catalog: readonly VerticalCatalogEntry[]; needsTerms?: boolean }) {
+export function CreateAccountForm({ catalog, needsTerms = false, referralCode = null }: { catalog: readonly VerticalCatalogEntry[]; needsTerms?: boolean; referralCode?: string | null }) {
   const [vertical, setVertical] = useState("");
+  const [code, setCode] = useState(referralCode ?? "");
   const [agreed, setAgreed] = useState(false);
   const [state, action, pending] = useActionState(createAccountForCurrentUser, null);
   const router = useRouter();
@@ -37,6 +39,7 @@ export function CreateAccountForm({ catalog, needsTerms = false }: { catalog: re
       <Field label="Business name" htmlFor="businessName">
         <Input id="businessName" name="businessName" required placeholder="Luigi's Trattoria" autoComplete="organization" />
       </Field>
+      <ReferralField value={code} onChange={setCode} prefilled={!!referralCode} />
       {needsTerms ? <TermsCheckbox checked={agreed} onChange={setAgreed} /> : null}
       <Button type="submit" size="lg" full disabled={pending || !!state?.ok || !vertical || (needsTerms && !agreed)}>
         {pending ? "Creating…" : "Continue"}

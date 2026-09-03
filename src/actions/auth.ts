@@ -12,6 +12,7 @@ import { isVerticalAvailable, vocabularyFor } from "@/verticals";
 import type { Vertical } from "@prisma/client";
 import { DEFAULT_CLOSE, DEFAULT_OPEN } from "@/lib/availability";
 import { hasAcceptedCurrentTerms, recordTermsAcceptance, requestIp } from "@/lib/terms-acceptance";
+import { checkReferralCodeAvailable, claimReferralCodeQuietly, issueReferralCode } from "@/lib/referrals";
 
 /** Server-side gate, not UI decoration: a hand-crafted POST without the checkbox lands here too. */
 const TERMS_ERROR = "Please accept the Terms of Service and Privacy Policy to create your account.";
@@ -48,7 +49,9 @@ function businessNameError(vertical: Vertical): string {
 
 async function createAccountWithDefaults(businessName: string, vertical: Vertical, tx: TxClient) {
   const account = await tx.account.create({
-    data: { businessName, vertical, greeting: generateGreeting(businessName, "Alex"), hostName: "Alex", onboardingStep: 2 },
+    // The referral code is issued here and nowhere else: reads never write (AGENTS.md), so no page
+    // render can mint one lazily, and an account without a code would have nothing to share.
+    data: { businessName, vertical, greeting: generateGreeting(businessName, "Alex"), hostName: "Alex", onboardingStep: 2, referralCode: await issueReferralCode(tx) },
   });
   await tx.businessHours.createMany({ data: defaultHours(account.id) });
   await tx.notification.create({
@@ -109,16 +112,22 @@ export async function signUp(_prev: ActionState, formData: FormData): Promise<Ac
   const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
   if (existing) return { ok: false, error: "An account with that email already exists. Try logging in." };
 
+  // Checked before anything is created: see checkReferralCodeAvailable for why it cannot wait.
+  const referral = await checkReferralCodeAvailable(str(formData, "ref"));
+  if (!referral.ok) return { ok: false, error: referral.error };
+
   const passwordHash = await hashPassword(password);
   const ip = await requestIp();
 
+  let accountId: string;
   try {
-    await prisma.$transaction(async (tx) => {
+    accountId = await prisma.$transaction(async (tx) => {
       const account = await createAccountWithDefaults(businessName, vertical, tx);
       // The unique index on email is what makes this safe under concurrency: a second
       // request with the same address fails here and rolls its account back.
       const user = await tx.user.create({ data: { email, passwordHash, accountId: account.id } });
       await recordTermsAcceptance(user.id, ip, tx);
+      return account.id;
     });
   } catch (e) {
     if (typeof e === "object" && e !== null && (e as { code?: string }).code === "P2002") {
@@ -126,6 +135,10 @@ export async function signUp(_prev: ActionState, formData: FormData): Promise<Ac
     }
     throw e;
   }
+
+  // Before the response, not after it: the discount has to be on the plan card by the time they
+  // reach the payment step, and this is two queries against a row we just wrote.
+  if (referral.code) await claimReferralCodeQuietly(accountId, referral.code);
 
   // After the response, so a slow email API never stretches the sign-up; a failure only logs.
   after(() => sendWelcomeEmail(email, businessName, vertical).catch((e) => console.error("[email] welcome failed", e)));
@@ -147,15 +160,20 @@ export async function createAccountForCurrentUser(_prev: ActionState, formData: 
   if (!vertical) return { ok: false, error: "Choose what kind of business this is." };
   if (businessName.length < 2) return { ok: false, error: businessNameError(vertical) };
 
+  const referral = await checkReferralCodeAvailable(str(formData, "ref"));
+  if (!referral.ok) return { ok: false, error: referral.error };
+
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) return { ok: false, error: "Please log in again." };
   await recordTermsAcceptance(user.id, await requestIp());
   if (user.accountId) return { ok: true };
 
+  let accountId: string;
   try {
-    await prisma.$transaction(async (tx) => {
+    accountId = await prisma.$transaction(async (tx) => {
       const account = await createAccountWithDefaults(businessName, vertical, tx);
       await linkAccountToUser(tx, user.id, account.id);
+      return account.id;
     });
   } catch (e) {
     // A concurrent submit already created and linked one. Its account stands; ours rolled
@@ -163,6 +181,8 @@ export async function createAccountForCurrentUser(_prev: ActionState, formData: 
     if (!(e instanceof AccountAlreadyLinked)) throw e;
     return { ok: true };
   }
+
+  if (referral.code) await claimReferralCodeQuietly(accountId, referral.code);
 
   after(() => sendWelcomeEmail(user.email, businessName, vertical).catch((e) => console.error("[email] welcome failed", e)));
   return { ok: true };
