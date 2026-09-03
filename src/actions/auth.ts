@@ -1,7 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { sendWelcomeEmail } from "@/lib/email";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { auth } from "@/lib/auth";
 import { generateGreeting } from "@/lib/greeting";
@@ -125,6 +127,8 @@ export async function signUp(_prev: ActionState, formData: FormData): Promise<Ac
     throw e;
   }
 
+  // After the response, so a slow email API never stretches the sign-up; a failure only logs.
+  after(() => sendWelcomeEmail(email, businessName, vertical).catch((e) => console.error("[email] welcome failed", e)));
   return { ok: true };
 }
 
@@ -155,9 +159,12 @@ export async function createAccountForCurrentUser(_prev: ActionState, formData: 
     });
   } catch (e) {
     // A concurrent submit already created and linked one. Its account stands; ours rolled
-    // back. Nothing to report — the user has an account either way.
+    // back. Nothing to report — the user has an account either way (and its welcome email).
     if (!(e instanceof AccountAlreadyLinked)) throw e;
+    return { ok: true };
   }
+
+  after(() => sendWelcomeEmail(user.email, businessName, vertical).catch((e) => console.error("[email] welcome failed", e)));
   return { ok: true };
 }
 
