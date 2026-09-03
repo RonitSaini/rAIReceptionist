@@ -73,23 +73,40 @@ html {
 /*
  * Dark theme: remap the design tokens the whole UI is built from. Tailwind v4 utilities reference
  * these variables, so bg-gray-100 / text-gray-500 / border-gray-200 etc. flip automatically.
+ *
+ * The neutrals are HUE-FREE on purpose (2026-09-03). They used to carry a slight green cast --
+ * paper #0d1210, surface #161c19, the whole gray ramp built off Sage -- which read as dark green
+ * rather than dark, and put a colour behind the entire product that nothing else was asking for.
+ * Green stays semantic here (confirmed, succeeded, lit) and decorative only inside .marketing; the
+ * ground it sits on is now grey, so it means something when it appears.
+ *
+ * The GREY STEPS keep the luminance they had -- only chroma went to zero -- so every contrast ratio
+ * in the palette report survives untouched. What did move is the two ground tokens: paper and
+ * surface are both true black now, at the owner's call, so the page, the shell and the cards are one
+ * unbroken black and the only thing separating a card from the page behind it is its border. Both
+ * moved DOWN the ladder, so everything drawn on them gained contrast rather than losing it.
+ *
+ * The grey steps that remain are all load-bearing and are NOT candidates for blacking out: 200/300
+ * are the borders now doing the work of describing where a card ends, 400-600 are muted text, and
+ * 50/100 are the fills that make a badge look like a badge and a hover look like a hover. Take those
+ * to black and the layout stops being visible at all.
  */
 .dark {
   color-scheme: dark;
-  --color-paper: #0d1210;
-  --color-surface: #161c19;
-  --color-ink: #e8ece9;
+  --color-paper: #000000;
+  --color-surface: #000000;
+  --color-ink: #eaeaea;
 
-  --color-gray-50: #1c2320;
-  --color-gray-100: #222b27;
-  --color-gray-200: #2e3934;
-  --color-gray-300: #3b4842;
-  --color-gray-400: #7d8b84;
-  --color-gray-500: #9caaa3;
-  --color-gray-600: #b7c2bc;
-  --color-gray-700: #cdd5d0;
-  --color-gray-800: #e1e7e4;
-  --color-gray-900: #f1f4f2;
+  --color-gray-50: #212121;
+  --color-gray-100: #282828;
+  --color-gray-200: #363636;
+  --color-gray-300: #454545;
+  --color-gray-400: #868686;
+  --color-gray-500: #a5a5a5;
+  --color-gray-600: #bfbfbf;
+  --color-gray-700: #d3d3d3;
+  --color-gray-800: #e5e5e5;
+  --color-gray-900: #f3f3f3;
 
   /* Both accent families re-light the same six steps: tint surfaces down, text tints up.
      300-600 stay shared with the light theme, because 600 is a fill and 500 a hairline. */
@@ -1696,7 +1713,7 @@ textarea {
   mask-image: linear-gradient(to bottom, black calc(100% - 28px), transparent);
 }
 
-/* ---------- Data-viz tokens (validated: see dataviz skill; light surface #ffffff, dark #161c19) ---------- */
+/* ---------- Data-viz tokens (validated: see dataviz skill; light surface #ffffff, dark #1b1b1b) ---------- */
 :root {
   --viz-series-1: #05668d; /* Baltic Blue    — reservations */
   --viz-series-2: #c2571c; /* deep orange    — takeout */
@@ -1716,8 +1733,8 @@ textarea {
   --viz-series-4: #e5b02e;
   --viz-single: #6b963e;
   --viz-single-soft: #354c1f;
-  --viz-grid: #2e3934;
-  --viz-neutral: #7d8b84;
+  --viz-grid: #363636;
+  --viz-neutral: #868686;
 }
 .viz-tooltip {
   position: fixed;
