@@ -35,7 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-dvh bg-paper md:flex">
       {/* Desktop sidebar */}
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-gray-400 bg-surface md:sticky md:top-0 md:flex md:h-dvh 2xl:w-64">
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-gray-400 bg-surface md:sticky md:top-0 md:flex md:h-dvh dark:border-transparent 2xl:w-64">
         <div className="flex h-16 shrink-0 items-center justify-center px-5 short:h-14 tiny:h-12">
           <Logo />
         </div>
