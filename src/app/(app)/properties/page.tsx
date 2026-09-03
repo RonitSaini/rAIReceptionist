@@ -39,7 +39,7 @@ export default async function PropertiesPage() {
       {properties.length === 0 ? (
         <EmptyState title="No properties yet" body="Add one above, or import a spreadsheet if you have more than a handful." />
       ) : (
-        <MotionList as="div" className="space-y-4">
+        <MotionList as="div" data-arrival="cascade" className="space-y-4">
           {properties.map((p) => (
           <div key={p.id}>
             <Card

@@ -288,14 +288,22 @@ body {
   --m-exit-slow-base: 480ms;
   --m-stagger-base: 144ms; /* guided arrivals (§8): groups two and three trail group one by this much */
   --m-cascade-base: 56ms; /* the profession picker's cards, one after another */
+  --m-arrive-base: 460ms; /* content arrival (§10): one arriving element's own duration */
+  --m-arrive-spread-base: 55ms; /* the gap between one arriving element and the next */
+  --m-arrive-group-base: 110ms; /* how far a second group trails the first (Home: KPI row, then cards) */
   --m-standard: calc(var(--m-standard-base) * var(--m-scale));
   --m-slow: calc(var(--m-slow-base) * var(--m-scale));
   --m-exit: calc(var(--m-exit-base) * var(--m-scale));
   --m-exit-slow: calc(var(--m-exit-slow-base) * var(--m-scale));
   --m-stagger: calc(var(--m-stagger-base) * var(--m-scale));
   --m-cascade: calc(var(--m-cascade-base) * var(--m-scale));
+  --m-arrive: calc(var(--m-arrive-base) * var(--m-scale));
+  --m-arrive-spread: calc(var(--m-arrive-spread-base) * var(--m-scale));
+  --m-arrive-group: calc(var(--m-arrive-group-base) * var(--m-scale));
+  --m-hold: 700ms; /* CLAMPED THRESHOLD: a route slower than this reveals its skeleton, in one step */
   --m-travel: 24px; /* a guided group's travel along the corridor; the leave steps aside by half of it */
   --m-rise: 12px; /* a guided group's plain rise */
+  --m-arrive-y: 10px; /* how far arriving content travels; the corridor picks the sign */
   --m-ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -324,11 +332,29 @@ body {
   }
 }
 
-/* Page transition: new page content fades up on every navigation — the standard beat, four pixels,
-   so the route change is never felt as a wait (the animation starts when the new page is already
-   there). Ends on `none` for the same reason as .reveal. */
+/* ==========================================================================================
+   THE NAVIGATION GESTURE (spec §10). One click on the rail, three beats:
+     1. the rail answers   — one indicator slides, the row presses      (below, .nav-*)
+     2. the old page goes  — 100 ms aside along the corridor, never waited on
+     3. the new content arrives — the page's DATA settles in, by content type
+
+   The rule the whole thing exists to serve: content must become visible BY ARRIVING. A page that
+   fades in as a block is fully visible before its rows move, which reads as static however good the
+   row motion is — so wherever a page HAS a data layer the block fade is switched off and the data's
+   own arrival is the only entrance. Every arrival is `animation: … both`, so the from-keyframe is in
+   force on the first styled frame: the first frame that contains content is the first frame of its
+   arrival. Transform and opacity only — the layout box never moves, so zero layout shift.
+   ========================================================================================== */
+
+/* Page transition: the fallback entrance, for a page with no data layer to arrive (a form, a detail
+   pane). Fades up four pixels at the standard beat, starting when the new page is already there. */
 .page-enter {
   animation: page-enter var(--m-standard) var(--m-ease) both;
+  /* Where arriving content comes FROM. The corridor picks the sign; inherits into every arrival. */
+  --arrive-from: var(--m-arrive-y);
+}
+.page-enter[data-corridor="up"] {
+  --arrive-from: calc(-1 * var(--m-arrive-y));
 }
 @keyframes page-enter {
   from {
@@ -339,6 +365,176 @@ body {
     opacity: 1;
     transform: none;
   }
+}
+
+/* A page whose content arrives does NOT also fade in as a block (that is the failure mode above),
+   and neither does one showing a route skeleton — a skeleton is chrome, not content. */
+.page-enter:has([data-arrival]),
+.page-enter:has(.route-skeleton) {
+  animation: none;
+}
+
+/* BEAT TWO — the old page steps aside. Clamped to the fast exit (100 ms, well under the 200 ms
+   ceiling and unreachable by the scale), set on click and NEVER awaited: the Link navigates in the
+   same tick and the leave is simply cut when the route lands. Opacity and transform, so nothing
+   here can gate a click that is already in flight. */
+.page-enter[data-leaving] {
+  animation: none;
+  opacity: 0.45;
+  transition:
+    opacity var(--m-exit-fast) var(--m-ease),
+    transform var(--m-exit-fast) var(--m-ease);
+}
+.page-enter[data-leaving="down"] {
+  transform: translateY(calc(-0.6 * var(--m-arrive-y)));
+}
+.page-enter[data-leaving="up"] {
+  transform: translateY(calc(0.6 * var(--m-arrive-y)));
+}
+
+/* BEAT THREE — the content arrives, per content TYPE rather than per tab (the mapping is the table
+   in spec §10.2). `data-arrival` goes on the element whose CHILDREN settle in; grandchildren are
+   deliberately untouched, so an element takes part in exactly one entrance (§8.1). */
+[data-arrival] > * {
+  animation: arrive var(--m-arrive) var(--m-ease) both;
+  animation-delay: calc(var(--arrive-offset, 0ms) + var(--m-arrive-spread) * var(--arrive-step, 0));
+}
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(var(--arrive-from, var(--m-arrive-y)));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The cascade's step number, in reading order. Capped at --m-arrive-cap steps: element nine onward
+   all leave with element nine, so the budget is `arrive + 8 spreads` (900 ms at scale 1) whether the
+   list holds four rows or four hundred. */
+[data-arrival] > *:nth-child(2) {
+  --arrive-step: 1;
+}
+[data-arrival] > *:nth-child(3) {
+  --arrive-step: 2;
+}
+[data-arrival] > *:nth-child(4) {
+  --arrive-step: 3;
+}
+[data-arrival] > *:nth-child(5) {
+  --arrive-step: 4;
+}
+[data-arrival] > *:nth-child(6) {
+  --arrive-step: 5;
+}
+[data-arrival] > *:nth-child(7) {
+  --arrive-step: 6;
+}
+[data-arrival] > *:nth-child(8) {
+  --arrive-step: 7;
+}
+[data-arrival] > *:nth-child(n + 9) {
+  --arrive-step: 8;
+}
+
+/* Home's cards are the second group: they trail the KPI row rather than racing it. */
+[data-arrival="cards"] {
+  --arrive-offset: var(--m-arrive-group);
+}
+
+/* Settings swaps panels rather than arriving a set: one element, a crossfade, no travel — the tab
+   strip's own indicator is already carrying the direction. */
+[data-arrival="fade"] > * {
+  --arrive-from: 0px;
+}
+
+/* THE NON-NEGOTIABLES, last in source order so they win the tie with the step rules above.
+   An alarm is never staggered behind ordinary content and never fades in: urgent rows are complete
+   at t=0 and keep whatever colour treatment they already have (§7.4 rule 17). An empty state has
+   nothing to settle in, so it is simply there. */
+[data-arrival] > [data-urgent],
+[data-arrival] > [data-empty],
+[data-arrival] > [data-instant] {
+  animation: none;
+  opacity: 1;
+  transform: none;
+}
+
+/* The route skeleton's hold (§10 rule 30, corrected 2026-09-03 after the ghost was measured).
+
+   A skeleton is either NOT THERE or FULLY there. Never in between.
+
+   The first version held it invisible for --m-hold and then faded it up over --m-standard (480 ms).
+   That fade is the bug: dev resolves a route about 300 ms after commit, so the hold expired and the
+   content replaced the skeleton 48 ms into the fade — painting it at **0.292 opacity for two frames**
+   and then removing it. A 29% ghost that appears and vanishes inside 50 ms is exactly the flash this
+   was supposed to prevent.
+
+   So the threshold stays a delay, and the appearance becomes a STEP (1 ms — shorter than a frame at
+   any refresh rate), which makes a partial skeleton unsamplable rather than merely unlikely. And the
+   threshold is raised well past typical route resolution, so an ordinary navigation shows no skeleton
+   at all and only a genuinely slow route reveals one — by which point it stays on screen long enough
+   to read as intentional rather than as a blink.
+
+   --m-hold is a CLAMPED threshold, never scaled: multiplying it would turn a fast route into a longer
+   blank pause rather than into a longer animation. */
+.route-skeleton {
+  opacity: 0;
+  animation: skeleton-step 1ms linear var(--m-hold) forwards;
+}
+@keyframes skeleton-step {
+  to {
+    opacity: 1;
+  }
+}
+
+/* BEAT ONE — the rail answers. ONE indicator, positioned by INDEX ARITHMETIC: the rail publishes its
+   row height, gap and padding, and the pill reads back the active index the SERVER rendered. Nothing
+   is measured and no effect runs, so the first painted frame is already correct and there is no jump
+   on load — a transition only exists once the index CHANGES. Items are uniform height, so the pill
+   translates only (§5 rule 5): no scaleY, no corner distortion. The edge bar is the pill's own
+   ::before, so the rail has exactly one moving part. Hover never travels (rule 32): a cursor
+   crossing the rail is not a state change, and it gets colour alone. */
+.nav-rail {
+  --nav-row: 2.75rem;
+  --nav-gap: 0.25rem;
+  --nav-pad: 0.5rem;
+  --nav-inset: 0.75rem;
+}
+@media (max-height: 1360px) {
+  .nav-rail {
+    --nav-row: 2.25rem;
+    --nav-gap: 0.125rem;
+    --nav-pad: 0.25rem;
+  }
+}
+/* The rows read the same metrics back, so the pill's arithmetic can never drift from the rows. The
+   height is FIXED, not a minimum: the arithmetic assumes uniform rows (§5 rule 5), and a label long
+   enough to wrap would otherwise put the pill half a row out for every item below it. */
+.nav-row {
+  height: var(--nav-row);
+  white-space: nowrap;
+}
+.nav-pill {
+  height: var(--nav-row);
+  transform: translateY(calc((var(--nav-row) + var(--nav-gap)) * var(--nav-active, 0)));
+  transition: transform var(--m-standard) var(--m-ease);
+}
+.nav-pill::before {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--nav-inset)); /* flush with the rail's own left edge */
+  top: 25%;
+  height: 50%;
+  width: 0.25rem;
+  border-radius: 0 9999px 9999px 0;
+  background: var(--color-brand-500);
+}
+/* The mobile tab bar is the same one indicator, travelling by column instead of by row. */
+.nav-tab-ind {
+  transform: translateX(calc(100% * var(--nav-active, 0)));
+  transition: transform var(--m-standard) var(--m-ease);
 }
 
 /* Skeleton shimmer while data loads. */
@@ -553,12 +749,15 @@ body {
 }
 
 /*
- * Sidebar nav: the hover highlight and active bar ARRIVE at an item (expo-out, 300ms) — transform only.
- * Items are uniform height, so height is set by JS on mount/resize and never transitioned.
+ * A tab indicator that ARRIVES at its item — transform only, uniform items. The rail's own indicator
+ * moved to `.nav-pill` with §10 (index arithmetic on the interaction ladder, correct on first paint);
+ * what is left here is the bell popover's two-tab bar, which is measured in percentages and needs no
+ * arithmetic. `.nav-highlight` went with the rail's hover highlight (rule 32: hover never travels).
  */
-.nav-highlight,
 .nav-bar {
-  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.15s ease;
+  transition:
+    transform var(--m-standard) var(--m-ease),
+    opacity var(--m-fast) var(--m-ease);
   will-change: transform;
 }
 
@@ -1294,10 +1493,14 @@ button[aria-expanded="true"] .fold-arrow {
   .js .reveal,
   .js .reveal.is-visible,
   .page-enter,
+  .page-enter[data-leaving],
+  [data-arrival] > *,
+  .nav-pill,
+  .nav-tab-ind,
+  .route-skeleton,
   .skeleton::after,
   .status-dot::before,
   .slide-in,
-  .nav-highlight,
   .nav-bar,
   .draw-icon.is-drawing path,
   .digit-in,
@@ -1368,6 +1571,21 @@ button[aria-expanded="true"] .fold-arrow {
   }
   .press-soft:active,
   .lift:active {
+    transform: none;
+  }
+  /* The navigation gesture, reduced: every page is complete and static the moment it is there.
+     Content is simply present (never the hidden from-keyframe), the leaving page does not step
+     aside or dim, the rail's indicator is at the active row with no travel, and the route skeleton
+     does not hold — it is either shown or it is not. */
+  [data-arrival] > * {
+    opacity: 1;
+    transform: none;
+  }
+  .route-skeleton {
+    opacity: 1;
+  }
+  .page-enter[data-leaving] {
+    opacity: 1;
     transform: none;
   }
   /* The play control is not rendered under reduced motion; if a play is somehow mid-flight when the

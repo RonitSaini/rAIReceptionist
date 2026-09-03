@@ -39,12 +39,19 @@ function EmptyRow({ text, href, cta }: NonNullable<DashCard["empty"]>) {
   );
 }
 
+/**
+ * Home's cards are the SECOND arriving group: they trail the KPI row rather than racing it (motion
+ * spec §10.2). They settle in placement order — which is the sort above, so an urgent card is first
+ * and is exempted from the stagger besides. A collapsed empty row is marked `data-empty` and is
+ * simply there: a dashed "nothing here yet" has nothing to settle in, and animating one would put
+ * motion on the absence of data.
+ */
 export function DashboardMasonry({ cards }: { cards: readonly DashCard[] }) {
   const ordered = orderDashCards(cards);
   return (
-    <div className="dash-masonry">
+    <div data-arrival="cards" className="dash-masonry">
       {ordered.map((c) => (
-        <div key={c.key} className="dash-slot">
+        <div key={c.key} className="dash-slot" data-empty={c.state === "empty" ? "true" : undefined} data-urgent={c.state === "urgent" ? "true" : undefined}>
           {c.state === "empty" ? <EmptyRow {...(c.empty ?? { text: "Nothing here yet." })} /> : c.node}
         </div>
       ))}

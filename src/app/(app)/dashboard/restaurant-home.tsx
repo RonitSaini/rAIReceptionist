@@ -170,7 +170,8 @@ export async function RestaurantHome({ account, previousSeenAt, changed }: { acc
       <PageHeader title="Home" subtitle={formatDateLong(now, tz)} action={<LinkButton href="/reservations/new" size="sm">+ Reservation</LinkButton>} />
 
       {/* KPI row — fixed, always first */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      {/* The first arriving group; the cards trail it (motion spec §10.2). */}
+      <div data-arrival="tiles" className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatTile label="Calls today" value={t.callsToday} icon="phone" live href="/calls" delta={{ value: t.callsDelta, label: "vs yesterday" }} note={t.liveCalls > 0 ? `${t.liveCalls} live now` : undefined} />
         <StatTile label="Covers today" value={t.coversToday} icon="utensils" href={`/reservations?date=${today}`} delta={{ value: t.coversDelta, label: "vs yesterday" }} />
         <StatTile label="Open orders" value={t.openOrders} icon="bag" href="/takeout" />

@@ -70,7 +70,7 @@ export default async function DispatchPage() {
       {jobs.length === 0 ? (
         <EmptyState title="Nothing in the queue" body={`New ${words.booking.many} arrive here the moment ${account.hostName} takes them, oldest first.`} />
       ) : (
-        <MotionList className="space-y-3">
+        <MotionList data-arrival="cascade" className="space-y-3">
           {jobs.map((job) => {
             const mins = waited(job.createdAt);
             // Over the acknowledgement window and still nobody has touched it: say so loudly.

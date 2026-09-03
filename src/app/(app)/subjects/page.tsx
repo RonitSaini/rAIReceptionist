@@ -91,7 +91,7 @@ export default async function SubjectsPage({ searchParams }: { searchParams: Pro
           body={`A ${words.subject?.one ?? "record"} appears here the first time it is booked in. Nothing to maintain by hand.`}
         />
       ) : (
-        <ul className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
+        <ul data-arrival="cascade" className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
           {list.map((r) => (
             <li key={r.key} className="rounded-2xl border border-gray-200 bg-surface p-4">
               <div className="flex items-start justify-between gap-3">

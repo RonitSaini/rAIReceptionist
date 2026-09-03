@@ -1,7 +1,15 @@
-/** Shimmer skeleton shown while a page's data loads (Next.js route-level loading UI). */
+/**
+ * Shimmer skeleton shown while a page's data loads (Next.js route-level loading UI).
+ *
+ * `.route-skeleton` HOLDS it invisible for --m-hold (250 ms) before it fades up, so a route that
+ * resolves inside the hold shows no skeleton at all and the first frame of real content is the first
+ * frame of that content's arrival — not a settled skeleton swapping for settled content, which is the
+ * one thing the navigation gesture may not look like (motion spec §10). Dev fetches are slower than
+ * the hold, so the ramp is visible on localhost; raise --m-hold in devtools to see the production path.
+ */
 export default function AppLoading() {
   return (
-    <div className="space-y-5" aria-busy="true" aria-label="Loading">
+    <div className="route-skeleton space-y-5" aria-busy="true" aria-label="Loading">
       <div className="space-y-2">
         <div className="skeleton h-7 w-40 rounded-lg" />
         <div className="skeleton h-4 w-64 rounded" />

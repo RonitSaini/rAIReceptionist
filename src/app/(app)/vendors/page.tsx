@@ -38,7 +38,7 @@ export default async function VendorsPage() {
       {vendors.length === 0 ? (
         <EmptyState title="No vendors yet" body="Add the trades you call most. They show up as options on a work order." />
       ) : (
-        <MotionList className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
+        <MotionList data-arrival="cascade" className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
           {vendors.map((v) => (
             <li key={v.id} className="flex items-start justify-between gap-3 rounded-2xl border border-gray-200 bg-surface p-4">
               <div className="min-w-0">

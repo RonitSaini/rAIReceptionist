@@ -50,11 +50,14 @@ export default async function CallsPage({ searchParams }: { searchParams: Promis
           body={account.twilioNumber ? "Every call your AI host answers will appear here with a recording and transcript." : "Connect your phone number in Settings → Phone to start taking calls."}
         />
       ) : (
-        <ul className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
+        <ul data-arrival="cascade" className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
           {calls.map((c) => {
             const live = isCallLive(c);
+            // An emergency or an escalation is an alarm: it arrives complete, never staggered behind
+            // ordinary calls (motion spec §7.4 rule 17). Its red badge is untouched.
+            const urgent = c.classification === "emergency" || c.classification === "escalation";
             return (
-              <li key={c.id} className="lift overflow-hidden rounded-2xl border border-gray-200 bg-surface">
+              <li key={c.id} data-urgent={urgent ? "true" : undefined} className="lift overflow-hidden rounded-2xl border border-gray-200 bg-surface">
                 <Link href={`/calls/${c.id}`} className="block h-full p-4">
                   <div className="flex flex-wrap items-center gap-2">
                     <Badge tone={classificationTone[c.classification]}>{label(c.classification)}</Badge>

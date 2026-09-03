@@ -2,86 +2,69 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useRef } from "react";
+import { useRef, type CSSProperties } from "react";
 import { DrawIcon } from "@/components/draw-icon";
 import type { IconName } from "@/components/icon-paths";
 import { useRedrawActiveIcon } from "@/components/use-redraw-active-icon";
+import { navIndexOf } from "@/components/nav-corridor";
+import { leavePage } from "@/lib/motion";
 
 export type SidebarNavItem = { href: string; label: string; icon?: IconName };
 
 /**
- * Vertical nav with a hover highlight that glides between items and an accent bar that slides to the
- * active page. Adapted from 21st.dev's "Animated Sidebar" (unlumen) to CSS transitions + direct DOM
- * positioning — no animation library.
+ * The nav rail — beat one of the navigation gesture (motion spec §10).
  *
- * Items are uniform height, so the highlight and bar only ever TRANSLATE (transform-only: no layout
- * animation, no rounded-corner distortion). Their height is set — never transitioned — on mount and
- * resize. Icons draw on mount (staggered down the rail) and when the active item changes; never on hover.
+ * ONE indicator, and it is positioned by index arithmetic rather than by measurement: `.nav-rail`
+ * publishes the row height, gap and vertical padding, the rows read the same metrics back through
+ * `.nav-row`, and the pill's transform is `(row + gap) × --nav-active`. The index is rendered by the
+ * server, so the first painted frame is already correct — there is no effect, nothing to measure and
+ * therefore nothing that can jump on load. A transition exists only for a CHANGE of index, which is
+ * exactly the route change it is meant to describe. The rail sits in the layout, not the template, so
+ * the pill's DOM node survives the navigation and can slide rather than re-appear.
+ *
+ * The gliding hover highlight this component used to carry is gone (rule 32): a cursor crossing the
+ * rail is not a state change, and a second travelling element competed with the one that means
+ * something. Hover is colour alone, at the clamped fast beat. Rows press (`.press-soft`).
+ *
+ * Icons draw on mount, staggered down the rail, and when the active item changes — never on hover
+ * (§5 rule 8).
  */
 export function SidebarNav({ items }: { items: SidebarNavItem[] }) {
   const pathname = usePathname();
   const navRef = useRef<HTMLElement>(null);
-  const highlightRef = useRef<HTMLSpanElement>(null);
-  const barRef = useRef<HTMLSpanElement>(null);
-  const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
-
-  /** Move the highlight (and optionally the bar) to a nav item — pure DOM writes, no re-render. */
-  const moveTo = useCallback((el: HTMLElement | null, opts: { bar?: boolean; instant?: boolean } = {}) => {
-    const hl = highlightRef.current;
-    const bar = barRef.current;
-    if (!el || !hl) return;
-    const y = el.offsetTop;
-    const h = el.offsetHeight;
-    if (opts.instant) hl.style.transition = "none";
-    hl.style.height = `${h}px`;
-    hl.style.transform = `translateY(${y}px)`;
-    hl.style.opacity = "1";
-    if (opts.instant) requestAnimationFrame(() => (hl.style.transition = ""));
-    if (opts.bar && bar) {
-      if (opts.instant) bar.style.transition = "none";
-      bar.style.height = `${h * 0.5}px`;
-      bar.style.transform = `translateY(${y + h * 0.25}px)`;
-      bar.style.opacity = "1";
-      if (opts.instant) requestAnimationFrame(() => (bar.style.transition = ""));
-    }
-  }, []);
-
-  const activeEl = () => navRef.current?.querySelector<HTMLElement>('[data-active="true"]') ?? null;
-
-  // First paint and resize SNAP the highlight + bar to the active item (nothing should be seen
-  // travelling on load). Route changes SLIDE them there — the bar arrives, expo-out, like the
-  // mobile tab bar. Clicking already starts the slide (onClick below), so this is a no-op when the
-  // navigation came from the rail and the real move when it came from anywhere else.
-  const firstPaint = useRef(true);
-  useEffect(() => {
-    moveTo(activeEl(), { bar: true, instant: firstPaint.current });
-    firstPaint.current = false;
-    const onResize = () => moveTo(activeEl(), { bar: true, instant: true });
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, [pathname, moveTo]);
-
+  const activeIndex = navIndexOf(
+    items.map((it) => it.href),
+    pathname,
+  );
   useRedrawActiveIcon(navRef, pathname);
 
   return (
-    <nav ref={navRef} className="relative flex shrink-0 flex-col gap-1 px-3 py-2 short:gap-0.5 short:py-1" onMouseLeave={() => moveTo(activeEl())} aria-label="Main">
-      {/* Gliding hover highlight */}
-      <span ref={highlightRef} aria-hidden="true" className="nav-highlight pointer-events-none absolute left-3 right-3 top-0 rounded-xl bg-brand-50 opacity-0" />
-      {/* Active accent bar on the left edge */}
-      <span ref={barRef} aria-hidden="true" className="nav-bar pointer-events-none absolute left-0 top-0 w-1 rounded-r-full bg-brand-500 opacity-0" />
+    <nav ref={navRef} className="nav-rail relative flex shrink-0 flex-col gap-1 px-3 py-2 short:gap-0.5 short:py-1" aria-label="Main">
+      {/* The one active indicator. Its left-edge accent bar is this element's own ::before, so the rail
+          has a single moving part. Absent entirely on a path the rail does not own, rather than parked
+          at row zero claiming a page the owner is not on. */}
+      {activeIndex >= 0 ? (
+        <span
+          aria-hidden="true"
+          className="nav-pill pointer-events-none absolute left-3 right-3 rounded-xl bg-brand-50"
+          style={{ top: "var(--nav-pad)", "--nav-active": activeIndex } as CSSProperties}
+        />
+      ) : null}
 
       {items.map((it, i) => {
-        const active = isActive(it.href);
+        const active = i === activeIndex;
         return (
           <Link
             key={it.href}
             href={it.href}
             data-active={active ? "true" : "false"}
             aria-current={active ? "page" : undefined}
-            onMouseEnter={(e) => moveTo(e.currentTarget)}
-            onFocus={(e) => moveTo(e.currentTarget)}
-            onClick={(e) => moveTo(e.currentTarget, { bar: true })}
-            className={`relative z-10 flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors short:min-h-9 ${active ? "text-brand-800" : "text-gray-600 hover:text-ink"}`}
+            // Beat two, started on the click itself and never awaited: the navigation goes in this same
+            // tick. A click on the row already showing is not a move and gets no exit.
+            onClick={() => {
+              if (activeIndex >= 0 && i !== activeIndex) leavePage(i > activeIndex ? "down" : "up");
+            }}
+            className={`nav-row press-soft relative z-10 flex items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors ${active ? "text-brand-800" : "text-gray-600 hover:bg-gray-50 hover:text-ink"}`}
           >
             {it.icon ? <DrawIcon name={it.icon} size={18} delay={i * 70} className="shrink-0" /> : null}
             {it.label}

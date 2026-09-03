@@ -100,7 +100,11 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
         items={TABS.map((t) => ({ key: t.key, href: `/settings?tab=${t.key}`, label: t.label, active: tab === t.key }))}
       />
 
-      <div className={tab === "voice" ? "mx-auto max-w-6xl" : "mx-auto max-w-2xl 2xl:max-w-3xl"}>
+      {/* Settings swaps panels rather than arriving a set, so it crossfades — no travel, one element
+          (motion spec §10.2). Keyed by tab BECAUSE a search-param change does not remount the app
+          template: the key is what replays the crossfade on a tab swap, while the strip's own
+          indicator keeps sliding underneath it. */}
+      <div key={tab} data-arrival="fade" className={tab === "voice" ? "mx-auto max-w-6xl" : "mx-auto max-w-2xl 2xl:max-w-3xl"}>
         {tab === "business" ? (
           <Card title="Business basics">
             <BusinessBasicsForm account={view} mode="settings" />

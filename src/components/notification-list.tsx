@@ -8,10 +8,16 @@ import { timeAgo } from "@/lib/time";
 import { Badge, StatusDot, notificationTone } from "@/components/ui";
 import { MotionList } from "@/components/motion-list";
 
-export function NotificationList({ items, compact = false, grid = false, words }: { items: Notification[]; compact?: boolean; grid?: boolean; words?: Vocabulary }) {
+/**
+ * `arrival` opts the list into the page's content arrival (motion spec §10): the inbox page asks for
+ * it, and the dashboard's Needs-attention card does NOT — it is already inside an arriving card, and
+ * an element takes part in exactly one entrance per arrival (§8.1). Unacknowledged rows carry
+ * `data-urgent` either way, so an alarm is never staggered behind ordinary notifications.
+ */
+export function NotificationList({ items, compact = false, grid = false, words, arrival = false }: { items: Notification[]; compact?: boolean; grid?: boolean; words?: Vocabulary; arrival?: boolean }) {
   const now = new Date();
   return (
-    <MotionList className={grid ? "grid gap-3 xl:grid-cols-2 3xl:grid-cols-3" : "divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-surface"}>
+    <MotionList data-arrival={arrival ? "cascade" : undefined} className={grid ? "grid gap-3 xl:grid-cols-2 3xl:grid-cols-3" : "divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-200 bg-surface"}>
       {items.map((n) => {
         const unread = !n.readAt;
         const needsAck = n.priority === "urgent" && !n.acknowledgedAt;

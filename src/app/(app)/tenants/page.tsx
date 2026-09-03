@@ -66,7 +66,7 @@ export default async function TenantsPage({ searchParams }: { searchParams: Prom
       {tenants.length === 0 ? (
         <EmptyState title={query ? "Nobody matches that" : `No ${words.customer.many} yet`} body="Add units under Properties, or import a spreadsheet." />
       ) : (
-        <ul className="grid gap-3 xl:grid-cols-2">
+        <ul data-arrival="cascade" className="grid gap-3 xl:grid-cols-2">
           {tenants.map((t) => {
             const history = histories.filter((h) => h.unitId === t.unitId).slice(0, 4);
             return (

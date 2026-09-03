@@ -172,8 +172,9 @@ export async function FieldServiceHome({ account, previousSeenAt, changed }: { a
     <div className="space-y-5">
       <PageHeader title="Home" subtitle={formatDateLong(now, tz)} action={<LinkButton href="/jobs/new" size="sm">+ {words.booking.One}</LinkButton>} />
 
-      {/* KPI row — fixed, always first */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+      {/* KPI row — fixed, always first, and the FIRST arriving group: the four numbers land, then the
+          cards trail them by --m-arrive-group (motion spec §10.2). */}
+      <div data-arrival="tiles" className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatTile label="Calls today" value={t.callsToday} icon="phone" live href="/calls" delta={{ value: t.callsDelta, label: "vs yesterday" }} note={t.liveCalls > 0 ? `${t.liveCalls} live now` : undefined} />
         <StatTile label={`${words.booking.Many} today`} value={j.jobsToday} icon="wrench" href={queueHref} delta={{ value: j.jobsDelta, label: "vs yesterday" }} />
         <StatTile label="Emergencies" value={j.openEmergencies} icon="siren" href="/jobs?status=emergency" note={j.openEmergencies === 0 ? "None open" : undefined} />

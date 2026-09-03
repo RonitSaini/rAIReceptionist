@@ -44,7 +44,7 @@ export default async function TakeoutPage({ searchParams }: { searchParams: Prom
       {orders.length === 0 ? (
         <EmptyState title="No orders" body={filter === "open" ? "New takeout and delivery orders will show up here." : undefined} />
       ) : (
-        <ul className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
+        <ul data-arrival="cascade" className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
           {orders.map((o) => (
             <li key={o.id} className="lift flex flex-col rounded-2xl border border-gray-200 bg-surface p-4">
               <div className="flex items-start justify-between gap-3">

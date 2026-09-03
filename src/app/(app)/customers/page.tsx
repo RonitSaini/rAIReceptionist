@@ -48,7 +48,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
       {customers.length === 0 ? (
         <EmptyState title={query ? `No ${words.customer.many} match "${query}"` : `No ${words.customer.many} yet`} body={query ? undefined : `They're added automatically the first time someone calls.`} />
       ) : (
-        <ul className="grid gap-3 xl:grid-cols-2">
+        <ul data-arrival="cascade" className="grid gap-3 xl:grid-cols-2">
           {customers.map((c) => (
             <li key={c.id} className="lift rounded-2xl border border-gray-200 bg-surface p-4">
               <div className="flex items-start justify-between gap-3">

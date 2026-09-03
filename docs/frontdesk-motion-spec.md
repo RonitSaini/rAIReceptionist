@@ -957,3 +957,263 @@ line appended below.
 clamped. 390 px at 4× CPU: bell, tab slide and the urgent advance at most one frame over 33 ms (worst 50 ms); the
 onboarding forward step's arrival 8 frames over 33 ms (worst 133 ms) — React committing the menu form, as at every
 scale before the pick; its Back arrival none. Goldens byte-identical, lint and typecheck clean.
+---
+
+## 10. The navigation gesture — one click on the rail, three beats (2026-09-03)
+
+Design read (taste-skill process; the skill declares product UI out of its scope in its §13, so only its motion
+rules were applied — motivated motion, transform/opacity only, reduced motion, tactile press): *clicking a nav
+item is one gesture, not three animations that happen to overlap. The rail answers the finger, the page being
+left steps out of the way, and the new page's DATA settles in. Everything structural — the header, the filter
+strip, the action button — is simply there.* No runtime: hand-written CSS on the interaction ladder, one client
+context and one client template.
+
+**The rule this section exists to serve.** Content must become visible **by arriving**. A page that fades in as a
+block is fully visible before its rows move, and that reads as static however good the row motion is. So wherever
+a page has a data layer, the block fade is switched OFF (`.page-enter:has([data-arrival])`) and the data's own
+arrival is the only entrance. Every arrival is `animation: arrive … both`, so the from-keyframe is in force on the
+first styled frame: **the first frame that contains content is the first frame of its arrival**. That is the
+acceptance test, and it is measured on the animation's own clock, not by eye (§10.5).
+
+### 10.1 The three beats
+
+| Beat | What moves | Timing | Where |
+|---|---|---|---|
+| **1. The rail answers** | ONE indicator (`.nav-pill`, its edge bar the pill's own `::before`) translates to the clicked row; the row presses (`.press-soft`) | `--m-standard` (480 ms) travel; press clamped at `--m-fast` | `<SidebarNav>`, `<MobileTabs>` |
+| **2. The old page goes** | The container steps 6 px aside against the direction of travel and dims to 0.45 | `--m-exit-fast` (**100 ms, CLAMPED** — under the 200 ms ceiling at every scale), **never awaited** | `leavePage()` → `.page-enter[data-leaving]` |
+| **3. The new content arrives** | The page's data settles in, by content type | `--m-arrive` (460 ms) each, `--m-arrive-spread` (55 ms) apart, capped at 8 steps → **900 ms budget** | `[data-arrival]` |
+
+**The pill's position is index arithmetic, not measurement.** `.nav-rail` publishes `--nav-row`, `--nav-gap`,
+`--nav-pad` and `--nav-inset`; the rows read the same metrics back through `.nav-row`; the pill's transform is
+`(row + gap) × --nav-active`, and `--nav-active` is **rendered by the server**. There is no effect, nothing to
+measure, and therefore nothing that can jump on load — a transition exists only for a CHANGE of index, which is
+exactly the route change it describes. Verified at 0.00 px offset with zero running animations on a hard load of
+every item (§10.5). `.nav-row` sets `height`, not `min-height`: the arithmetic assumes uniform rows (rule 5), and
+one wrapped label would put the pill half a row out for every item below it.
+
+**The rail sits in the layout, not the template**, so the pill's DOM node survives the navigation and can slide
+rather than re-appear.
+
+**The corridor.** `(app)/template.tsx` is a client component: before the new page's first paint it compares this
+path's row on the rail against the last one mounted and stamps `data-corridor="down"|"up"`, which sets
+`--arrive-from`. That inherits into every arrival container below, so the page's exit and its content's arrival
+travel the same way. The rail's order comes from `<NavOrderProvider>` (`src/components/nav-corridor.tsx`), seeded
+by the layout — the nav is assembled per profession, so the template cannot hardcode it. A move that is not
+between two rail rows (into a detail page, or from a path the rail does not own) arrives the plain way rather
+than guessing at a direction.
+
+### 10.2 The mapping — per content TYPE, not per tab
+
+`data-arrival` goes on the element whose **children** settle in. Grandchildren are deliberately untouched, so an
+element takes part in exactly one entrance per arrival (§8.1).
+
+| Variant | Behaviour | Content type | Surfaces |
+|---|---|---|---|
+| `cascade` | children settle in reading order, one `--m-arrive-spread` apart | a list or a grid of rows | Service calls/Jobs, Customers, Calls, Notifications, Dispatch, Work orders, Properties, Residents/Tenants, Vendors, Subjects, Takeout, the reservations day list |
+| `columns` | one day column is one arriving element; its visits come **with** it, not after it | a calendar | Schedule, the reservations week |
+| `tiles` → `cards` | two groups: the KPI row lands, then the cards trail it by `--m-arrive-group` (110 ms) | a dashboard | both Homes (`<StatTile>` row, then `<DashboardMasonry>`) |
+| `fade` | one element, crossfade, **no travel** | an editor / a settings panel | Settings (keyed by tab), Services |
+| *(none)* | the page's own `.page-enter` fade | a page with no data layer | forms, detail panes |
+
+Notes on two of them. **A calendar arrives by column** because a week is read left to right; staggering fifty
+individual visits would be motion about nothing. **Settings crossfades and does not travel** because a form is a
+control, and because rule 25 keeps transforms off inputs — and it is **keyed by tab** since a search-param change
+does not remount the app template, so the key is what replays it while the strip's indicator keeps sliding
+underneath. That same fact is what makes the no-replay guarantee free everywhere else: **a filter click cannot
+replay a page's arrival.**
+
+### 10.3 The non-negotiables, and where each one lives
+
+1. **Urgent and emergency rows arrive complete at t=0**, never staggered behind ordinary content, and keep
+   whatever alarm treatment they already have. `[data-arrival] > [data-urgent]` is last in source order so it
+   wins the tie with the step rules: `animation: none; opacity: 1; transform: none`. `data-urgent` now also
+   marks emergency job rows and emergency/escalation call rows (it already marked dispatch, work-order and
+   notification rows). Verified non-vacuously on four pages: exempt children at opacity 1 in the very frame
+   ordinary rows are at 0.
+2. **Press feedback, toggles and route-change initiation stay instant.** All clamped: `--m-fast`,
+   `--m-toggle`, and beat two at `--m-exit-fast`. No scale value can reach them.
+3. **Nothing blocks input.** Opacity and transform only — never `pointer-events`, `visibility` or `display`.
+   Measured at the first content frame: the filter strip and the header action are at **opacity 1 and
+   hit-testable**, and an arriving row at **opacity 0 is still hit-testable**.
+4. **Zero layout shift.** The animated property list is asserted per page to be exactly `[transform, opacity]`.
+5. **Empty states are instant.** `[data-arrival] > [data-empty]` — a dashed "nothing here yet" has nothing to
+   settle in, and animating one would put motion on the absence of data.
+6. **Reduced motion renders everything complete and static.** Every new class is in the reduce block landing on
+   the END state; the leaving page neither steps aside nor dims; the pill is at the active row with no travel.
+
+### 10.4 The scale knob
+
+`--m-scale` (§9) now covers the arrival too: `--m-arrive`, `--m-arrive-spread` and `--m-arrive-group` are each
+their `*-base` times the scale. **One number moves the whole gesture** — set it on `<html>` from devtools (it
+survives a client-side navigation and is cleared by a hard reload) or change the one line in `globals.css`.
+Measured: 0.6× → 276 / 33 / 288 ms, 1× → 460 / 55 / 480 ms, 1.6× → 736 / 88 / 768 ms, with `--m-fast` 150,
+`--m-exit-fast` 100, `--m-toggle` 220 and `--m-hold` 250 **unmoved at every value**.
+
+It ships at **1**, where the budget is 900 ms — the top of the 600–900 ms brief, so the default is as visible as
+the brief allows. Above ~1.05 the arrival leaves that window; that is the knob's business, not a regression.
+
+**Rule 29 — the stagger is capped, so the budget is a budget.** Element nine onward all leave with element nine
+(`:nth-child(n + 9)`), so `arrive + 8 × spread` holds whether the list has four rows or four hundred. Without the
+cap a hundred-row list would take six seconds and "600–900 ms" would be a statement about short lists only.
+
+**Rule 30 — a route skeleton is either absent or complete, never a ghost.** `.route-skeleton` is `opacity: 0`
+and appears in ONE STEP (`skeleton-step`, 1 ms — shorter than a frame at any refresh rate) after `--m-hold`,
+a CLAMPED threshold set **well past typical route resolution** (700 ms). So an ordinary navigation reveals no
+skeleton at all, and only a genuinely slow route reveals one — by which point it stays long enough to read as
+intentional. Scaling the hold would turn a fast route into a longer blank rather than a longer animation,
+which is why it is clamped.
+
+*Corrected 2026-09-03 after the glitch was measured (§10.6).* The first version held the skeleton invisible for
+250 ms and then **faded it up over 480 ms**. That fade was the bug: dev resolves a route about 300 ms after
+commit, so the hold expired and the content replaced the skeleton **48 ms into the fade — painting it at 0.292
+opacity for two frames and then removing it.** A 29% ghost that appears and vanishes inside 50 ms is exactly the
+flash the rule exists to prevent. A threshold alone only makes that rare; a step makes it **unrepresentable**,
+which is why the appearance is no longer an animation with intermediate values. `tests/motion-vocabulary.test.mjs`
+asserts the step shape, the delay token and the ≥600 ms threshold, so the fade cannot come back by accident.
+
+**Rule 31 — rule 23 is narrowed.** "Inside the app nothing enters on load" becomes **"inside the app nothing
+enters on a re-render or an on-page interaction."** A navigation is a deliberate move the owner made and may be
+answered; a filter click, a poll landing or a badge changing may not. This is the owner's call, 2026-09-03, and
+it is the one rule this section amends.
+
+**Rule 32 — hover never travels.** The rail's gliding hover highlight is retired (`.nav-highlight` is gone). A
+cursor crossing the rail is not a state change, and a second travelling element competed with the one that means
+something. Hover is colour alone, at the clamped fast beat (§5 rule 8).
+
+### 10.5 Verification (2026-09-03, dev server, plumbing test account)
+
+Harness: `nav.js` (131 checks) + `matrix.js` (29 checks) + `sampler.js`, scratchpad `622959b7-…`. The ladder is
+CALIBRATED from the running app (a probe element resolves `var(--m-arrive)` through `transitionDuration`) rather
+than hardcoded. The sampler records, per animation frame, the page's **identity** (`.page-enter` is a fresh node
+each navigation, stamped with an incrementing id), every arrival container's children's opacities, and the first
+arriving child's `animation.currentTime`. Page identity is what makes the test honest: without it the loop
+reports the OUTGOING page's settled content as the new page's first frame — a false pass that this harness hit
+before the fix went in.
+
+Rail: Home · Notifications · Schedule · Service calls · Customers · Services · Calls · Settings.
+
+| Check | Result |
+|---|---|
+| **Acceptance test** — first content frame IS the first arrival frame, every item down the rail and back up (14 navigations) | **animation clock 0 ms of 460 ms, `playState` running, every staggered child at opacity 0**, on all 14 |
+| Beat one — pill on the active row at first paint, hard load, all 8 items | **0.00 px offset, 0 running animations** |
+| Beat one — the pill travels on a click | 29–30 distinct transforms per navigation |
+| Beat two — the old page stamped leaving, direction correct | stamped on all 14; 0–20 ms observed, never awaited |
+| Arrival inside the budget | 383–834 ms per page vs the 900 ms budget |
+| Reading order | cascade / columns confirmed on every multi-child page |
+| Only `transform` and `opacity` animate | asserted per page: exactly `[transform, opacity]` |
+| Urgent/empty complete at t=0 | Home (in `cards`), Notifications (4), Service calls (2), Calls (1) — exempt `[1,…]` while staggered `[0,0,0,0]` in the same frame |
+| The alarm treatment is unchanged | the EMERGENCY row keeps its red, at opacity 1 |
+| Chrome instant vs data arriving | filter strip opacity **1** + hit-testable, header action opacity **1** + hit-testable, arriving row opacity **0** + still hit-testable |
+| A filter clicked as soon as it exists | navigates (`/jobs?status=requested`) |
+| Route skeleton | **absent entirely** at dev speed — distinct sampled opacities `[0]` (was `[0, 0.001, 0.152, 0.292]`) |
+| Reduced motion, 4 pages | nothing hidden, nothing running, the leaving page not dimmed |
+| 390 px tab bar, all 7 tabs | indicator on the active column at first paint, dx ≤ 0.06 px, 0 running; travels on tap; content still arrives |
+| Dark theme | content arrives by arriving |
+| 390 px at 4× CPU | arrives by arriving; 1/153 frames over 33 ms, worst 50 ms |
+| The knob at 0.6× / 1× / 1.6× | scaled tokens move, clamped tokens do not, the arrival runs at the scaled duration, still arrives by arriving |
+| Other archetypes' Home (restaurant `demo`, property management `pm`) | first content frame is the first arrival frame; both groups present; cards trail the KPI row (delay 0 s → 0.165 s) |
+
+Frame series (`shots/series`, 40 frames over ~1.9 s of one click): at **+229 ms** the pill has already travelled
+and the skeleton is held invisible — nothing false on screen; at **+413 ms** the header and the whole filter
+strip are solid, **both EMERGENCY rows are complete and red**, and every ordinary row is still invisible; by
+**+500 ms** rows one and two have landed, three is mid-arrival and four has barely begun.
+
+`npm test` 83/83 (two new: the arrival budget and the alarm exemption, both read out of the stylesheet), `eslint .`
+and `tsc --noEmit` clean.
+
+**Observation, not fixed (out of scope):** the mobile tab bar's wrapping `<nav>` has no accessible name — only
+the sidebar's carries `aria-label="Main"`. Pre-existing; below `md` the named nav is `display:none`, so a
+screen-reader user on a phone gets an unlabelled navigation landmark.
+### 10.6 The glitch between the click and the arrival (diagnosed and fixed, 2026-09-03)
+
+Reported as "something flashes or jumps between the click and the content settling in". Diagnosed with
+`diagnose.js` + `sampler.js` (scratchpad `622959b7-…`): a CDP `Page.startScreencast` at every frame
+(median **17 ms** — `page.screenshot()` tops out near 46 ms, coarser than the thing being measured) driven
+from **mousedown**, alongside the rAF DOM sampler. Both are re-based on the click through a wall-clock stamp
+the screencast also carries; without that the two instruments sit ~130 ms apart and every reported time is
+wrong. The sampler counts **all** `.page-enter` layers, not the first, because "are the old and new layers
+ever both painted?" is a question `querySelector` cannot answer.
+
+**Before — three visual states where the rule permits one** (click at t=0, `/dashboard` → `/customers`):
+
+| window | duration | on screen |
+|---|---|---|
+| 0–58 ms | 58 ms | the old page, opacity 1, press feedback |
+| 58–94 ms | 36 ms | the old page dimming 1 → 0.67, stepped aside |
+| **94–340 ms** | **246 ms** | **blank `<main>`** — old page unmounted, skeleton mounted but held at opacity 0 |
+| **340–392 ms** | **~50 ms** | **partial skeleton ghost, peak effective opacity 0.292** |
+| 392 ms → | 460 ms + | content arriving from opacity 0 |
+
+**The two suspects, resolved.** The skeleton's threshold was **confirmed** as the cause of the flash: the hold
+expired ~250 ms after commit and the 480 ms fade-up was taken over 48 ms in, at **0.292**, for two frames. The
+overlap suspicion was **ruled out** — `0` frames with two `.page-enter` layers, in every run; the old layer is
+unmounted before the new one mounts, so old and new are never both painted.
+
+**A third finding, not suspected and larger than the flash:** the **246 ms blank**. It is not a fade artefact —
+it is the hold itself. Next mounts the loading fallback at route commit, which unmounts the old page; the fallback
+then sits at opacity 0 for the length of the hold. The leave, meanwhile, rendered for only ~36 ms before its node
+was unmounted, so the leaving page never covered the wait — it dimmed partway and blinked out.
+
+**The fix.** Threshold raised 250 → **700 ms**, well past typical resolution, and the appearance changed from a
+480 ms fade to a **1 ms step** (rule 30). The step is the important half: a higher threshold only makes a partial
+opacity rarer, whereas a step makes it unrepresentable.
+
+| case | shell→content gap | skeleton | sampled opacities |
+|---|---|---|---|
+| dev speed | 301 ms | **none** | `[0]` |
+| below threshold (bandwidth-throttled) | 600 ms | **none** | `[0]` |
+| above threshold | 817 ms | steps in, 82 ms | `[0, 1]` |
+| genuinely slow | 1,251 ms | steps in, **517 ms** | `[0, 1]` |
+| very slow (14 kB/s) | > 5 s | steps in, **5.3 s** | `[0, 1]` |
+| **before the fix** | 298 ms | ghost, ~50 ms | `[0, 0.001, 0.152, 0.292]` |
+
+Note the instrument: a *request* delay cannot produce the slow case — it holds the whole response back, which
+lengthens the phase the leaving page covers and leaves the shell→content gap untouched. Constraining **bandwidth**
+(`Network.emulateNetworkConditions`) is what spreads the streamed chunks and stretches that gap.
+
+**Corrected frame series** (`diag/fix-dev`, 17 ms cadence): 0–57 ms the old page at full opacity with the press;
+57–90 ms it dims to 0.45 and steps aside; **90 ms** the route commits and the rail's pill is already on Customers;
+90–373 ms an empty content area with the rail, header and banner intact — **no skeleton at any opacity**; **391 ms**
+the first frame containing content is the first frame of its arrival (clock 0 ms, all children at opacity 0); then
+the cascade. The frame that used to hold the 0.292 ghost is now clean.
+
+**Guards re-run after the change:** `nav.js` 132/132, `matrix.js` 29/29, `npm test` 84/84 (one new: the skeleton
+step shape), `eslint .` and `tsc --noEmit` clean. Urgent rows still complete at t=0 (exempt `[1,…]` against
+staggered `[0,0,0,0]` in the same frame, four pages), chrome still opacity 1 and hit-testable while an arriving
+row at opacity 0 is also hit-testable, animated properties still exactly `[transform, opacity]`, reduced motion
+still complete and static, and the clamped tokens — `fast` 150, `exit-fast` 100, `toggle` 220, `hold` 700 — are
+identical at 0.6× / 1× / 1.6×.
+
+#### The blank is now the whole pre-arrival window, and that is a deliberate trade
+
+At dev speed the sequence is: leaving page (~90 ms) → **empty content area (~300 ms)** → arrival. Nothing
+extraneous is painted — no partial skeleton, no unstyled flash, no overlap — but the *leaving page* does not
+cover the wait either, and the rule asks for it to.
+
+The blank equals the gap between the streamed shell and the page content, which is the **server render of the
+page segment**: ~300 ms in dev, and much shorter in production where the route is compiled and warm. It is not a
+motion value and no timing token affects it.
+
+Eliminating it entirely means not mounting a loading fallback at commit, so the old page survives until the data
+lands. **Measured** (`diag/experiment-no-loading`, `(app)/loading.tsx` temporarily moved aside): route commit and
+the first content frame coincide (**gap 0 ms**), **0 blank frames**, and the leave renders for **10 frames /
+148 ms** — the leaving page covering the whole wait, which is exactly the rule. The file was restored immediately;
+nothing about it is committed.
+
+Not taken, because the cost is real and outside this pass:
+
+- `(app)/loading.tsx` is what flushes the streaming shell on a **hard load** (it is also why `notFound()` in the
+  streamed segment returns HTTP 200 — §7.6 note 2's cousin). Removing it makes first paint TTFB-bound.
+- A genuinely slow route would then show a frozen dimmed page with no progress signal at all.
+
+The principled fix is neither: move each page's **data** query behind its own `<Suspense>` so the page's real
+header and filter strip stream immediately and only the data region is pending. That is already the stated
+design — "structure and chrome instant, data settling in" — and it would replace the blank with the real chrome.
+It is a refactor across a dozen pages and is **the owner's call**.
+
+**One residual, honestly:** a route landing just past the threshold shows a full-opacity skeleton briefly —
+**82 ms** at a gap of 817 ms. It is complete rather than partial, so it is not the ghost, but 82 ms is not "long
+enough to read as intentional" either. A minimum visible duration cannot be expressed in CSS: React unmounts the
+fallback the instant the content commits, and there is no element left to hold or transition. Any threshold has
+this boundary band; raising the threshold moves it rather than removing it. Closing it properly needs the
+per-page Suspense refactor above, where there is no fallback to flash.

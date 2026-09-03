@@ -10,6 +10,7 @@ import { stripeConfigured } from "@/lib/env";
 import { subscriptionActive } from "@/lib/billing-ui";
 import { AppNav } from "@/components/app-nav";
 import { navItemsFor } from "@/lib/nav";
+import { NavOrderProvider } from "@/components/nav-corridor";
 import { NotificationBell } from "@/components/notification-bell";
 import { SignOutButton } from "@/components/sign-out-button";
 import { Logo } from "@/components/logo";
@@ -27,6 +28,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Billing nag only once setup is done and Stripe is actually wired up on this deployment.
   const billingLapsed = !setupIncomplete && stripeConfigured() && !subscriptionActive(account);
   const paymentFailed = account.subscriptionStatus === "past_due";
+  // Resolved once and used twice: the rail renders it, and the page transition reads its ORDER to work
+  // out which way the owner is walking (motion spec §10, beat two).
+  const sidebarItems = navItemsFor(account, "sidebar");
 
   return (
     <div className="min-h-dvh bg-paper md:flex">
@@ -35,7 +39,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         <div className="flex h-16 shrink-0 items-center justify-center px-5 short:h-14 tiny:h-12">
           <Logo />
         </div>
-        <AppNav variant="sidebar" items={navItemsFor(account, "sidebar")} />
+        <AppNav variant="sidebar" items={sidebarItems} />
         <div className="min-h-0 flex-1 overflow-hidden pb-2">
           {/* Streams: the shell (nav, header, page skeleton) paints while the panel's queries run. */}
           <Suspense fallback={<SidebarPanelSkeleton />}>
@@ -75,7 +79,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </Link>
         ) : null}
 
-        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-5 pb-24 md:pb-8 xl:max-w-6xl 2xl:max-w-7xl 2xl:px-8 2xl:py-8 3xl:max-w-[1680px]">{children}</main>
+        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-5 pb-24 md:pb-8 xl:max-w-6xl 2xl:max-w-7xl 2xl:px-8 2xl:py-8 3xl:max-w-[1680px]">
+          <NavOrderProvider order={sidebarItems.map((it) => it.href)}>{children}</NavOrderProvider>
+        </main>
 
         {/* Mobile bottom tabs */}
         <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-surface safe-bottom md:hidden">

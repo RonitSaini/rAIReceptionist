@@ -63,7 +63,7 @@ export default async function WorkOrdersPage({ searchParams }: { searchParams: P
       {jobs.length === 0 ? (
         <EmptyState title={`No ${words.booking.many}`} body={`Anything ${account.hostName} takes on the phone arrives here.`} />
       ) : (
-        <MotionList className="space-y-3">
+        <MotionList data-arrival="cascade" className="space-y-3">
           {jobs.map((job) => {
             const details = (job.details ?? {}) as Record<string, unknown>;
             const unverified = details.unverified === true;

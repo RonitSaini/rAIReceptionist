@@ -30,6 +30,9 @@ test("the scaled tokens are their bases times --m-scale, and the bases mirror IN
     ["m-exit-slow", INTERACTION.exit.slow],
     ["m-stagger", INTERACTION.stagger],
     ["m-cascade", INTERACTION.cascade],
+    ["m-arrive", INTERACTION.arrive],
+    ["m-arrive-spread", INTERACTION.arriveSpread],
+    ["m-arrive-group", INTERACTION.arriveGroup],
   ]) {
     assert.equal(token(`${name}-base`), `${base}ms`);
     assert.equal(token(name), `calc(var(--${name}-base) * var(--m-scale))`);
@@ -37,14 +40,18 @@ test("the scaled tokens are their bases times --m-scale, and the bases mirror IN
   assert.equal(token("m-ease"), INTERACTION.ease);
   assert.equal(token("m-travel"), `${INTERACTION.travel}px`);
   assert.equal(token("m-rise"), `${INTERACTION.rise}px`);
+  assert.equal(token("m-arrive-y"), `${INTERACTION.arriveY}px`);
 });
 
 test("the clamped tokens never read the scale", () => {
   assert.equal(token("m-fast"), `${INTERACTION.fast}ms`);
   assert.equal(token("m-exit-fast"), `${INTERACTION.exit.fast}ms`);
   assert.equal(token("m-toggle"), `${INTERACTION.toggle}ms`);
-  // And nothing else in the stylesheet multiplies the fast step or the thumb by the scale.
-  assert.ok(!/--m-fast[^;]*--m-scale|--m-exit-fast[^;]*--m-scale|--m-toggle[^;]*--m-scale/.test(css));
+  // The route skeleton's hold is a THRESHOLD, not a duration: scaling it would turn a fast route into
+  // a blank pause instead of into a longer arrival.
+  assert.equal(token("m-hold"), `${INTERACTION.hold}ms`);
+  // And nothing else in the stylesheet multiplies the fast step, the thumb or the hold by the scale.
+  assert.ok(!/--m-fast[^;]*--m-scale|--m-exit-fast[^;]*--m-scale|--m-toggle[^;]*--m-scale|--m-hold[^;]*--m-scale/.test(css));
   // Urgent surfaces read only the clamped tokens.
   for (const m of css.matchAll(/\[data-urgent\][^{]*\{([^}]*)\}/g)) {
     assert.ok(!/--m-(standard|slow|exit|exit-slow|stagger|cascade)(?![\w-])/.test(m[1]), `urgent rule reads only fast tokens: ${m[1].trim()}`);
@@ -71,9 +78,62 @@ test("a guided arrival fits its window and adds no durations", () => {
   assert.ok(INTERACTION.cascade < INTERACTION.stagger && INTERACTION.stagger < INTERACTION.standard);
 });
 
+test("a content arrival fits its 600-850 ms window and the page's exit stays under 200 ms", () => {
+  // A capped cascade: the last staggered element starting at `cap` spreads and running for `arrive`.
+  // The cap is what makes this a BUDGET rather than a function of row count — element nine onward all
+  // leave with element nine, so a four-hundred-row list arrives in the same window as an eight-row one.
+  const budget = INTERACTION.arrive + INTERACTION.arriveCap * INTERACTION.arriveSpread;
+  assert.ok(budget >= 600 && budget <= 900, `arrival budget ${budget}ms`);
+  // Home is two groups: the KPI row, then the cards trailing it. Still inside the same window.
+  const home = INTERACTION.arriveGroup + INTERACTION.arrive + INTERACTION.arriveCap * INTERACTION.arriveSpread;
+  assert.ok(home <= 1100, `home two-group total ${home}ms`);
+  // Beat two is CLAMPED to the fast exit, so no scale can push the page's leave past the 200 ms
+  // ceiling or let it become something a route change could be felt waiting on.
+  assert.ok(INTERACTION.exit.fast < 200);
+  assert.match(css, /\.page-enter\[data-leaving\]\s*\{[^}]*--m-exit-fast/);
+  // One element's arrival is quicker than the ladder's standard step: many of them overlap, and the
+  // spread is what carries the reading order rather than each row taking the long way in.
+  assert.ok(INTERACTION.arrive < INTERACTION.standard);
+  assert.ok(INTERACTION.arriveSpread < INTERACTION.arrive);
+});
+
+test("a route skeleton can never be painted partially", () => {
+  // The measured regression this guards: a 480 ms fade-up on the skeleton was caught 48 ms in by the
+  // content landing, painting it at 0.292 opacity for two frames — a ghost that appears and vanishes.
+  // The appearance must therefore be a STEP shorter than one frame, not a fade, so that no route
+  // timing can sample an in-between opacity.
+  const rule = css.match(/\.route-skeleton\s*\{([^}]*)\}/);
+  assert.ok(rule, "globals.css defines .route-skeleton");
+  const decl = rule[1];
+  assert.match(decl, /opacity:\s*0\s*;/, "it starts invisible");
+  const anim = decl.match(/animation:\s*([^;]+);/);
+  assert.ok(anim, ".route-skeleton declares an animation");
+  // The duration is the FIRST time in the shorthand and the delay the second: a step, then the hold.
+  const times = anim[1].match(/(\d+(?:\.\d+)?)(ms|s)|var\(--m-hold\)/g) ?? [];
+  assert.equal(times[0], "1ms", `the appearance is a step, not a fade (got ${times[0]})`);
+  assert.ok(anim[1].includes("var(--m-hold)"), "the delay is the clamped threshold");
+  assert.ok(/forwards|both/.test(anim[1]), "it holds the appeared state");
+  // And the threshold sits well past a typical route: an ordinary navigation must reveal no skeleton.
+  assert.ok(INTERACTION.hold >= 600, `the hold clears typical route resolution (${INTERACTION.hold}ms)`);
+  // Reduced motion must still land it VISIBLE, since the base rule now hides it.
+  const reduce = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"));
+  assert.match(reduce, /\.route-skeleton\s*\{\s*opacity:\s*1/, "reduced motion lands the skeleton visible, not on its hidden base state");
+});
+
+test("an alarm and an empty state are never staggered", () => {
+  // Rule 17, in the stylesheet: whatever the arrival variant, a row that declares itself urgent (or a
+  // slot that is empty) is complete at t=0 — no delay to sit behind, nothing hidden to fade up from.
+  const exempt = css.match(/\[data-arrival\] > \[data-urgent\],[\s\S]{0,200}?\}/);
+  assert.ok(exempt, "the stylesheet exempts [data-urgent] inside an arrival");
+  assert.match(exempt[0], /animation:\s*none/);
+  assert.match(exempt[0], /opacity:\s*1/);
+  assert.match(exempt[0], /transform:\s*none/);
+  assert.match(exempt[0], /\[data-empty\]/);
+});
+
 test("every interaction class is in the reduced-motion block", () => {
   const reduce = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"));
-  for (const cls of [".press", ".press-soft", ".switch", ".seg-ind", ".seg-item", ".row-enter", ".row-exit", ".badge-swap > .badge-in", ".badge-swap > .badge-out", ".tick-in", ".tick-out", ".toast", ".content-in", ".menu-in", ".menu-out", ".draw-fast.is-drawing path", ".saved-in", ".notif-panel", ".swap", ".guided [data-guided]", ".guided .cascade > *", ".guided[data-leaving]", ".slide-in", ".progress-fill"]) {
+  for (const cls of [".press", ".press-soft", ".switch", ".seg-ind", ".seg-item", ".row-enter", ".row-exit", ".badge-swap > .badge-in", ".badge-swap > .badge-out", ".tick-in", ".tick-out", ".toast", ".content-in", ".menu-in", ".menu-out", ".draw-fast.is-drawing path", ".saved-in", ".notif-panel", ".swap", ".guided [data-guided]", ".guided .cascade > *", ".guided[data-leaving]", ".slide-in", ".progress-fill", "[data-arrival] > *", ".nav-pill", ".nav-tab-ind", ".route-skeleton", ".page-enter[data-leaving]"]) {
     assert.ok(reduce.includes(cls), `${cls} is listed under prefers-reduced-motion`);
   }
 });

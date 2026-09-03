@@ -80,7 +80,7 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
       </div>
 
       {view === "week" ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-7 md:gap-3">
+        <div data-arrival="columns" className="grid grid-cols-1 gap-4 md:grid-cols-7 md:gap-3">
           {days.map((d) => {
             const items = byDay.get(d) ?? [];
             const isToday = d === today;
@@ -122,7 +122,7 @@ export default async function ReservationsPage({ searchParams }: { searchParams:
       ) : reservations.length === 0 ? (
         <EmptyState title="No reservations this day" action={<LinkButton href={`/reservations/new?date=${date}`}>Add a reservation</LinkButton>} />
       ) : (
-        <ul className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
+        <ul data-arrival="cascade" className="grid gap-3 xl:grid-cols-2 3xl:grid-cols-3">
           {(byDay.get(date) ?? []).map((r) => (
             <li key={r.id} className="lift flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-surface p-4">
               <div className="min-w-0">

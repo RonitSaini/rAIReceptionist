@@ -131,7 +131,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
         </p>
       ) : null}
 
-      {items.length === 0 ? <EmptyState title={empty.title} body={empty.body} action={empty.action} tone={empty.tone} /> : <NotificationList items={items} grid words={vocabularyFor(account)} />}
+      {items.length === 0 ? <EmptyState title={empty.title} body={empty.body} action={empty.action} tone={empty.tone} /> : <NotificationList items={items} grid arrival words={vocabularyFor(account)} />}
     </div>
   );
 }

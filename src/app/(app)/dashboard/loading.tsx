@@ -1,10 +1,11 @@
 /**
  * Dashboard-shaped skeleton (Next.js route-level loading UI). Mirrors the real layout — header →
  * KPI row → two columns of cards → chart pair → host card — so nothing jumps when the data lands.
+ * Held invisible for --m-hold before it fades up, same as the generic route skeleton (spec §10).
  */
 export default function DashboardLoading() {
   return (
-    <div className="space-y-5" aria-busy="true" aria-label="Loading">
+    <div className="route-skeleton space-y-5" aria-busy="true" aria-label="Loading">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div className="space-y-2">
           <div className="skeleton h-8 w-24 rounded-lg" />

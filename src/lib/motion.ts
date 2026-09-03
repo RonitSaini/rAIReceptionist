@@ -75,6 +75,8 @@ export function sequenceOrigin(from: Element | null | undefined): number {
  * that must agree with them (how long a leaving row stays mounted, when a toast lets go) read this.
  *
  * - fast: presses, toggles, hovers, colour swaps — feedback that must feel attached to the finger.
+ *   The page's own exit lives here too (spec §10 beat two): a leave is never waited on, so it can
+ *   never be allowed to grow with the scale.
  * - standard: expands, menus, toasts, rows arriving, badges crossfading, the tab indicator sliding.
  * - slow: the ceiling; sheets and drawers, the one-step progress bar. Nothing in the app exceeds it.
  * - exits: shorter than their entrance (about two thirds), so what leaves is out of the way before
@@ -113,7 +115,41 @@ export const INTERACTION = {
   stagger: 144,
   /** The profession picker's cascade: each card trails the one before by this much, at `standard`. */
   cascade: 56,
+
+  /* ---- Content arrival (spec §10): how a page's DATA becomes visible after a navigation ---- */
+  /** One arriving element's own duration. Shorter than `standard`: many of them overlap. */
+  arrive: 460,
+  /** The gap between one arriving element and the next — a list's cascade, a calendar's columns. */
+  arriveSpread: 55,
+  /** How far a second group trails the first (Home: the KPI row, then the cards). */
+  arriveGroup: 110,
+  /**
+   * The stagger CAP, in steps. Element nine onward all leave with element nine, so the arrival
+   * budget is `arrive + cap * arriveSpread` (900 ms at scale 1) no matter how long the list is.
+   */
+  arriveCap: 8,
+  /** How far arriving content travels (px). The corridor picks the sign; the layout box never moves. */
+  arriveY: 10,
+  /**
+   * CLAMPED THRESHOLD: how long a route skeleton stays invisible before it appears, in ONE STEP.
+   *
+   * Set well past typical route resolution (dev resolves about 300 ms after commit), so an ordinary
+   * navigation shows no skeleton at all and only a genuinely slow route reveals one — by which point
+   * it is on screen long enough to read as intentional. Raised 250 → 700 on 2026-09-03: at 250 the
+   * hold expired just before the content landed and the skeleton was painted at 0.292 opacity for two
+   * frames, a ghost. The appearance is a step rather than a fade for the same reason — see the
+   * `.route-skeleton` comment in globals.css.
+   */
+  hold: 700,
 } as const;
+
+/**
+ * The arrival budget at the live scale (ms): the last element of a capped cascade finishing. What the
+ * spec's 600–900 ms window is measured against, and what a harness should compare a frame series to.
+ */
+export function arrivalBudget(): number {
+  return scaled(INTERACTION.arrive + INTERACTION.arriveCap * INTERACTION.arriveSpread);
+}
 
 /** Client-only: the live `--m-scale` (1 unless a rebalance comparison set it on <html>, spec §9.3). */
 export function motionScale(): number {
@@ -143,4 +179,20 @@ export function prefersReducedMotion(): boolean {
  */
 export function leaveGuided(from: Element, dir: "forward" | "back"): void {
   from.closest(".guided")?.setAttribute("data-leaving", dir);
+}
+
+/**
+ * Client-only: beat two of the navigation gesture (spec §10). The page currently on screen steps aside
+ * along the corridor — 6 px against the direction of travel, dimmed — at the CLAMPED fast exit (100 ms,
+ * so it is under the 200 ms ceiling at every scale).
+ *
+ * Never awaited, by design: the caller's `<Link>` navigates in the same tick and the route lands whenever
+ * it lands. If it lands within a frame the leave is simply cut, which is the correct outcome — the exit
+ * exists to cover a wait, never to create one. The container is found by class rather than passed in
+ * because the rail and the page live in different trees (the rail is in the layout, the page under the
+ * template), and there is exactly one `.page-enter` on screen.
+ */
+export function leavePage(dir: "down" | "up"): void {
+  if (typeof document === "undefined") return;
+  document.querySelector(".page-enter")?.setAttribute("data-leaving", dir);
 }

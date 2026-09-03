@@ -75,9 +75,9 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
       {jobs.length === 0 ? (
         <EmptyState title={`No ${words.booking.many}${active ? ` with status ${humanize(active)}` : ""}`} action={<LinkButton href="/jobs/new">Add one</LinkButton>} />
       ) : (
-        <ul className="grid gap-3 xl:grid-cols-2">
+        <ul data-arrival="cascade" className="grid gap-3 xl:grid-cols-2">
           {jobs.map((j) => (
-            <li key={j.id} className="lift min-w-0 rounded-2xl border border-gray-200 bg-surface p-4">
+            <li key={j.id} data-urgent={j.isEmergency ? "true" : undefined} className="lift min-w-0 rounded-2xl border border-gray-200 bg-surface p-4">
               <Link href={`/jobs/${j.id}`} className="flex items-start justify-between gap-3">
                 <span className="min-w-0">
                   <span className="block truncate font-semibold">

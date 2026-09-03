@@ -86,7 +86,9 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-7 md:gap-3">
+      {/* The diary arrives BY DAY COLUMN: each day is one arriving element and its visits come with it,
+          so a week reads left to right rather than as fifty separate rows (motion spec §10.2). */}
+      <div data-arrival="columns" className="grid grid-cols-1 gap-4 md:grid-cols-7 md:gap-3">
         {days.map((d) => {
           const items = byDay.get(d) ?? [];
           const isToday = d === today;
