@@ -35,7 +35,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-dvh bg-paper md:flex">
       {/* Desktop sidebar */}
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-gray-200 bg-surface md:sticky md:top-0 md:flex md:h-dvh 2xl:w-64">
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-gray-300 bg-surface md:sticky md:top-0 md:flex md:h-dvh 2xl:w-64">
         <div className="flex h-16 shrink-0 items-center justify-center px-5 short:h-14 tiny:h-12">
           <Logo />
         </div>
@@ -54,7 +54,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
       <div className="flex min-h-dvh flex-1 flex-col">
         {/* Top bar */}
-        <header className="sticky top-0 z-20 border-b border-gray-200 bg-surface/90 backdrop-blur">
+        <header className="sticky top-0 z-20 border-b border-gray-300 bg-surface/90 backdrop-blur">
           <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between px-4 xl:max-w-6xl 2xl:max-w-7xl 2xl:px-8 3xl:max-w-[1680px]">
             <Link href="/dashboard" className="truncate text-base font-bold md:hidden">
               {account.businessName}
@@ -84,7 +84,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </main>
 
         {/* Mobile bottom tabs */}
-        <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-surface safe-bottom md:hidden">
+        <nav className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-300 bg-surface safe-bottom md:hidden">
           <AppNav variant="tabs" items={navItemsFor(account, "tabs")} />
         </nav>
       </div>
