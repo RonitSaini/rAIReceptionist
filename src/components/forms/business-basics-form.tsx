@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { saveBusinessBasics } from "@/actions/onboarding";
 import type { AccountView } from "@/lib/serialize";
-import { CUISINE_TYPES, PRICE_RANGES, timeZonesFor } from "@/lib/constants";
+import { CUISINE_TYPES, PRICE_RANGES, timeZoneForRegion, timeZonesFor } from "@/lib/constants";
 import { formatUsPhone } from "@/lib/form";
 import { accountCountry, COUNTRIES, type Country } from "@/lib/locale";
 import { verticalFor, vocabularyFor } from "@/verticals";
@@ -72,6 +72,13 @@ export function BusinessBasicsForm({ account, mode }: { account: AccountView; mo
               zip: accountCountry(account) === country ? (account.zip ?? "") : "",
               latitude: accountCountry(account) === country ? account.latitude : null,
               longitude: accountCountry(account) === country ? account.longitude : null,
+            }}
+            // A picked address knows its state, and the state implies the zone — a Larkspur, CA
+            // address should never leave the picker sitting on Eastern. Still just a default: the
+            // owner can re-pick below, and only this callback ever moves it.
+            onStateChange={(st) => {
+              const zone = timeZoneForRegion(country, st);
+              if (zone) setTimeZone(zone);
             }}
           />
 

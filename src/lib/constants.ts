@@ -40,6 +40,37 @@ export const US_STATES = [
   "AL","AK","AZ","AR","CA","CO","CT","DE","DC","FL","GA","HI","ID","IL","IN","IA","KS","KY","LA","ME","MD","MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ","NM","NY","NC","ND","OH","OK","OR","PA","RI","SC","SD","TN","TX","UT","VT","VA","WA","WV","WI","WY",
 ];
 
+/**
+ * The zone most of a state or province lives in — a handful straddle two (TX, ID, TN, …), so this
+ * is a default for the picker to land on, never a fact the owner cannot correct. Keys and values
+ * both come from the lists above.
+ */
+const US_STATE_ZONE: Record<string, string> = {
+  CT: "America/New_York", DE: "America/New_York", DC: "America/New_York", FL: "America/New_York", GA: "America/New_York", IN: "America/New_York", KY: "America/New_York", ME: "America/New_York", MD: "America/New_York", MA: "America/New_York", MI: "America/New_York", NH: "America/New_York", NJ: "America/New_York", NY: "America/New_York", NC: "America/New_York", OH: "America/New_York", PA: "America/New_York", RI: "America/New_York", SC: "America/New_York", VT: "America/New_York", VA: "America/New_York", WV: "America/New_York",
+  AL: "America/Chicago", AR: "America/Chicago", IL: "America/Chicago", IA: "America/Chicago", KS: "America/Chicago", LA: "America/Chicago", MN: "America/Chicago", MS: "America/Chicago", MO: "America/Chicago", NE: "America/Chicago", ND: "America/Chicago", OK: "America/Chicago", SD: "America/Chicago", TN: "America/Chicago", TX: "America/Chicago", WI: "America/Chicago",
+  CO: "America/Denver", ID: "America/Denver", MT: "America/Denver", NM: "America/Denver", UT: "America/Denver", WY: "America/Denver",
+  AZ: "America/Phoenix",
+  CA: "America/Los_Angeles", NV: "America/Los_Angeles", OR: "America/Los_Angeles", WA: "America/Los_Angeles",
+  AK: "America/Anchorage",
+  HI: "Pacific/Honolulu",
+};
+
+const CA_PROVINCE_ZONE: Record<string, string> = {
+  NL: "America/St_Johns",
+  NB: "America/Halifax", NS: "America/Halifax", PE: "America/Halifax",
+  ON: "America/Toronto", QC: "America/Toronto", NU: "America/Toronto",
+  MB: "America/Winnipeg",
+  SK: "America/Regina",
+  AB: "America/Edmonton", NT: "America/Edmonton",
+  BC: "America/Vancouver", YT: "America/Vancouver",
+};
+
+/** The time zone a picked state/province implies, or null for a region we don't know. */
+export function timeZoneForRegion(country: "US" | "CA", region: string): string | null {
+  const key = region.trim().toUpperCase();
+  return (country === "CA" ? CA_PROVINCE_ZONE : US_STATE_ZONE)[key] ?? null;
+}
+
 export const CUISINE_TYPES = [
   "American",
   "Italian",

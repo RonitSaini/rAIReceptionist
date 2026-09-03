@@ -17,7 +17,7 @@ export type AddressValue = { addressLine1: string; addressLine2: string; city: s
  * is specific to a STRUCTURED address: the extra fields, the pin, and the hint line. No bias is requested —
  * the account is setting its own location here, so its previous location is the wrong thing to lean on.
  */
-export function AddressFields({ initial, country, legend = "Business address" }: { initial: AddressValue; country: Country; legend?: string }) {
+export function AddressFields({ initial, country, legend = "Business address", onStateChange }: { initial: AddressValue; country: Country; legend?: string; onStateChange?: (state: string) => void }) {
   const [v, setV] = useState<AddressValue>(initial);
   const [query, setQuery] = useState(initial.addressLine1);
   const [available, setAvailable] = useState(true);
@@ -41,6 +41,7 @@ export function AddressFields({ initial, country, legend = "Business address" }:
         onPick={(a) => {
           setQuery(a.addressLine1 || a.formatted);
           setV((p) => ({ addressLine1: a.addressLine1 || a.formatted, addressLine2: a.addressLine2 || p.addressLine2, city: a.city, state: a.state, zip: a.zip, latitude: a.lat, longitude: a.lng }));
+          if (a.state) onStateChange?.(a.state);
         }}
         country={country}
         onAvailability={setAvailable}
@@ -51,7 +52,16 @@ export function AddressFields({ initial, country, legend = "Business address" }:
       <Input name="addressLine2" value={v.addressLine2} onChange={(e) => set({ addressLine2: e.target.value }, true)} placeholder="Suite, floor (optional)" autoComplete="address-line2" aria-label="Address line 2" />
       <div className="grid grid-cols-6 gap-2">
         <Input name="city" value={v.city} onChange={(e) => set({ city: e.target.value })} placeholder="City" autoComplete="address-level2" aria-label="City" className="col-span-3" />
-        <Select name="state" value={v.state} onChange={(e) => set({ state: e.target.value })} aria-label={country === "CA" ? "Province" : "State"} className="col-span-1 px-2">
+        <Select
+          name="state"
+          value={v.state}
+          onChange={(e) => {
+            set({ state: e.target.value });
+            if (e.target.value) onStateChange?.(e.target.value);
+          }}
+          aria-label={country === "CA" ? "Province" : "State"}
+          className="col-span-1 px-2"
+        >
           <option value="">{country === "CA" ? "Prov" : "ST"}</option>
           {regions.map((s) => (
             <option key={s} value={s}>
