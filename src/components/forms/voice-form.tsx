@@ -36,14 +36,25 @@ export function VoiceForm({ account, mode, backHref }: { account: AccountView; m
   const [voiceSave, setVoiceSave] = useState<{ ok: boolean; text: string } | null>(null);
   const [savingVoice, startSavingVoice] = useTransition();
 
+  /** "11labs-Myra" -> "Myra": a readable name even for a voice the catalog hasn't loaded yet. */
+  const voiceName = (id: string) => VOICES.find((v) => v.id === id)?.name ?? all.find((v) => v.id === id)?.name ?? id.replace(/^(11labs|cartesia|openai|minimax|inworld|fish_audio|retell)-/, "");
+
   /** Picking a voice saves it immediately and rebuilds the agent — no need to submit the form. */
   function setVoiceId(id: string) {
     setVoiceIdState(id);
     setVoiceSave(null);
+    // The host introduces itself by the voice's name: picking Marissa renames Alex in the name
+    // field, inside the greeting, and on the test-call card in one gesture. A customized greeting
+    // keeps its wording — only the old name is swapped out; the name and greeting still save with
+    // the form, exactly as if they had been typed.
+    const name = voiceName(id);
+    if (name) {
+      setGreeting((g) => (hostName && g.includes(hostName) ? g.replaceAll(hostName, name) : generateGreeting(account.businessName, name)));
+      setHostName(name);
+    }
     startSavingVoice(async () => {
       const r = await setVoiceQuick(id);
-      const name = VOICES.find((v) => v.id === id)?.name ?? all.find((v) => v.id === id)?.name ?? id;
-      setVoiceSave(r?.ok ? { ok: true, text: `${name} saved — your AI host now uses this voice.` } : { ok: false, text: r?.error ?? "Could not save the voice." });
+      setVoiceSave(r?.ok ? { ok: true, text: `${voiceName(id)} saved — your AI host now uses this voice.` } : { ok: false, text: r?.error ?? "Could not save the voice." });
     });
   }
   const [hostName, setHostName] = useState(account.hostName);
