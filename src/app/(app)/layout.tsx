@@ -35,7 +35,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-dvh bg-paper md:flex">
       {/* Desktop sidebar */}
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-gray-400 bg-surface md:sticky md:top-0 md:flex md:h-dvh dark:border-transparent 2xl:w-64">
+      <aside className="relative hidden w-60 shrink-0 flex-col bg-surface md:sticky md:top-0 md:flex md:h-dvh 2xl:w-64">
+        {/*
+          The divider, drawn as a rule rather than the aside's border-r.
+          A border runs the full height of its element, which put a stub of vertical line up the side
+          of the header -- past the horizontal line the header already draws, with nothing on the
+          other side of it to separate. This starts exactly where that line is (top-14 is the
+          header's h-14, in rem so it still lands at the 17px root size the 3xl breakpoint sets) and
+          runs to the bottom, so the two meet in a clean T instead of a cross.
+          Out of flow, so the sidebar's own layout is untouched.
+        */}
+        <span aria-hidden="true" className="pointer-events-none absolute right-0 top-14 bottom-0 w-px bg-gray-400" />
         <div className="flex h-16 shrink-0 items-center justify-center px-5 short:h-14 tiny:h-12">
           <Logo />
         </div>
