@@ -49,9 +49,11 @@ export async function sendWelcomeEmail(to: string, businessName: string, vertica
     `You're a few minutes away from an AI receptionist that answers ${name}'s phone around the clock — booking ${words.booking.many}, handling emergencies, and texting confirmations while you work.`,
     ``,
     `Here's what happens next:`,
-    `1. Finish setup — hours, services, and what counts as an emergency (${url}/onboarding/2)`,
+    `1. Finish setup — hours, services, and what counts as an emergency`,
     `2. Pick a voice and greeting you like`,
     `3. Get your business number and make a test call to hear it live`,
+    ``,
+    `My Account: ${url}/dashboard`,
     ``,
     `Everything can be changed later in Settings, so don't overthink the first pass.`,
     ``,
@@ -74,7 +76,7 @@ export async function sendWelcomeEmail(to: string, businessName: string, vertica
       <li>Get your business number and make a test call to hear it live</li>
     </ol>
     <p style="margin:0 0 24px;">
-      <a href="${esc(url)}/onboarding/2" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 22px;border-radius:10px;">Continue setup</a>
+      <a href="${esc(url)}/dashboard" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 22px;border-radius:10px;">My Account</a>
     </p>
     <p style="font-size:14px;line-height:1.6;color:#4b5c6b;margin:0 0 16px;">
       Everything can be changed later in Settings, so don't overthink the first pass.
