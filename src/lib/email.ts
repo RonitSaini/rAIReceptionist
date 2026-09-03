@@ -16,7 +16,7 @@ const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
 export const resendConfigured = () => Boolean(process.env.RESEND_API_KEY);
 
-async function sendEmail(to: string, subject: string, html: string, text: string): Promise<void> {
+async function sendEmail(to: string, subject: string, html: string, text: string, opts?: { scheduledAt?: Date }): Promise<void> {
   const key = process.env.RESEND_API_KEY;
   if (!key) return;
   const from = process.env.RESEND_FROM || "FrontDesk AI <onboarding@resend.dev>";
@@ -25,7 +25,16 @@ async function sendEmail(to: string, subject: string, html: string, text: string
   const res = await fetch(RESEND_ENDPOINT, {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from, to: [to], subject, html, text, ...(replyTo ? { reply_to: [replyTo] } : {}) }),
+    body: JSON.stringify({
+      from,
+      to: [to],
+      subject,
+      html,
+      text,
+      ...(replyTo ? { reply_to: [replyTo] } : {}),
+      // Resend holds and delivers it at this moment — the delay costs no compute of ours.
+      ...(opts?.scheduledAt ? { scheduled_at: opts.scheduledAt.toISOString() } : {}),
+    }),
   });
   if (!res.ok) {
     // A failed welcome email must never surface as a failed sign-up; log and move on.
@@ -87,4 +96,55 @@ export async function sendWelcomeEmail(to: string, businessName: string, vertica
   </div>`;
 
   await sendEmail(to, subject, html, text);
+}
+
+/**
+ * The referral follow-up, scheduled 20 minutes behind the welcome so the inbox reads as a
+ * conversation rather than a pile. Scheduled through Resend itself (`scheduled_at`) — nothing on
+ * our side has to wake up to send it, which matters on serverless.
+ */
+export async function sendReferralEmail(to: string, businessName: string, code: string, delayMinutes = 20): Promise<void> {
+  const url = appUrl();
+  const name = businessName.trim() || "your business";
+  const shareUrl = `${url}/signup?ref=${code}`;
+  const referralPage = `${url}/settings?tab=billing`;
+
+  const subject = `Give $100, get $100 — ${name}'s referral code inside`;
+
+  const text = [
+    `One more thing before you go!`,
+    ``,
+    `${name} has its own referral code: ${code}`,
+    ``,
+    `Know another business owner tired of missing calls? When they sign up with your code, you BOTH get $100 off — theirs off their first month, yours off your next one.`,
+    ``,
+    `Share this link and the code fills itself in: ${shareUrl}`,
+    ``,
+    `View your referral code any time: ${referralPage}`,
+    ``,
+    `— The FrontDesk AI team`,
+  ].join("\n");
+
+  const html = `
+  <div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a2b3c;">
+    <h1 style="font-size:22px;margin:0 0 16px;">Give $100, get $100 💸</h1>
+    <p style="font-size:15px;line-height:1.6;margin:0 0 16px;">
+      Know another business owner tired of missing calls? When they sign up with <strong>${esc(name)}</strong>'s code,
+      you <strong>both</strong> get $100 off — theirs off their first month, yours off your next one.
+    </p>
+    <div style="background:#f2f7f6;border:1px dashed #0f766e;border-radius:12px;padding:18px 16px;text-align:center;margin:0 0 16px;">
+      <p style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#4b5c6b;margin:0 0 6px;">Your referral code</p>
+      <p style="font-family:ui-monospace,'SF Mono',Consolas,Menlo,monospace;font-size:28px;font-weight:700;letter-spacing:.18em;color:#0f766e;margin:0;">${esc(code)}</p>
+    </div>
+    <p style="font-size:14px;line-height:1.6;color:#4b5c6b;margin:0 0 24px;">
+      Or share this link and the code fills itself in:<br/>
+      <a href="${esc(shareUrl)}" style="color:#0f766e;word-break:break-all;">${esc(shareUrl)}</a>
+    </p>
+    <p style="margin:0 0 24px;">
+      <a href="${esc(referralPage)}" style="display:inline-block;background:#0f766e;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 22px;border-radius:10px;">View Referral Code</a>
+    </p>
+    <p style="font-size:14px;line-height:1.6;color:#4b5c6b;margin:0;">— The FrontDesk AI team</p>
+  </div>`;
+
+  await sendEmail(to, subject, html, text, { scheduledAt: new Date(Date.now() + delayMinutes * 60_000) });
 }

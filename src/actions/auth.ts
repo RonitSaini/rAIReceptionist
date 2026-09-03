@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendWelcomeEmail } from "@/lib/email";
+import { sendReferralEmail, sendWelcomeEmail } from "@/lib/email";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { auth } from "@/lib/auth";
 import { generateGreeting } from "@/lib/greeting";
@@ -141,8 +141,25 @@ export async function signUp(_prev: ActionState, formData: FormData): Promise<Ac
   if (referral.code) await claimReferralCodeQuietly(accountId, referral.code);
 
   // After the response, so a slow email API never stretches the sign-up; a failure only logs.
-  after(() => sendWelcomeEmail(email, businessName, vertical).catch((e) => console.error("[email] welcome failed", e)));
+  after(async () => {
+    await sendWelcomeEmail(email, businessName, vertical).catch((e) => console.error("[email] welcome failed", e));
+    await sendReferralFollowUp(accountId, email, businessName);
+  });
   return { ok: true };
+}
+
+/**
+ * Schedule the referral follow-up 20 minutes behind the welcome. The code was issued inside the
+ * sign-up transaction, so reading it back here always finds one; scheduling happens on Resend's
+ * side, so no process of ours needs to be alive in 20 minutes.
+ */
+async function sendReferralFollowUp(accountId: string, email: string, businessName: string): Promise<void> {
+  try {
+    const account = await prisma.account.findUnique({ where: { id: accountId }, select: { referralCode: true } });
+    if (account?.referralCode) await sendReferralEmail(email, businessName, account.referralCode);
+  } catch (e) {
+    console.error("[email] referral follow-up failed", e);
+  }
 }
 
 /** Step 1 for signed-in users without an account (e.g. first Google sign-in). */
@@ -184,7 +201,10 @@ export async function createAccountForCurrentUser(_prev: ActionState, formData: 
 
   if (referral.code) await claimReferralCodeQuietly(accountId, referral.code);
 
-  after(() => sendWelcomeEmail(user.email, businessName, vertical).catch((e) => console.error("[email] welcome failed", e)));
+  after(async () => {
+    await sendWelcomeEmail(user.email, businessName, vertical).catch((e) => console.error("[email] welcome failed", e));
+    await sendReferralFollowUp(accountId, user.email, businessName);
+  });
   return { ok: true };
 }
 
