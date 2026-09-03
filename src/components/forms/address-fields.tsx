@@ -1,13 +1,10 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useState } from "react";
 import { US_STATES } from "@/lib/constants";
 import { CA_PROVINCES, type Country } from "@/lib/locale";
 import { Input, Select } from "@/components/ui";
-import { Presence } from "@/components/presence";
-
-type Suggestion = { placeId: string; main: string; secondary: string; text: string };
-type Address = { addressLine1: string; addressLine2: string; city: string; state: string; zip: string; lat: number; lng: number };
+import { AddressAutocomplete } from "@/components/forms/address-autocomplete";
 
 export type AddressValue = { addressLine1: string; addressLine2: string; city: string; state: string; zip: string; latitude: number | null; longitude: number | null };
 
@@ -15,85 +12,18 @@ export type AddressValue = { addressLine1: string; addressLine2: string; city: s
  * Restaurant address with Google Places suggestions under the street field. Picking a suggestion fills every
  * field and pins the exact coordinates (hidden inputs); editing any field afterwards drops the pin so the
  * server re-geocodes on save. Without GOOGLE_MAPS_API_KEY the server answers 503 and this is a plain form.
+ *
+ * The combobox itself lives in <AddressAutocomplete>, shared with the job form. This component keeps what
+ * is specific to a STRUCTURED address: the extra fields, the pin, and the hint line. No bias is requested —
+ * the account is setting its own location here, so its previous location is the wrong thing to lean on.
  */
 export function AddressFields({ initial, country, legend = "Business address" }: { initial: AddressValue; country: Country; legend?: string }) {
   const [v, setV] = useState<AddressValue>(initial);
   const [query, setQuery] = useState(initial.addressLine1);
-  const [items, setItems] = useState<Suggestion[]>([]);
-  const [open, setOpen] = useState(false);
-  const [active, setActive] = useState(-1);
   const [available, setAvailable] = useState(true);
   const [busy, setBusy] = useState(false);
-  const sessionRef = useRef<string | null>(null);
-  const skipNextFetch = useRef(false);
-  const typed = useRef(false); // suggestions only after the owner types — never for the saved address on load
-  const inputRef = useRef<HTMLInputElement>(null);
-  const listId = useId();
 
   const set = (patch: Partial<AddressValue>, keepPin = false) => setV((p) => ({ ...p, ...patch, ...(keepPin ? {} : { latitude: null, longitude: null }) }));
-
-  // Debounced suggestions while typing in the street field.
-  useEffect(() => {
-    if (!available || !typed.current || skipNextFetch.current) {
-      skipNextFetch.current = false;
-      return;
-    }
-    if (query.trim().length < 3) return; // the onChange handler already cleared the list
-    const controller = new AbortController();
-    const t = setTimeout(async () => {
-      sessionRef.current ??= crypto.randomUUID();
-      try {
-        const res = await fetch(`/api/places/autocomplete?q=${encodeURIComponent(query)}&session=${sessionRef.current}&country=${country}`, { signal: controller.signal });
-        if (res.status === 503) {
-          setAvailable(false);
-          return;
-        }
-        if (!res.ok) return;
-        const data = (await res.json()) as { suggestions: Suggestion[] };
-        setItems(data.suggestions);
-        setOpen(data.suggestions.length > 0 && document.activeElement === inputRef.current);
-        setActive(-1);
-      } catch {
-        /* aborted or offline — keep whatever is showing */
-      }
-    }, 250);
-    return () => {
-      clearTimeout(t);
-      controller.abort();
-    };
-  }, [query, available, country]);
-
-  async function choose(s: Suggestion) {
-    setOpen(false);
-    setBusy(true);
-    try {
-      const res = await fetch(`/api/places/details?id=${encodeURIComponent(s.placeId)}&session=${sessionRef.current ?? ""}`);
-      sessionRef.current = null; // a session ends with the details call
-      if (!res.ok) return;
-      const { address: a } = (await res.json()) as { address: Address };
-      skipNextFetch.current = true;
-      setQuery(a.addressLine1 || s.main);
-      setV({ addressLine1: a.addressLine1 || s.main, addressLine2: a.addressLine2 || v.addressLine2, city: a.city, state: a.state, zip: a.zip, latitude: a.lat, longitude: a.lng });
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function onKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (!open || items.length === 0) return;
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setActive((i) => (i + 1) % items.length);
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setActive((i) => (i <= 0 ? items.length - 1 : i - 1));
-    } else if (e.key === "Enter" && active >= 0) {
-      e.preventDefault();
-      void choose(items[active]);
-    } else if (e.key === "Escape") {
-      setOpen(false);
-    }
-  }
 
   const pinned = v.latitude != null && v.longitude != null;
   const regions: readonly string[] = country === "CA" ? CA_PROVINCES : US_STATES;
@@ -101,55 +31,23 @@ export function AddressFields({ initial, country, legend = "Business address" }:
   return (
     <fieldset className="space-y-3">
       <legend className="text-sm font-semibold text-gray-800">{legend} <span className="font-normal text-gray-500">({country === "CA" ? "Canada" : "United States"})</span></legend>
-      <div className="relative">
-        <Input
-          ref={inputRef}
-          name="addressLine1"
-          value={query}
-          onChange={(e) => {
-            typed.current = true;
-            setQuery(e.target.value);
-            set({ addressLine1: e.target.value });
-            if (e.target.value.trim().length < 3) {
-              setItems([]);
-              setOpen(false);
-            }
-          }}
-          onKeyDown={onKeyDown}
-          onFocus={() => items.length > 0 && setOpen(true)}
-          onBlur={() => setOpen(false)}
-          placeholder="Street address"
-          autoComplete="off"
-          aria-label="Street address"
-          aria-autocomplete="list"
-          aria-expanded={open}
-          aria-controls={listId}
-          role="combobox"
-        />
-        <Presence show={open}>
-          {(state) => (
-          <ul id={listId} role="listbox" className={`absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-gray-200 bg-surface shadow-lg ${state === "open" ? "menu-in" : "menu-out"}`}>
-            {items.map((s, i) => (
-              <li
-                key={s.placeId}
-                role="option"
-                aria-selected={i === active}
-                onMouseDown={(e) => e.preventDefault() /* keep focus on the input */}
-                onClick={() => void choose(s)}
-                onMouseEnter={() => setActive(i)}
-                className={`press-soft cursor-pointer px-3 py-2 text-sm ${i === active ? "bg-brand-50 text-brand-800" : "text-ink hover:bg-gray-50"}`}
-              >
-                <span className="block font-semibold">{s.main}</span>
-                <span className="block text-xs text-gray-500">{s.secondary}</span>
-              </li>
-            ))}
-            <li aria-hidden="true" className="border-t border-gray-100 px-3 py-1 text-right text-[10px] uppercase tracking-wide text-gray-400">
-              Suggestions by Google
-            </li>
-          </ul>
-          )}
-        </Presence>
-      </div>
+      <AddressAutocomplete
+        name="addressLine1"
+        value={query}
+        onChange={(text) => {
+          setQuery(text);
+          set({ addressLine1: text });
+        }}
+        onPick={(a) => {
+          setQuery(a.addressLine1 || a.formatted);
+          setV((p) => ({ addressLine1: a.addressLine1 || a.formatted, addressLine2: a.addressLine2 || p.addressLine2, city: a.city, state: a.state, zip: a.zip, latitude: a.lat, longitude: a.lng }));
+        }}
+        country={country}
+        onAvailability={setAvailable}
+        onBusy={setBusy}
+        placeholder="Street address"
+        aria-label="Street address"
+      />
       <Input name="addressLine2" value={v.addressLine2} onChange={(e) => set({ addressLine2: e.target.value }, true)} placeholder="Suite, floor (optional)" autoComplete="address-line2" aria-label="Address line 2" />
       <div className="grid grid-cols-6 gap-2">
         <Input name="city" value={v.city} onChange={(e) => set({ city: e.target.value })} placeholder="City" autoComplete="address-level2" aria-label="City" className="col-span-3" />

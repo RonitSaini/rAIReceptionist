@@ -33,15 +33,31 @@ async function withTimeout<T>(fn: (signal: AbortSignal) => Promise<T>, ms: numbe
   }
 }
 
+/**
+ * Where to lean suggestions. A CIRCLE, not a restriction: Google prefers results inside it but still
+ * returns better matches outside, which is what a dispatcher wants — most jobs are near the yard, but
+ * the one that isn't must still be findable.
+ */
+export type PlacesBias = { lat: number; lng: number; radiusMiles: number };
+
+/** Google caps a locationBias circle at 50 km; a wider service area just means no useful bias. */
+function biasCircle(bias?: PlacesBias | null) {
+  if (!bias || !Number.isFinite(bias.lat) || !Number.isFinite(bias.lng)) return undefined;
+  const metres = Math.round(bias.radiusMiles * 1609.34);
+  if (!Number.isFinite(metres) || metres <= 0) return undefined;
+  return { circle: { center: { latitude: bias.lat, longitude: bias.lng }, radius: Math.min(Math.max(metres, 1000), 50000) } };
+}
+
 /** US + Canadian address suggestions as the owner types. `sessionToken` groups keystrokes + the final details call for billing. */
-export async function autocompleteAddresses(input: string, sessionToken?: string, country?: "US" | "CA"): Promise<AddressSuggestion[]> {
+export async function autocompleteAddresses(input: string, sessionToken?: string, country?: "US" | "CA", bias?: PlacesBias | null): Promise<AddressSuggestion[]> {
   if (!key() || input.trim().length < 3) return [];
+  const locationBias = biasCircle(bias);
   const data = await withTimeout(async (signal) => {
     const res = await fetch("https://places.googleapis.com/v1/places:autocomplete", {
       method: "POST",
       signal,
       headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key() },
-      body: JSON.stringify({ input: input.trim(), sessionToken, includedRegionCodes: country ? [country.toLowerCase()] : ["us", "ca"], languageCode: "en-US" }),
+      body: JSON.stringify({ input: input.trim(), sessionToken, includedRegionCodes: country ? [country.toLowerCase()] : ["us", "ca"], languageCode: "en-US", ...(locationBias ? { locationBias } : {}) }),
     });
     if (!res.ok) return null;
     return (await res.json()) as {
