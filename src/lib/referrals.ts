@@ -27,6 +27,13 @@ import { subscriptionActive } from "./billing-ui";
 /** $100, in cents. Stored per credit row so changing the offer never rewrites what was promised. */
 export const REFERRAL_CREDIT_CENTS = 10_000;
 
+/**
+ * The most referrer credits one account can ever earn — $1,200 lifetime. Insurance against fraud
+ * rings and pricing mistakes, sized so no honest owner ever meets it; the cap is on EARNING only,
+ * so the thirteenth business to use a code still gets its own discount in full.
+ */
+export const REFERRAL_CAP = 12;
+
 /** No O, I, L, 0 or 1: these get read down a phone line and written on the back of a card. */
 const CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
 const CODE_LENGTH = 8;
@@ -198,6 +205,21 @@ export async function qualifyReferral(referredAccountId: string): Promise<{ refe
   // The referrer may have closed their account since (the FK is SetNull for exactly this reason).
   // The referral still qualified — the claimer keeps their discount — but there is nobody to pay.
   if (!referral.referrerAccountId) return null;
+
+  // The cap. Counted at minting time rather than enforced at claim time, because the claimer's
+  // half of the offer should never be hostage to how many referrals the code already earned. Two
+  // first payments clearing in the same instant could in principle both read 11 and mint a 12th
+  // and 13th — a $100 rounding error at a once-in-the-program's-life corner, not worth a lock.
+  const earned = await prisma.referralCredit.count({ where: { accountId: referral.referrerAccountId, side: "referrer" } });
+  if (earned >= REFERRAL_CAP) {
+    await createNotification({
+      accountId: referral.referrerAccountId,
+      type: "system",
+      title: "Your referral code was used again",
+      body: `A business signed up with your code ${referral.code} and paid their first invoice — but you've reached the ${REFERRAL_CAP}-referral credit limit, so no new credit was added. Their own discount still applied.`,
+    });
+    return null;
+  }
 
   try {
     await prisma.referralCredit.create({
