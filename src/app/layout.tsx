@@ -1,7 +1,16 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { appUrl } from "@/lib/env";
 
 export const metadata: Metadata = {
+  /**
+   * The base every relative metadata URL resolves against — Open Graph and Twitter images, and any
+   * canonical. Without it Next resolves them against the deployment host and warns; with it a shared
+   * link carries the real domain. Read from `appUrl()` rather than hardcoded so the one env var
+   * (NEXT_PUBLIC_APP_URL) stays the single source of truth for "where this app lives", and a preview
+   * deployment describes itself as the preview rather than as production.
+   */
+  metadataBase: new URL(appUrl()),
   title: { default: "FrontDesk AI", template: "%s · FrontDesk AI" },
   description: "FrontDesk AI — an AI receptionist that answers your business line, books work, takes orders and messages, and keeps you in the loop.",
   applicationName: "FrontDesk AI",

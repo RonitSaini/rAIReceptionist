@@ -13,6 +13,16 @@ import Stripe from "stripe";
 /** Pinned to the SDK's own version so the types and the wire format agree. Bump both together. */
 export const STRIPE_API_VERSION: Stripe.LatestApiVersion = "2026-08-26.dahlia";
 
+/**
+ * The product's own public URL, shown beside the integration in Stripe's dashboard and logs.
+ *
+ * Deliberately a constant and NOT `appUrl()`: that returns the URL of whichever DEPLOYMENT is running
+ * (localhost in dev, a preview host on a branch), and Stripe wants one stable public address for the
+ * integration. It was pointing at `remained-software.vercel.app` — a different project entirely,
+ * copy-pasted in and wrong long before this domain existed. Update it if the product's domain moves.
+ */
+const PRODUCT_URL = "https://www.frontdeskai.dev";
+
 /** Tags every Checkout Session so flows can be compared in the Dashboard (Stripe asks for a fixed 8-letter suffix). */
 export const CHECKOUT_INTEGRATION_ID = "frontdesk_subscribe_qzvmxrtp";
 
@@ -27,7 +37,7 @@ export function stripe(): Stripe {
       stripe: new Stripe(key, {
         apiVersion: STRIPE_API_VERSION,
         maxNetworkRetries: 2, // idempotency keys are added automatically on retried POSTs
-        appInfo: { name: "FrontDesk AI", url: "https://remained-software.vercel.app" },
+        appInfo: { name: "FrontDesk AI", url: PRODUCT_URL },
       }),
     };
   }
