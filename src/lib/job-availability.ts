@@ -2,7 +2,7 @@ import type { Account, BusinessHours } from "@prisma/client";
 import { prisma } from "./prisma";
 import { DEFAULT_CLOSE, DEFAULT_OPEN, periodsForDay } from "./availability";
 import { googleBusyBlocks, overlapsBusy } from "./google-calendar";
-import { dayBoundsUtc, dayOfWeekOf, formatClock, timeToMinutes, zonedToUtc } from "./time";
+import { dayBoundsUtc, dayOfWeekOf, formatClock, minutesToTime, timeToMinutes, zonedToUtc } from "./time";
 
 /**
  * When a trade can actually come out.
@@ -77,12 +77,18 @@ export async function getAvailableJobSlots(account: Account, date: string, hours
   const slots: JobSlot[] = [];
   for (const period of periods) {
     const openMin = timeToMinutes(period.open || DEFAULT_OPEN);
-    const closeMin = timeToMinutes(period.close || DEFAULT_CLOSE);
+    let closeMin = timeToMinutes(period.close || DEFAULT_CLOSE);
+    // Closes after midnight, or never closes at all (00:00 to 00:00). The reservation engine has
+    // always done this; without it here a trade open round the clock got closeMin === openMin and
+    // the loop below produced no slots at all — the day looked fully booked.
+    if (closeMin <= openMin) closeMin += 24 * 60;
     // A visit must finish before closing time: a two-hour job at half an hour to close is a promise
     // the trade cannot keep.
     for (let m = openMin; m + slotMinutes <= closeMin; m += slotMinutes) {
-      const time = `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-      const startUtc = zonedToUtc(date, time, tz);
+      // Past midnight the clock reads 24:30 rather than 00:30, which is not a time anything can
+      // parse, so the slot is built from tomorrow's 00:30 instead (same shape as availability.ts).
+      const time = minutesToTime(m % (24 * 60));
+      const startUtc = m >= 24 * 60 ? new Date(zonedToUtc(date, time, tz).getTime() + 24 * 60 * 60_000) : zonedToUtc(date, time, tz);
       const endUtc = new Date(startUtc.getTime() + slotMinutes * 60_000);
 
       let reason: JobSlot["reason"];

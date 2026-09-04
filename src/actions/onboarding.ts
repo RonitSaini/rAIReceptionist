@@ -16,7 +16,7 @@ import { bool, int, json, normalizeUsPhone, optDecimal, optInt, optStr, str, typ
 import { greetingHasDisclosure } from "@/lib/greeting";
 import { DIETARY_TAGS, timeZonesFor, US_STATES, VOICES } from "@/lib/constants";
 import { onboardingDoneStep, onboardingStepsFor } from "@/verticals";
-import { isValidTimeString, timeToMinutes } from "@/lib/time";
+import { ALL_DAY_CLOSE, ALL_DAY_OPEN, isAllDay, isValidTimeString, timeToMinutes } from "@/lib/time";
 
 type Mode = "onboarding" | "settings";
 
@@ -117,6 +117,12 @@ export async function saveHours(_prev: ActionState, fd: FormData): Promise<Actio
       continue;
     }
     if (!isValidTimeString(r.open) || !isValidTimeString(r.close)) return { ok: false, error: "Every service period needs an open and close time." };
+    // Round the clock, written midnight to midnight. Checked BEFORE the equal-times guard below,
+    // which exists to catch someone typing one time twice and would otherwise refuse this.
+    if (isAllDay(r.open, r.close)) {
+      cleanHours.push({ dayOfWeek, periodName: "Open 24 hours", open: ALL_DAY_OPEN, close: ALL_DAY_CLOSE, isClosed: false });
+      continue;
+    }
     if (timeToMinutes(r.open) === timeToMinutes(r.close)) return { ok: false, error: "Open and close times can't be the same." };
     cleanHours.push({ dayOfWeek, periodName: (r.periodName || "Service").trim().slice(0, 40), open: r.open, close: r.close, isClosed: false });
   }

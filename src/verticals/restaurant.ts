@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { Account, BusinessHours, ManagerAvailability, MenuItem } from "@prisma/client";
 import type { CustomTool, EndCallTool } from "@/lib/retell";
 import { DAYS_OF_WEEK } from "@/lib/constants";
-import { formatClock } from "@/lib/time";
+import { formatClock, formatHourRange } from "@/lib/time";
 import { formatUsd } from "@/lib/form";
 import { formatRestaurantAddress } from "@/lib/geo";
 import { accountCountry, formatDistance, postalLabel, unitWord } from "@/lib/locale";
@@ -50,7 +50,7 @@ function hoursSection(hours: BusinessHours[]): string {
       lines.push(`- ${DAYS_OF_WEEK[d]}: Closed`);
       continue;
     }
-    const periods = rows.filter((r) => !r.isClosed).map((r) => `${r.periodName} ${formatClock(r.open)}–${formatClock(r.close)}`);
+    const periods = rows.filter((r) => !r.isClosed).map((r) => `${r.periodName} ${formatHourRange(r.open, r.close)}`);
     lines.push(`- ${DAYS_OF_WEEK[d]}: ${periods.join(", ")}`);
   }
   return lines.join("\n");

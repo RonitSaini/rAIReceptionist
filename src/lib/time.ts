@@ -167,6 +167,36 @@ export function formatClock(t: string): string {
   return `${hour12}:${pad2(m)} ${suffix}`;
 }
 
+/**
+ * A day that never closes, written as midnight to midnight.
+ *
+ * This is not a new idea in the schema, it is the existing one made explicit. Every engine that
+ * reads business hours already treats a close that is not after its open as running past midnight
+ * (`if (closeMin <= openMin) closeMin += 24 * 60`), so 00:00 to 00:00 has always described a full
+ * twenty-four hours. The constants exist so the hours form, the save action and the prompt builders
+ * all agree on WHICH pair of times means it, rather than each recognising its own.
+ *
+ * Deliberately not a column on BusinessHours: a boolean would be a second source of truth for
+ * something the times already say, and the two would drift the first time anyone edited one.
+ */
+export const ALL_DAY_OPEN = "00:00";
+export const ALL_DAY_CLOSE = "00:00";
+
+/** Whether a period runs round the clock. Only the canonical pair counts — see saveHours. */
+export function isAllDay(open: string, close: string): boolean {
+  return open === ALL_DAY_OPEN && close === ALL_DAY_CLOSE;
+}
+
+/**
+ * "11:00 AM–9:00 PM", or "24 hours" for a day that never closes.
+ *
+ * Without this, every display and every agent prompt renders a round-the-clock day as
+ * "12:00 AM–12:00 AM", which reads as a mistake and, spoken down a phone line, is one.
+ */
+export function formatHourRange(open: string, close: string, dash = "–"): string {
+  return isAllDay(open, close) ? "24 hours" : `${formatClock(open)}${dash}${formatClock(close)}`;
+}
+
 /** Format a "YYYY-MM-DD" string as "Sat, Aug 29" (no time zone conversion). */
 export function formatDateString(dateStr: string, opts: Intl.DateTimeFormatOptions = { weekday: "short", month: "short", day: "numeric" }): string {
   const [y, m, d] = dateStr.split("-").map(Number);

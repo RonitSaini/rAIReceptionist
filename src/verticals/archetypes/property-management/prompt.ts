@@ -1,6 +1,6 @@
 import type { Account, BusinessHours, ManagerAvailability } from "@prisma/client";
 import { DAYS_OF_WEEK } from "@/lib/constants";
-import { formatClock } from "@/lib/time";
+import { formatClock, formatHourRange } from "@/lib/time";
 import { DEFAULT_CLOSE, DEFAULT_OPEN } from "@/lib/availability";
 import { SHARED_GUARDRAILS } from "../../guardrails";
 import type { AgentSource } from "../../types";
@@ -25,7 +25,7 @@ function hoursSection(hours: BusinessHours[]): string {
       lines.push(`- ${DAYS_OF_WEEK[d]}: Office closed`);
       continue;
     }
-    lines.push(`- ${DAYS_OF_WEEK[d]}: ${rows.filter((r) => !r.isClosed).map((r) => `${formatClock(r.open)}-${formatClock(r.close)}`).join(", ")}`);
+    lines.push(`- ${DAYS_OF_WEEK[d]}: ${rows.filter((r) => !r.isClosed).map((r) => formatHourRange(r.open, r.close, "-")).join(", ")}`);
   }
   return lines.join("\n");
 }

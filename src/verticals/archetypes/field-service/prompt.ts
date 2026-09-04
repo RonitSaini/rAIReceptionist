@@ -1,6 +1,6 @@
 import type { Account, BusinessHours, ManagerAvailability, ServiceOffering } from "@prisma/client";
 import { DAYS_OF_WEEK } from "@/lib/constants";
-import { formatClock } from "@/lib/time";
+import { formatClock, formatHourRange } from "@/lib/time";
 import { formatRestaurantAddress } from "@/lib/geo";
 import { accountCountry, formatDistance, formatMoneyMicros, postalLabel } from "@/lib/locale";
 import { DEFAULT_CLOSE, DEFAULT_OPEN } from "@/lib/availability";
@@ -33,7 +33,7 @@ function hoursSection(hours: BusinessHours[]): string {
       lines.push(`- ${DAYS_OF_WEEK[d]}: Not working`);
       continue;
     }
-    lines.push(`- ${DAYS_OF_WEEK[d]}: ${rows.filter((r) => !r.isClosed).map((r) => `${formatClock(r.open)}-${formatClock(r.close)}`).join(", ")}`);
+    lines.push(`- ${DAYS_OF_WEEK[d]}: ${rows.filter((r) => !r.isClosed).map((r) => formatHourRange(r.open, r.close, "-")).join(", ")}`);
   }
   return lines.join("\n");
 }

@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import type { BusinessHours } from "@prisma/client";
 import { saveHours } from "@/actions/onboarding";
 import { DAYS_OF_WEEK } from "@/lib/constants";
+import { ALL_DAY_CLOSE, ALL_DAY_OPEN, isAllDay } from "@/lib/time";
 import { leaveGuided } from "@/lib/motion";
 import { Button, inputClass } from "@/components/ui";
 import { FormFooter, type FormMode } from "@/components/form-footer";
@@ -16,14 +17,27 @@ type Period = { id: number; periodName: string; open: string; close: string };
 let seq = 0;
 /** Local row identity, so a removed period can leave (MotionList keys) — never an index, never sent to the server. */
 const nextId = () => ++seq;
-type DayState = { isClosed: boolean; periods: Period[] };
+/**
+ * `isAllDay` is a day that never closes. It is a third state alongside open-with-periods and closed,
+ * not a fourth period: a business open round the clock has no service windows to describe, so the
+ * period rows are put away while it is on (the same treatment Closed already gets).
+ *
+ * The periods are KEPT in state underneath rather than cleared, so turning 24 hours back off returns
+ * the day to whatever it said before instead of a blank pair of time inputs.
+ */
+type DayState = { isClosed: boolean; isAllDay: boolean; periods: Period[] };
+
+const defaultPeriod = () => ({ id: nextId(), periodName: "Service Hours", open: "11:00", close: "21:00" });
 
 function buildDays(hours: BusinessHours[]): DayState[] {
   return DAYS_OF_WEEK.map((_, day) => {
     const rows = hours.filter((h) => h.dayOfWeek === day).sort((a, b) => a.sortOrder - b.sortOrder);
-    if (rows.length === 0) return { isClosed: false, periods: [{ id: nextId(), periodName: "Service Hours", open: "11:00", close: "21:00" }] };
-    if (rows.every((r) => r.isClosed)) return { isClosed: true, periods: [{ id: nextId(), periodName: "Service Hours", open: "11:00", close: "21:00" }] };
-    return { isClosed: false, periods: rows.filter((r) => !r.isClosed).map((r) => ({ id: nextId(), periodName: r.periodName, open: r.open, close: r.close })) };
+    if (rows.length === 0) return { isClosed: false, isAllDay: false, periods: [defaultPeriod()] };
+    if (rows.every((r) => r.isClosed)) return { isClosed: true, isAllDay: false, periods: [defaultPeriod()] };
+    const open = rows.filter((r) => !r.isClosed);
+    // One period covering midnight to midnight is what a saved 24-hour day looks like coming back.
+    if (open.length === 1 && isAllDay(open[0].open, open[0].close)) return { isClosed: false, isAllDay: true, periods: [defaultPeriod()] };
+    return { isClosed: false, isAllDay: false, periods: open.map((r) => ({ id: nextId(), periodName: r.periodName, open: r.open, close: r.close })) };
   });
 }
 
@@ -45,11 +59,18 @@ export function HoursForm({ hours, mode, backHref, nextHref }: { hours: Business
     setDays((prev) => prev.map((d, i) => (i === day ? { ...d, periods: d.periods.filter((_, j) => j !== idx) } : d)));
   }
   function copyToAll(day: number) {
-    setDays((prev) => prev.map((d, i) => (i === day ? d : { isClosed: prev[day].isClosed, periods: prev[day].periods.map((p) => ({ ...p, id: nextId() })) })));
+    setDays((prev) => prev.map((d, i) => (i === day ? d : { isClosed: prev[day].isClosed, isAllDay: prev[day].isAllDay, periods: prev[day].periods.map((p) => ({ ...p, id: nextId() })) })));
   }
 
   const hoursJson = JSON.stringify(
-    days.flatMap((d, dayOfWeek) => (d.isClosed ? [{ dayOfWeek, periodName: "Closed", open: "00:00", close: "00:00", isClosed: true }] : d.periods.map((p) => ({ dayOfWeek, periodName: p.periodName, open: p.open, close: p.close, isClosed: false })))),
+    days.flatMap((d, dayOfWeek) => {
+      if (d.isClosed) return [{ dayOfWeek, periodName: "Closed", open: "00:00", close: "00:00", isClosed: true }];
+      // Midnight to midnight is the convention every engine already reads as "never closes"
+      // (src/lib/time.ts). saveHours recognises this exact pair and lets it past the guard that
+      // otherwise refuses an open and close at the same time.
+      if (d.isAllDay) return [{ dayOfWeek, periodName: "Open 24 hours", open: ALL_DAY_OPEN, close: ALL_DAY_CLOSE, isClosed: false }];
+      return d.periods.map((p) => ({ dayOfWeek, periodName: p.periodName, open: p.open, close: p.close, isClosed: false }));
+    }),
   );
 
   return (
@@ -62,12 +83,31 @@ export function HoursForm({ hours, mode, backHref, nextHref }: { hours: Business
           <div key={day} className="rounded-2xl border border-gray-200 bg-surface p-4">
             <div className="flex items-center justify-between gap-3">
               <span className="font-semibold">{DAYS_OF_WEEK[day]}</span>
-              <label className="press-soft flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={d.isClosed} onChange={(e) => updateDay(day, { isClosed: e.target.checked })} className="h-5 w-5 accent-brand-600" />
-                Closed
-              </label>
+              {/* Mutually exclusive by construction: a day cannot be shut and open round the clock,
+                  so ticking either one clears the other rather than leaving both on. */}
+              <div className="flex items-center gap-4">
+                <label className="press-soft flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={d.isAllDay}
+                    onChange={(e) => updateDay(day, { isAllDay: e.target.checked, isClosed: e.target.checked ? false : d.isClosed })}
+                    className="h-5 w-5 accent-brand-600"
+                  />
+                  24 hours
+                </label>
+                <label className="press-soft flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={d.isClosed}
+                    onChange={(e) => updateDay(day, { isClosed: e.target.checked, isAllDay: e.target.checked ? false : d.isAllDay })}
+                    className="h-5 w-5 accent-brand-600"
+                  />
+                  Closed
+                </label>
+              </div>
             </div>
-            <Disclosure open={!d.isClosed}>
+            {d.isAllDay ? <p className="mt-2 text-sm text-gray-500">Open all day and all night — {DAYS_OF_WEEK[day]} has no opening or closing time.</p> : null}
+            <Disclosure open={!d.isClosed && !d.isAllDay}>
               <MotionList as="div" className="mt-3 space-y-2">
                 {d.periods.map((p, idx) => (
                   <div key={p.id} className="grid grid-cols-12 items-center gap-2">

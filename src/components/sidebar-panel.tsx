@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Account } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { todayServiceStatus } from "@/lib/availability";
-import { formatClock, nowUtc, timeAgo } from "@/lib/time";
+import { formatHourRange, nowUtc, timeAgo } from "@/lib/time";
 import { formatUsPhone } from "@/lib/form";
 import { stripeConfigured } from "@/lib/env";
 import { subscriptionActive } from "@/lib/billing-ui";
@@ -56,9 +56,7 @@ export async function SidebarPanel({ account }: { account: Account }) {
             {service.periods.map((p) => (
               <li key={`${p.periodName}-${p.open}`} className="flex justify-between gap-2">
                 <span>{p.periodName}</span>
-                <span className="tabular-nums">
-                  {formatClock(p.open)}–{formatClock(p.close)}
-                </span>
+                <span className="tabular-nums">{formatHourRange(p.open, p.close)}</span>
               </li>
             ))}
           </ul>
