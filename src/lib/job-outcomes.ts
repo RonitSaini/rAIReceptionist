@@ -4,7 +4,7 @@ import { createNotification } from "./notifications";
 import { formatUsPhone } from "./form";
 import { formatDateTime } from "./time";
 import { verticalFor, vocabularyFor } from "@/verticals";
-import { markConfirmationSent, sendGuestSms } from "./sms";
+import { markConfirmationSent, notifyUndeliveredSms, sendGuestSms } from "./sms";
 import { afterEscalation } from "./outcomes";
 import { syncJobToGoogle } from "./google-calendar";
 
@@ -59,6 +59,9 @@ export async function afterJobBooked(account: Account, job: Job, call: Call | nu
   // jobId so a failed confirmation shows up on the Dispatch queue beside the person waiting for it.
   const sms = await sendGuestSms(account, job.customerPhone, body, { purpose: "reservation_confirmation", jobId: job.id });
   await markConfirmationSent("job", job.id, sms);
+  // The Dispatch queue already flags this while the job is live; the notification is what reaches
+  // an owner who is not looking at that queue, and what survives the job leaving it.
+  await notifyUndeliveredSms(account, sms, { name: job.customerName, phone: job.customerPhone, what: `Their ${words.booking.one} is booked here, but the confirmation text did not arrive`, jobId: job.id, callId: call?.id ?? null });
 }
 
 /**

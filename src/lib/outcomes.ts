@@ -7,7 +7,7 @@ import { formatUsPhone } from "./form";
 import { addDays, dayOfWeekOf, formatClock, formatDateString, formatDateTime, getParts, timeToMinutes, toDateString } from "./time";
 import { periodsForDay } from "./availability";
 import { verticalFor, vocabularyFor } from "@/verticals";
-import { markConfirmationSent, reservationConfirmationText, sendGuestSms, takeoutConfirmationText, unacknowledgedText } from "./sms";
+import { markConfirmationSent, notifyUndeliveredSms, reservationConfirmationText, sendGuestSms, takeoutConfirmationText, unacknowledgedText } from "./sms";
 import { friendlyProviderError } from "./provider-errors";
 
 /**
@@ -48,6 +48,8 @@ export async function afterReservationBooked(account: Account, r: Reservation, c
     reservationId: r.id,
   });
   await markConfirmationSent("reservation", r.id, sms);
+  // The booking is in the feed either way; this says whether the guest actually knows about it.
+  await notifyUndeliveredSms(account, sms, { name: r.guestName, phone: r.guestPhone, what: `Their ${when} booking is confirmed here, but the confirmation text did not arrive`, reservationId: r.id, callId: call?.id ?? null });
 }
 
 export async function afterTakeoutOrdered(account: Account, o: TakeoutOrder, call: Call | null): Promise<void> {
@@ -64,6 +66,7 @@ export async function afterTakeoutOrdered(account: Account, o: TakeoutOrder, cal
     purpose: "takeout_confirmation",
   });
   await markConfirmationSent("order", o.id, sms);
+  await notifyUndeliveredSms(account, sms, { name: o.guestName, phone: o.guestPhone, what: `Their ${o.isDelivery ? "delivery" : "pickup"} order for ${when} is confirmed here, but the confirmation text did not arrive`, takeoutOrderId: o.id, callId: call?.id ?? null });
 }
 
 // ---------- Messages + escalations ----------
