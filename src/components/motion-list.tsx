@@ -43,6 +43,12 @@ export function MotionList({ as: Tag = "ul", children, className, ...rest }: { a
   useLayoutEffect(() => {
     const list = host.current;
     if (!list) return;
+    // A commit can land while the list is not laid out at all — an ancestor hidden while the router
+    // swaps the route in, most often. Every row then measures at the origin, and recording that
+    // would make the next real commit fling all of them in from the top-left corner. Nothing to
+    // compare and nothing worth remembering, so this commit is a no-op.
+    if (list.offsetWidth === 0 && list.offsetHeight === 0) return;
+
     const reduce = prefersReducedMotion();
     const prev = seen.current;
     const live = Array.from(list.children).filter((c): c is HTMLElement => c instanceof HTMLElement && !c.classList.contains("row-exit"));
