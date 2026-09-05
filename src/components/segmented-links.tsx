@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { cx } from "@/lib/cx";
 
 export type SegmentedItem = { key: string; href: string; label: ReactNode; active: boolean };
@@ -45,6 +45,8 @@ export function SegmentedLinks({
   "aria-label"?: string;
 }) {
   const rail = useRef<HTMLDivElement>(null);
+  /** The geometry last written, so a commit that moved nothing costs one read and stops. */
+  const placed = useRef("");
   const [pending, setPending] = useState<string | null>(null);
   const activeKey = items.find((i) => i.active)?.key ?? null;
   // The server caught up with the click: the pending key is the active one again.
@@ -55,6 +57,11 @@ export function SegmentedLinks({
     const r = rail.current;
     if (!r) return;
     const el = shownKey === null ? null : r.querySelector<HTMLElement>(`[data-key="${CSS.escape(shownKey)}"]`);
+    // Nothing has moved: one read and out. The measure below runs after every commit, and this is
+    // what keeps that free — no class toggle, no forced reflow, no style invalidation.
+    const sig = el ? `${el.offsetLeft}|${el.offsetWidth}|${el.offsetHeight}` : "off";
+    if (sig === placed.current) return;
+    placed.current = sig;
     if (instant) r.classList.add("is-instant");
     if (el) {
       const h = el.offsetHeight;
@@ -76,11 +83,27 @@ export function SegmentedLinks({
     }
   }, [shownKey]);
 
-  // First paint and resize snap the indicator into place; a pick slides it.
+  /**
+   * Re-measured after EVERY commit, not only when the choice changes.
+   *
+   * The strip can be re-laid out without anything being picked: the "Unread only" toggle shares the
+   * rail and grows a ✕ when it is on, which shifts every pill along by its width. Keyed on the
+   * picked item alone, the effect never re-ran, `--seg-x` kept the old offset, and the indicator sat
+   * 16px to the left of the pill it belongs to — a stray ring around "All types", which had gone
+   * transparent to let the indicator be its fill.
+   */
   const first = useRef(true);
+  const lastKey = useRef<string | null>(null);
   useLayoutEffect(() => {
-    place(first.current);
+    // A pick slides. A re-measure — first paint, a resize, a neighbour changing width — snaps:
+    // nothing was chosen, so an indicator gliding off on its own would read as a glitch, not an answer.
+    const picked = !first.current && lastKey.current !== shownKey;
+    place(!picked);
+    lastKey.current = shownKey;
     first.current = false;
+  });
+
+  useEffect(() => {
     const onResize = () => place(true);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
