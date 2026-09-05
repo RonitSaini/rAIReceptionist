@@ -3,11 +3,12 @@ import type { NotificationType } from "@prisma/client";
 import { requireAccount } from "@/lib/current-account";
 import { prisma } from "@/lib/prisma";
 import { FIELD_SERVICE_NOTIFICATION_TYPES, NOTIFICATION_TYPES } from "@/lib/constants";
-import { NOTIFICATION_TYPE_LABEL } from "@/lib/notifications";
+import { NOTIFICATION_TYPE_LABEL, clearableReadWhere } from "@/lib/notifications";
 import { verticalFor, vocabularyFor } from "@/verticals";
 import { markAllNotificationsRead } from "@/actions/notifications";
 import { Button, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { NotificationList } from "@/components/notification-list";
+import { ClearReadNotifications } from "@/components/clear-read-notifications";
 import { SegmentedLinks } from "@/components/segmented-links";
 
 export const metadata = { title: "Notifications" };
@@ -27,7 +28,7 @@ export default async function NotificationsPage({ searchParams }: { searchParams
   const labelFor = (t: NotificationType) => (t === "job" ? words.booking.Many : NOTIFICATION_TYPE_LABEL[t]);
   const typeLabel = typeFilter ? labelFor(typeFilter) : null;
 
-  const [items, unreadCount, totalCount] = await Promise.all([
+  const [items, unreadCount, totalCount, clearableCount, heldBackCount] = await Promise.all([
     prisma.notification.findMany({
       where: { accountId: account.id, ...(typeFilter ? { type: typeFilter } : {}), ...(unreadOnly ? { readAt: null } : {}) },
       orderBy: { createdAt: "desc" },
@@ -35,6 +36,10 @@ export default async function NotificationsPage({ searchParams }: { searchParams
     }),
     prisma.notification.count({ where: { accountId: account.id, readAt: null } }),
     prisma.notification.count({ where: { accountId: account.id } }),
+    prisma.notification.count({ where: clearableReadWhere(account.id, typeFilter) }),
+    // Read, urgent, still unacknowledged: held back by the same guard that stops a single dismiss,
+    // and counted so the confirmation can say so rather than quietly leaving rows behind.
+    prisma.notification.count({ where: { accountId: account.id, readAt: { not: null }, priority: "urgent", acknowledgedAt: null, ...(typeFilter ? { type: typeFilter } : {}) } }),
   ]);
 
   const filterHref = (t: string | null, u: boolean) => {
@@ -83,13 +88,16 @@ export default async function NotificationsPage({ searchParams }: { searchParams
         title="Notifications"
         subtitle={unreadCount === 0 ? "All caught up" : `${unreadCount} unread`}
         action={
-          unreadCount > 0 ? (
-            <form action={markAllNotificationsRead}>
-              <Button type="submit" variant="secondary" size="sm">
-                Mark all read
-              </Button>
-            </form>
-          ) : null
+          <div className="flex flex-wrap items-start justify-end gap-2">
+            {unreadCount > 0 ? (
+              <form action={markAllNotificationsRead}>
+                <Button type="submit" variant="secondary" size="sm">
+                  Mark all read
+                </Button>
+              </form>
+            ) : null}
+            <ClearReadNotifications count={clearableCount} heldBack={heldBackCount} typeFilter={typeFilter} typeLabel={typeLabel} />
+          </div>
         }
       />
 

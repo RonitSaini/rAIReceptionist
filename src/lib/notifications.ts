@@ -31,6 +31,22 @@ export function createNotification(input: CreateNotificationInput) {
   });
 }
 
+/**
+ * Which notifications a "Clear read" may remove.
+ *
+ * Read, and within the type filter the page is showing. An urgent row that is read but still
+ * unacknowledged is held back: "Mark all read" marks exactly those, so without this the bulk
+ * clear would sweep away the alarms one button press after they were silenced.
+ */
+export function clearableReadWhere(accountId: string, type: NotificationType | null) {
+  return {
+    accountId,
+    readAt: { not: null },
+    NOT: { priority: "urgent" as const, acknowledgedAt: null },
+    ...(type ? { type } : {}),
+  };
+}
+
 export function countUnread(accountId: string) {
   return prisma.notification.count({ where: { accountId, readAt: null } });
 }

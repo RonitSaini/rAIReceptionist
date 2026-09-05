@@ -6,7 +6,7 @@ import type { Notification, NotificationPriority, NotificationType } from "@pris
 import { prisma } from "@/lib/prisma";
 import { requireAccount } from "@/lib/current-account";
 import { str } from "@/lib/form";
-import { notificationHref } from "@/lib/notifications";
+import { clearableReadWhere, notificationHref } from "@/lib/notifications";
 
 function refresh() {
   revalidatePath("/notifications");
@@ -162,6 +162,19 @@ export async function restoreNotification(snapshot: DismissedNotification): Prom
   }
   refresh();
   return { ok: true };
+}
+
+/**
+ * Clear the read notifications, within whatever type filter the page is showing.
+ *
+ * Scoped to the visible filter on purpose: pressing "Clear read" while looking at Messages must not
+ * quietly take the read Estimates with it.
+ */
+export async function clearReadNotifications(type: NotificationType | null): Promise<{ deleted: number }> {
+  const { account } = await requireAccount();
+  const { count } = await prisma.notification.deleteMany({ where: clearableReadWhere(account.id, type) });
+  refresh();
+  return { deleted: count };
 }
 
 /** Manager "Acknowledge" — clears an escalation (also marks it read). */
