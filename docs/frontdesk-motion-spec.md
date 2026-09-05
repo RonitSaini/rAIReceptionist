@@ -1264,6 +1264,25 @@ height now skips the commit entirely rather than remembering nonsense.
 26. **Never record a measurement taken while the list is not laid out.** Zero width and zero height
     mean hidden, not moved; storing the origin turns the next commit into a scramble.
 
+### 11.5 The same mistake, one component over (2026-09-05)
+
+`<SegmentedLinks>` re-measured its indicator only when the **picked** item changed. But the
+notifications strip carries an independent toggle beside the choice, and "Unread only" grows a ✕
+when it is on — 16 px wider, which shifts every pill along it. Nothing was picked, so nothing
+re-measured: `--seg-x` kept the old offset and the indicator sat 16 px left of the chip it belongs
+to. Because the active chip goes `background-color: transparent` to let the indicator BE its fill,
+the result was a chip with no fill and a stray filled ring beside it.
+
+Measured: leading toggle 122 → 138 px, "All types" 146 → 162 px, `--seg-x` **146 px**, unmoved.
+
+It now measures after every commit, with a geometry signature so a commit that moved nothing costs
+one read and stops — and it snaps rather than slides when nothing was picked, because an indicator
+gliding on its own reads as a glitch rather than as an answer to a click.
+
+27. **Re-measure when the layout can change, not when the selection changes.** They are different
+    events. A neighbour resizing moves your geometry without touching your state, and an indicator
+    keyed to state alone will confidently point at where the thing used to be.
+
 Verified on the notifications grid (2 columns at 1440 px), the bell popover's plain list and the Hours
 form's rows; reduced motion still removes the row with no exit node and no slide. `npm test` 106/106
 with a dev server up, goldens byte-identical, `eslint` and `tsc --noEmit` clean.
