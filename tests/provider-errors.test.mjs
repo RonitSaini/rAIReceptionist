@@ -19,6 +19,11 @@ const RAW = {
   network: "ETIMEDOUT: connect timed out after 15000ms",
   googleGrant: 'invalid_grant: Token has been expired or revoked. {"error":"invalid_grant"}',
   mystery: "Error 99999: something entirely unexpected happened (request req_8f2ab)",
+  // 21610 is "attempt to send to unsubscribed recipient". Twilio words the message as a
+  // blacklist rule; the SMS status callback stores the bare code alongside it.
+  optedOutMessage: "The message From/To pair violates a blacklist rule.",
+  optedOutCode: "21610 Attempt to send to unsubscribed recipient",
+  skippedByUs: "Recipient has opted out of messages from this number (replied STOP).",
 };
 
 test("common failures map to plain owner-facing language", () => {
@@ -47,4 +52,17 @@ test("the raw text never leaks into the mapped clause", () => {
       assert.ok(mapped.length < 80, "owner-facing clause stays one plain phrase");
     }
   }
+});
+
+test("an opt-out is named as an opt-out, never as an unfinished setup", () => {
+  // The bug: 21610 sat in the setup bucket, so a customer unsubscribing told the owner to go
+  // finish configuring their phone service. It was invisible only because nothing stored the
+  // numeric code -- the delivery receipts now do.
+  for (const raw of [RAW.optedOutMessage, RAW.optedOutCode, RAW.skippedByUs]) {
+    assert.equal(friendlyProviderError("sms", raw), "they've opted out of messages from this number", raw);
+  }
+});
+
+test("carrier filtering is still its own thing, not an opt-out", () => {
+  assert.equal(friendlyProviderError("sms", RAW.filtered), "their carrier or opt-out settings blocked it");
 });

@@ -334,6 +334,15 @@ model Customer {
   notes   String?
   details Json?
 
+  /// When this number last texted STOP (or another carrier opt-out keyword) to this account's
+  /// number. Null means reachable. Cleared by START/UNSTOP.
+  ///
+  /// The carrier enforces the block whatever this column says; it exists so the app can skip the
+  /// send and tell the owner in plain language, instead of learning about it from a rejection that
+  /// used to land in a diagnostic row nobody reads. Opt-out is per (their number, our number), and
+  /// an account has one Twilio number, so (accountId, phone) is exactly the right grain.
+  smsOptedOutAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

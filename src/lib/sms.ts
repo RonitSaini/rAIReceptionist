@@ -3,9 +3,24 @@ import { randomUUID } from "node:crypto";
 import { prisma } from "./prisma";
 import { formatDateTime } from "./time";
 import { sendSms } from "./twilio";
-import { twilioConfigured } from "./env";
+import { appUrl, twilioConfigured } from "./env";
+import { createNotification } from "./notifications";
+import { formatUsPhone } from "./form";
+import { friendlyProviderError } from "./provider-errors";
+import { isOptedOut } from "./sms-opt-out";
 import { verticalFor } from "@/verticals";
 import type { CancellationKind } from "@/verticals/types";
+
+/**
+ * Where Twilio reports what the carrier did with a message.
+ *
+ * Undefined when there is no public URL to call back to (a bare `next dev` with nothing tunnelling
+ * in), because a StatusCallback pointing at localhost is a delivery receipt sent into a void.
+ */
+function smsStatusCallbackUrl(): string | undefined {
+  const base = appUrl();
+  return /^https:\/\//.test(base) ? `${base}/api/twilio/sms/status` : undefined;
+}
 
 /**
  * Guest-facing SMS (the restaurant itself is never texted — it gets in-app notifications).
@@ -13,7 +28,17 @@ import type { CancellationKind } from "@/verticals/types";
  * logged and reported back, never thrown into the call flow.
  */
 
-export type SmsResult = { ok: true; sid: string } | { ok: false; error: string; skipped?: boolean };
+/**
+ * Why a text did not go out.
+ *
+ * The distinction that matters is whether anyone should be told. `opted_out` and `provider` are
+ * things that happened to a message somebody was expecting; `no_number` and `not_configured` mean
+ * there was never going to be a message at all, and an owner mid-setup does not need a notification
+ * per booking explaining that they have not finished setting up.
+ */
+export type SmsFailureReason = "no_number" | "not_configured" | "opted_out" | "provider";
+
+export type SmsResult = { ok: true; sid: string } | { ok: false; error: string; reason: SmsFailureReason; skipped?: boolean };
 
 function sender(account: Pick<Account, "twilioNumber">): string | undefined {
   return process.env.TWILIO_MESSAGING_SERVICE_SID ? undefined : (account.twilioNumber ?? undefined);
@@ -28,12 +53,36 @@ export async function sendGuestSms(
   body: string,
   meta?: { purpose?: SmsPurpose; callId?: string | null; reservationId?: string | null; jobId?: string | null },
 ): Promise<SmsResult> {
-  if (!to) return { ok: false, error: "no phone number", skipped: true };
-  if (!twilioConfigured()) return { ok: false, error: "Twilio not configured", skipped: true };
+  if (!to) return { ok: false, error: "no phone number", reason: "no_number", skipped: true };
+  if (!twilioConfigured()) return { ok: false, error: "Twilio not configured", reason: "not_configured", skipped: true };
   const from = sender(account);
-  if (!from && !process.env.TWILIO_MESSAGING_SERVICE_SID) return { ok: false, error: "no sending number yet", skipped: true };
+  if (!from && !process.env.TWILIO_MESSAGING_SERVICE_SID) return { ok: false, error: "no sending number yet", reason: "not_configured", skipped: true };
+
+  // They asked us to stop. Twilio would refuse this anyway; refusing it here means the refusal is
+  // ours, carries the real reason, and cannot be mistaken for a message that went out. The row is
+  // still written, at zero segments, because a text the business could not send is a fact about
+  // the account — the same reason a hard failure is recorded below.
+  if (await isOptedOut(account.id, to)) {
+    const error = "Recipient has opted out of messages from this number (replied STOP).";
+    await recordSms({
+      accountId: account.id,
+      messageSid: `optedout:${randomUUID()}`,
+      direction: "outbound",
+      toNumber: to,
+      fromNumber: from ?? null,
+      numSegments: 0,
+      status: "failed",
+      error,
+      purpose: meta?.purpose ?? null,
+      callId: meta?.callId ?? null,
+      reservationId: meta?.reservationId ?? null,
+      jobId: meta?.jobId ?? null,
+    });
+    return { ok: false, error, reason: "opted_out", skipped: true };
+  }
+
   try {
-    const sent = await sendSms({ to, body, from });
+    const sent = await sendSms({ to, body, from, statusCallback: smsStatusCallbackUrl() });
     await recordSms({
       accountId: account.id,
       messageSid: sent.sid,
@@ -69,8 +118,47 @@ export async function sendGuestSms(
       reservationId: meta?.reservationId ?? null,
       jobId: meta?.jobId ?? null,
     });
-    return { ok: false, error };
+    return { ok: false, error, reason: "provider" };
   }
+}
+
+/**
+ * Tell the owner a customer was not reached.
+ *
+ * Bookings taken by the AI used to fail silently in exactly the place it matters most: the guest
+ * confirmation. `markConfirmationSent` returns early when the send failed, `smsConfirmedAt` stays
+ * null, and nothing anywhere renders that column — so a confirmation that never arrived looked
+ * identical to one that did. Only the Dispatch queue (jobs) and the escalation follow-up said
+ * anything out loud.
+ *
+ * Quiet when nothing was ever going to be sent (no number on the booking, Twilio not connected
+ * yet): those are setup facts, not delivery failures, and one notification per booking would bury
+ * the feed during the first hour of an account's life.
+ */
+export async function notifyUndeliveredSms(
+  account: Pick<Account, "id">,
+  result: SmsResult,
+  about: { name: string; phone: string | null | undefined; what: string; reservationId?: string | null; takeoutOrderId?: string | null; jobId?: string | null; callId?: string | null },
+): Promise<void> {
+  if (result.ok) return;
+  if (result.reason === "no_number" || result.reason === "not_configured") return;
+
+  const who = about.name?.trim() || (about.phone ? formatUsPhone(about.phone) : "your customer");
+  // The raw provider text stays on the SmsMessage row; the owner gets one plain clause.
+  const why = friendlyProviderError("sms", result.error);
+  const next = result.reason === "opted_out" ? "Call them if the details need confirming - texting this number will keep failing until they text START." : "Call them to confirm.";
+
+  await createNotification({
+    accountId: account.id,
+    type: "system",
+    priority: "urgent",
+    title: `Couldn't text ${who}`,
+    body: `${about.what} - ${why}. ${next}`,
+    reservationId: about.reservationId ?? null,
+    takeoutOrderId: about.takeoutOrderId ?? null,
+    jobId: about.jobId ?? null,
+    callId: about.callId ?? null,
+  }).catch((e) => console.warn("[sms] could not notify about an undelivered text", e));
 }
 
 /**

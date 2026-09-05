@@ -21,13 +21,24 @@ export function friendlyProviderError(channel: ProviderChannel, raw?: string | n
   if (channel === "calendar" && /invalid_grant|unauthoriz|revoked|expired|401|403/.test(r)) {
     return "the Google connection needs to be reconnected";
   }
+  // The recipient's own choice, and specifically that: they replied STOP to this number. 21610 is
+  // Twilio's code for it and "blacklist rule" is the wording of its message; a send this app
+  // skipped because it already knew says so in as many words.
+  //
+  // This has to be tested before the setup bucket below, which used to claim 21610 for itself and
+  // would have told an owner to finish configuring their phone service because a customer
+  // unsubscribed. Harmless only while nothing stored the numeric code — the SMS status callback
+  // now does.
+  if (/\b21610\b|opted out|opt-out|unsubscrib|blacklist/.test(r)) {
+    return "they've opted out of messages from this number";
+  }
   // The account can't send yet: Twilio trial limits, unverified destination, unregistered A2P
   // campaign, missing or SMS-incapable number. All of them read as "finish setting up".
-  if (/unverified|\btrial\b|not.*regist|10dlc|a2p|campaign|is not a valid|invalid.*\b(to|from|number)\b|sms.?capable|no .{0,20}phone number|21211|21606|21608|21610|21408|63018|30034|30038/.test(r)) {
+  if (/unverified|\btrial\b|not.*regist|10dlc|a2p|campaign|is not a valid|invalid.*\b(to|from|number)\b|sms.?capable|no .{0,20}phone number|21211|21606|21608|21408|63018|30034|30038/.test(r)) {
     return "your account's phone service isn't fully set up yet";
   }
-  // The other side said no: carrier filtering, an opted-out recipient, a blocked destination.
-  if (/blacklist|block|filter|opt.?ed?.?out|unsubscrib|violat|30007|30006|21612|21614/.test(r)) {
+  // The other side said no for some other reason: carrier filtering, a blocked destination.
+  if (/blacklist|block|filter|violat|30007|30006|21612|21614/.test(r)) {
     return "their carrier or opt-out settings blocked it";
   }
   // Transient: network trouble, provider hiccups, rate limits. Trying again later usually works.

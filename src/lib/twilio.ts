@@ -141,8 +141,15 @@ export type SentSms = {
   from?: string;
 };
 
-/** Send an SMS. Uses the Messaging Service when configured, otherwise the given `from` number. */
-export async function sendSms(opts: { to: string; body: string; from?: string }): Promise<SentSms> {
+/**
+ * Send an SMS. Uses the Messaging Service when configured, otherwise the given `from` number.
+ *
+ * `statusCallback` is where Twilio reports what the carrier did with the message afterwards. Without
+ * it the only failure this app can see is a synchronous rejection — the ones Twilio refuses outright,
+ * like a send to a number that has opted out. A message Twilio *accepts* and the carrier later drops
+ * comes back only on the callback, so without one it stays "queued" forever and reads as sent.
+ */
+export async function sendSms(opts: { to: string; body: string; from?: string; statusCallback?: string }): Promise<SentSms> {
   const service = process.env.TWILIO_MESSAGING_SERVICE_SID;
   if (!service && !opts.from) throw new Error("sendSms needs TWILIO_MESSAGING_SERVICE_SID or a from number.");
   const data = await request<{ sid: string; num_segments?: string; status?: string; encoding?: string; from?: string }>(
@@ -153,6 +160,7 @@ export async function sendSms(opts: { to: string; body: string; from?: string })
       Body: opts.body,
       MessagingServiceSid: service || undefined,
       From: service ? undefined : opts.from,
+      StatusCallback: opts.statusCallback,
     },
   );
   return {
