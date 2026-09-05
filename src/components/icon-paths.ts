@@ -56,6 +56,9 @@ export const ICON_PATHS = {
   paw: ["M9 10a5 5 0 0 1 5 5v3.5a3.5 3.5 0 0 1-6.84 1.045Q6.52 17.48 4.46 16.84A3.5 3.5 0 0 1 5.5 10Z", "M9 4a2 2 0 1 0 4 0a2 2 0 1 0-4 0", "M16 8a2 2 0 1 0 4 0a2 2 0 1 0-4 0", "M18 16a2 2 0 1 0 4 0a2 2 0 1 0-4 0"],
   building: ["M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z", "M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2", "M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2", "M10 6h4", "M10 10h4", "M10 14h4", "M10 18h4"],
   check: ["M20 6 9 17l-5-5"],
+  // Both strokes are the outline of an X, not an outline plus a detail, so they must not stagger.
+  // It is only ever rendered at 16px with draw={false} anyway (spec §5 rule 8: no draw below 18px).
+  x: ["M18 6 6 18", "m6 6 12 12"],
   "arrow-down": ["M12 5v14", "m19 12-7 7-7-7"],
   "arrow-left": ["m12 19-7-7 7-7", "M19 12H5"],
   "audio-lines": ["M10 3v18", "M2 10v3", "M6 6v11", "M14 8v7", "M18 5v13", "M22 10v3"],

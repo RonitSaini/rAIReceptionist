@@ -109,6 +109,13 @@ export const INTERACTION = {
   ease: "cubic-bezier(0.22, 1, 0.36, 1)",
   /** How long a success toast holds before it leaves. */
   toastHold: 4000,
+  /**
+   * How long an UNDO holds. Longer than a plain toast, because a plain toast only has to be read
+   * while this has to be read, understood as reversible, and acted on — and when it lapses the
+   * notification stays deleted. Measured against the toast it replaces: four seconds is enough to
+   * notice a confirmation and not enough to change your mind about one.
+   */
+  undoHold: 8000,
   /** How long the submit button reads "Saved" with its drawn check before it offers "Save" again. */
   savedHold: 2000,
   /** Guided arrivals (spec §8): the second and third groups of a page trail the first by this much. */

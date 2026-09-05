@@ -50,7 +50,7 @@ export type { BellNotification } from "./notification-ui";
 
 /** Compact, serializable shape for the bell popover. */
 export function toBellNotification(n: Notification): BellNotification {
-  return { id: n.id, type: n.type, priority: n.priority, title: n.title, body: n.body, createdAt: n.createdAt.toISOString(), readAt: n.readAt ? n.readAt.toISOString() : null };
+  return { id: n.id, type: n.type, priority: n.priority, title: n.title, body: n.body, createdAt: n.createdAt.toISOString(), readAt: n.readAt ? n.readAt.toISOString() : null, acknowledgedAt: n.acknowledgedAt ? n.acknowledgedAt.toISOString() : null };
 }
 
 /** The most recent notifications for the bell popover (read and unread, newest first). */

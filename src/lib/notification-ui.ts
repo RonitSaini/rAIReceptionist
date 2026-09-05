@@ -55,4 +55,7 @@ export type BellNotification = {
   body: string;
   createdAt: string;
   readAt: string | null;
+  /// An urgent notification that is not yet acknowledged cannot be dismissed from either surface,
+  /// so the popover needs to know which of its rows those are.
+  acknowledgedAt: string | null;
 };

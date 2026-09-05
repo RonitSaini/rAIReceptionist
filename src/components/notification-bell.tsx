@@ -6,11 +6,12 @@ import { useCallback, useEffect, useId, useRef, useState, type ToggleEvent } fro
 import { NOTIFICATION_POLL_MS } from "@/lib/constants";
 import { NOTIFICATION_TYPE_ICON, type BellNotification } from "@/lib/notification-ui";
 import { timeAgo } from "@/lib/time";
-import { markAllNotificationsRead, markNotificationRead, openNotification } from "@/actions/notifications";
+import { acknowledgeNotification, markAllNotificationsRead, markNotificationRead, openNotification } from "@/actions/notifications";
 import { DrawIcon } from "@/components/draw-icon";
 import { StatusDot } from "@/components/ui";
 import { Tick } from "@/components/tick";
 import { MotionList } from "@/components/motion-list";
+import { DismissButton, UndoBar, useDismiss, useNotificationsChanged } from "@/components/notification-dismiss";
 
 /**
  * Bell + unread badge + popover. Polls on an interval and refreshes on navigation — no realtime/push
@@ -52,6 +53,12 @@ export function NotificationBell({ initialCount, initialItems }: { initialCount:
     setCount(data.count);
     setItems(data.items);
   }, []);
+
+  // Dismissing here refetches, because this surface holds its own copy of the list.
+  const { busyId, undo, error, dismiss, undoDismiss, clearUndo } = useDismiss(load);
+
+  // ...and dismissing ANYWHERE refetches, because the badge is here and the inbox page is not.
+  useNotificationsChanged(load);
 
   // Poll while visible; refresh on navigation. State is only set from the fetch callback, never synchronously.
   useEffect(() => {
@@ -128,6 +135,10 @@ export function NotificationBell({ initialCount, initialItems }: { initialCount:
     await markAllNotificationsRead();
     await load();
   };
+  const acknowledge = async (fd: FormData) => {
+    await acknowledgeNotification(fd);
+    await load();
+  };
 
   const shown = tab === "unread" ? items.filter((n) => !n.readAt) : items;
   const now = new Date();
@@ -179,6 +190,7 @@ export function NotificationBell({ initialCount, initialItems }: { initialCount:
               {shown.map((n) => {
                 const unread = !n.readAt;
                 const urgent = n.priority === "urgent";
+                const needsAck = urgent && !n.acknowledgedAt;
                 return (
                   <li key={n.id} data-urgent={urgent ? "true" : undefined} className={`group flex gap-3 border-b border-gray-100 px-4 py-3 transition-colors last:border-0 hover:bg-gray-50 ${unread ? "bg-brand-50/40" : ""}`}>
                     <DrawIcon name={NOTIFICATION_TYPE_ICON[n.type]} size={18} draw={false} className={`mt-0.5 shrink-0 ${urgent ? "text-red-600" : "text-gray-400"}`} />
@@ -197,20 +209,45 @@ export function NotificationBell({ initialCount, initialItems }: { initialCount:
                       </span>
                       </button>
                     </form>
-                    {unread ? (
-                      <form action={markRead} className="shrink-0 self-center">
-                        <input type="hidden" name="id" value={n.id} />
-                        <button type="submit" className="press-soft text-xs font-semibold text-brand-700 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100">
-                          Mark read
-                        </button>
-                      </form>
-                    ) : null}
+                    <div className="flex shrink-0 items-center gap-1 self-center">
+                      {unread ? (
+                        <form action={markRead}>
+                          <input type="hidden" name="id" value={n.id} />
+                          <button type="submit" className="press-soft text-xs font-semibold text-brand-700 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100">
+                            Mark read
+                          </button>
+                        </form>
+                      ) : null}
+                      {/* An unacknowledged alarm cannot be dismissed in one step anywhere, so the
+                          popover offers the button that unlocks it rather than a dead control. */}
+                      {needsAck ? (
+                        <form action={acknowledge}>
+                          <input type="hidden" name="id" value={n.id} />
+                          <button type="submit" className="press rounded-lg bg-red-600 px-2 py-1 text-xs font-semibold text-white hover:bg-red-700">
+                            Acknowledge
+                          </button>
+                        </form>
+                      ) : (
+                        <DismissButton title={n.title} busy={busyId === n.id} onDismiss={() => dismiss(n.id)} className="md:opacity-0 md:group-focus-within:opacity-100 md:group-hover:opacity-100" />
+                      )}
+                    </div>
                   </li>
                 );
               })}
             </MotionList>
           )}
         </div>
+
+        {error ? (
+          <p role="alert" className="shrink-0 border-t border-red-200 bg-red-50 px-4 py-2 text-xs font-semibold text-red-800">
+            {error}
+          </p>
+        ) : null}
+        {undo ? (
+          <div className="shrink-0 border-t border-gray-200 p-2">
+            <UndoBar seq={undo.seq} onUndo={undoDismiss} onExpire={clearUndo} inline />
+          </div>
+        ) : null}
 
         <Link href="/notifications" onClick={close} className="press-soft block shrink-0 border-t border-gray-200 py-2.5 text-center text-sm font-semibold text-brand-700 hover:bg-gray-50">
           View all notifications
