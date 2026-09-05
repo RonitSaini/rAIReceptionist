@@ -614,7 +614,7 @@ Holds (JS, same file): a success toast holds 4 s; the "Saved" check holds 2 s be
 | Popover / bottom sheet | enters from its origin (top-right under the bell, bottom edge as a sheet) and leaves the same way, faster; `@starting-style` + `allow-discrete`, so the exit animates too | `.notif-panel` |
 | Menus (address suggestions) | grows down from the input at standard, shrinks back at exit | `<Presence>` + `.menu-in` / `.menu-out` |
 | Toasts | rise from the bottom edge (above the tab bar on a phone, bottom-right on desktop), hold 4 s, drop faster; portalled to `<body>`; `role=status` | `<Toast>` |
-| Rows (add / remove / reorder) | keys diffed after every commit: a new row fades up 4 px; a removed row is kept (its detached node, at its old index) for a 150 ms fade-and-settle; rows that moved slide from their old offset (FLIP, inline transform) | `<MotionList>`, `.row-enter`, `.row-exit` |
+| Rows (add / remove / reorder) | keys diffed after every commit: a new row fades up 4 px; a removed row is kept (its detached node, pinned out of flow to the rect it held) for a fade-and-settle; rows that moved slide from their old offset (FLIP, inline transform) | `<MotionList>`, `.row-enter`, `.row-exit` |
 | Status badge change in place | old badge fades out on top (exit) while the new one, already holding the layout, fades in (standard) | `<Badge>` (now a client leaf), `.badge-swap` |
 | Bell count | digits tick like an odometer wheel — old rolls out the top, new rolls in from the bottom, reversed when the count fell; the pop on the container stays | `<Tick>`, `.tick-*` |
 | Form save | pending = "Saving…" and the disabled fill (text, not motion); saved = a check draws (`slow`, 720 ms since the 1.6× pick) beside "Saved" for 2 s, only after the server answered; a message that says more than "Saved." rises as a toast; errors stay inline | `<FormFooter>`, `.draw-fast`, `.saved-in` |
@@ -1217,3 +1217,53 @@ enough to read as intentional" either. A minimum visible duration cannot be expr
 fallback the instant the content commits, and there is no element left to hold or transition. Any threshold has
 this boundary band; raising the threshold moves it rather than removing it. Closing it properly needs the
 per-page Suspense refactor above, where there is no fallback to flash.
+
+---
+
+## 11. The gap a removed row leaves (2026-09-05)
+
+Reported plainly: *"once a notification is dismissed the animation for the notifications
+repositioning is really bad."* It was, and not by a hair — the repositioning was not animating at all.
+
+### 11.1 What was wrong
+
+`<MotionList>` did its two jobs in the wrong order. It put the leaving row back **first**, and put it
+back **in flow**, and only then measured the survivors for their FLIP. So:
+
+1. the re-inserted row still occupied its cell, holding the gap open;
+2. every survivor therefore measured at its *old* position, `dx`/`dy` came out zero, and no transform
+   was ever written;
+3. the exit timer fired, the node was dropped, and the list **snapped** into its new layout.
+
+Measured on the notifications grid before the fix: one `row-out@320` running, `absolute: 0`,
+**zero** `transform` transitions, then an instant jump at ~500 ms. The rule the implementation was
+reaching for is §5 rule 5 — nothing animates layout — and it met the letter of it by animating nothing.
+
+### 11.2 The fix
+
+Measure and FLIP the survivors first, against the layout React has already committed; **then** put the
+leaving row back pinned out of flow (`position: absolute` at the `left/top/width/height` it held —
+`.motion-list` has been `position: relative` since it was written, for exactly this). The card fades and
+settles where it sat while the rows after it close over it. After: `absolute: 1`, `row-out@320` on the
+leaver and **three** `transform@480` slides, settled by ~650 ms. Same classes, same beats, no new CSS.
+
+### 11.3 The second bug, found on the way
+
+A commit can land while a list is not laid out at all — the bell popover's list is in a closed
+`popover`, so every row measures at the origin. Those zeroes were being written into the position map,
+so the next real commit would FLIP every row in from the top-left corner. A list with no width and no
+height now skips the commit entirely rather than remembering nonsense.
+
+### 11.4 Rules added (continuing §7.4)
+
+24. **A row that is leaving must not hold its own gap open.** It is re-inserted out of flow, pinned to
+    the rect it had, so the layout the survivors animate into is the real one. In flow it is not an
+    exit, it is a pause.
+25. **FLIP measures before anything is put back.** The committed layout is the truth; anything
+    re-inserted for an exit is decoration on top of it and must be added after the measurement.
+26. **Never record a measurement taken while the list is not laid out.** Zero width and zero height
+    mean hidden, not moved; storing the origin turns the next commit into a scramble.
+
+Verified on the notifications grid (2 columns at 1440 px), the bell popover's plain list and the Hours
+form's rows; reduced motion still removes the row with no exit node and no slide. `npm test` 106/106
+with a dev server up, goldens byte-identical, `eslint` and `tsc --noEmit` clean.
