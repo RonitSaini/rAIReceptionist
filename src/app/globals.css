@@ -281,6 +281,26 @@ body {
   margin-bottom: 0;
 }
 
+/* ---------- Week diary (layout only, no motion) ----------
+   A day past its cap folds the rest of its visits behind one line, a native <details>. The rest is
+   simply there when opened — nothing enters on an on-page interaction (motion spec rule 31) — and the
+   line stays where it is, still under the pointer, reading the other way. Nothing here animates, so
+   no reduced-motion entry is needed. */
+.day-more > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.day-more > summary::-webkit-details-marker {
+  display: none;
+}
+.day-more > summary > .when-open,
+.day-more[open] > summary > .when-closed {
+  display: none;
+}
+.day-more[open] > summary > .when-open {
+  display: inline;
+}
+
 /* ---------- Motion system (subtle, everywhere) ---------- */
 
 /* The interaction vocabulary (motion spec §7; INTERACTION in src/lib/motion.ts is the same table,
@@ -372,6 +392,14 @@ body {
 }
 .page-enter[data-corridor="up"] {
   --arrive-from: calc(-1 * var(--m-arrive-y));
+}
+/* A page that stands something on the floor of the content area (the schedule's footnotes) marks its
+   root data-floor: only then does the wrapper become a flex column, so the root can grow and the
+   footnote can take mt-auto. Every other page keeps block flow, where an auto margin still centres a
+   capped-width pane (a flex item with auto margins would shrink to fit instead). Layout only. */
+.page-enter:has(> [data-floor]) {
+  display: flex;
+  flex-direction: column;
 }
 @keyframes page-enter {
   from {

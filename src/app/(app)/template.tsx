@@ -41,8 +41,12 @@ export default function AppTemplate({ children }: { children: React.ReactNode })
     lastPath = pathname;
   }, [pathname, order]);
 
+  // Grows to fill <main>, which is a flex column, so a page can stand something on the floor of the
+  // content area: a root marked data-floor turns this wrapper into a flex column (globals.css) and puts
+  // its footnote there with mt-auto. Every other page keeps block flow inside, where an auto margin
+  // still centres a capped-width pane. Layout only; the entrance is the .page-enter class.
   return (
-    <div ref={ref} className="page-enter">
+    <div ref={ref} className="page-enter grow">
       {children}
     </div>
   );

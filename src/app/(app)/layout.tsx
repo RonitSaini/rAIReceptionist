@@ -89,7 +89,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </Link>
         ) : null}
 
-        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-5 pb-24 md:pb-8 xl:max-w-6xl 2xl:max-w-7xl 2xl:px-8 2xl:py-8 3xl:max-w-[1680px]">
+        {/* A flex column, so a page can stand something on the floor of the content area (the
+            schedule keeps its footnotes there): the page wrapper fills main, and the page fills it. */}
+        <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-4 py-5 pb-24 md:pb-8 xl:max-w-6xl 2xl:max-w-7xl 2xl:px-8 2xl:py-8 3xl:max-w-[1680px]">
           <NavOrderProvider order={sidebarItems.map((it) => it.href)}>{children}</NavOrderProvider>
         </main>
 

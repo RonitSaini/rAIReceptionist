@@ -13,6 +13,10 @@ import { DrawIcon } from "@/components/draw-icon";
  * place to switch calendars, resync or disconnect, and once connected this shrinks to a line that
  * links there.
  *
+ * `quiet` renders the offer as a footnote in the same form as the status line it becomes once
+ * connected — an icon, a sentence and a link — for a page whose grid should hold the attention.
+ * A reconnect is never quiet: something is wrong, and the card stays.
+ *
  * Server component: a diary page should not ship a client bundle to render a link, and it reads the
  * cheap status (getGoogleCalendarStatus) rather than the one that calls Google.
  */
@@ -24,6 +28,7 @@ export function CalendarSyncPrompt({
   itemsLabel,
   googleStatus,
   googleMessage,
+  quiet,
 }: {
   status: GoogleCalendarStatus;
   returnTo: string;
@@ -32,6 +37,7 @@ export function CalendarSyncPrompt({
   itemsLabel: string;
   googleStatus?: string;
   googleMessage?: string;
+  quiet?: boolean;
 }) {
   // Nothing to offer on a deployment without Google credentials, and no point saying so here —
   // the settings card is where that diagnosis belongs.
@@ -71,20 +77,32 @@ export function CalendarSyncPrompt({
           {googleStatus === "error" && googleMessage ? ` ${googleMessage}` : ""}
         </Alert>
       ) : null}
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-surface p-4">
-        <div className="flex min-w-0 items-start gap-3">
-          <DrawIcon name="calendar" size={20} draw={false} className="mt-0.5 shrink-0 text-gray-400" />
-          <div className="min-w-0">
-            <p className="font-semibold">{reconnect ? "Reconnect Google Calendar" : "Also sync to Google Calendar"}</p>
-            <p className="mt-1 text-sm text-gray-500">
-              {reconnect ? "Google is no longer accepting this connection, so new bookings are not reaching your calendar." : blurb}
-            </p>
+      {quiet && !reconnect ? (
+        <p className="flex items-start gap-3 text-sm text-gray-500">
+          <DrawIcon name="calendar" size={18} draw={false} className="mt-0.5 shrink-0 text-gray-400" />
+          <span className="min-w-0 flex-1">
+            <span className="font-semibold text-gray-700">Also sync to Google Calendar.</span> {blurb}
+          </span>
+          <Link href={connectHref} prefetch={false} className="shrink-0 font-semibold text-brand-700 hover:underline">
+            Connect
+          </Link>
+        </p>
+      ) : (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-surface p-4">
+          <div className="flex min-w-0 items-start gap-3">
+            <DrawIcon name="calendar" size={20} draw={false} className="mt-0.5 shrink-0 text-gray-400" />
+            <div className="min-w-0">
+              <p className="font-semibold">{reconnect ? "Reconnect Google Calendar" : "Also sync to Google Calendar"}</p>
+              <p className="mt-1 text-sm text-gray-500">
+                {reconnect ? "Google is no longer accepting this connection, so new bookings are not reaching your calendar." : blurb}
+              </p>
+            </div>
           </div>
+          <LinkButton href={connectHref} variant="secondary" size="sm" prefetch={false} className="shrink-0">
+            {reconnect ? "Reconnect" : "Connect"}
+          </LinkButton>
         </div>
-        <LinkButton href={connectHref} variant="secondary" size="sm" prefetch={false} className="shrink-0">
-          {reconnect ? "Reconnect" : "Connect"}
-        </LinkButton>
-      </div>
+      )}
     </div>
   );
 }
