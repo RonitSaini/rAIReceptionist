@@ -131,6 +131,22 @@ test("an alarm and an empty state are never staggered", () => {
   assert.match(exempt[0], /\[data-empty\]/);
 });
 
+test("an arrived row can still be moved: entrances never fill forwards", () => {
+  // The measured regression this guards (spec §12.3): `[data-arrival] > *` filled `both`, and a
+  // finished animation that still fills outranks an inline style — so every row that had arrived
+  // ignored the FLIP transform <MotionList> writes when a neighbour leaves, and jumped. Only the
+  // urgent rows, exempt from the arrival, could slide. An entrance whose end state is the element's
+  // own state has nothing to hold: it fills backwards (the stagger delay) and lets go.
+  for (const selector of ["[data-arrival] > *", ".row-enter"]) {
+    const rule = css.match(new RegExp(`${selector.replace(/[[\]*.>]/g, (c) => `\\${c}`)}\\s*\\{([^}]*)\\}`));
+    assert.ok(rule, `globals.css defines ${selector}`);
+    const anim = rule[1].match(/animation:\s*([^;]+);/);
+    assert.ok(anim, `${selector} declares an animation`);
+    assert.match(anim[1], /\bbackwards\b/, `${selector} fills backwards`);
+    assert.doesNotMatch(anim[1], /\b(both|forwards)\b/, `${selector} must not keep filling after it ends`);
+  }
+});
+
 test("every interaction class is in the reduced-motion block", () => {
   const reduce = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"));
   for (const cls of [".press", ".press-soft", ".switch", ".seg-ind", ".seg-item", ".row-enter", ".row-exit", ".badge-swap > .badge-in", ".badge-swap > .badge-out", ".tick-in", ".tick-out", ".toast", ".content-in", ".menu-in", ".menu-out", ".draw-fast.is-drawing path", ".saved-in", ".notif-panel", ".swap", ".guided [data-guided]", ".guided .cascade > *", ".guided[data-leaving]", ".slide-in", ".progress-fill", "[data-arrival] > *", ".nav-pill", ".nav-tab-ind", ".route-skeleton", ".page-enter[data-leaving]"]) {

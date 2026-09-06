@@ -1286,3 +1286,147 @@ gliding on its own reads as a glitch rather than as an answer to a click.
 Verified on the notifications grid (2 columns at 1440 px), the bell popover's plain list and the Hours
 form's rows; reduced motion still removes the row with no exit node and no slide. `npm test` 106/106
 with a dev server up, goldens byte-identical, `eslint` and `tsc --noEmit` clean.
+
+## 12. The row a form adds (2026-09-06)
+
+Reported: *"On the Services tab, clicking Add a service makes the new row appear statically — no
+animation."* Design read, as in §7: product UI, outside the taste skill's scope (its §13); only its
+motion rules were applied — motion answers the click, transform and opacity only, reduced motion,
+nothing decorative.
+
+### 12.1 Diagnosis, measured before anything changed
+
+The two obvious causes were ruled out first, by reading: the Services form already rendered its rows
+inside `<MotionList>` (§7.3) and keyed them by a local counter, never by index. Then by measuring: a
+rAF sampler on a dev server (1100 × 800, the plumbing test account) recorded every frame after the
+click, and the click *did* produce the list-insert treatment — the new `<li>` carried `.row-enter` at
+its first painted frame, `row-in` at 0 of 480 ms, opacity 0 → 1 with the 4 px rise, settled 400 ms
+later. Identical on the onboarding step (Services & pricing, `/onboarding/5` for a trade). What read
+as "static" was everything around the row:
+
+1. **Focus stayed on the button.** Text typed straight after the click went nowhere; a space
+   re-clicked the button and added a second row.
+2. **Everything under the list jumped.** The add button, the hint and the footer sat outside the
+   list, so they moved one row height (111 px) at the first frame. That jump was the one motion on
+   screen the eye could catch, while an empty row — white on white, a light border, placeholders —
+   has almost nothing to fade in with. The arrival was there; nothing carried it.
+3. **Removing the last row dropped the button onto the leaving row.** The pinned exit node (§11)
+   faded at opacity 1 under a button that had already jumped into its cell (t = 42 ms).
+4. **Every remove moved the neighbours twice.** 103 px at the commit and 8 px more when the exit
+   node was dropped (48 + 8 in Hours, 105 + 12 in the menu): `<MotionList>` appended the pinned
+   node as the list's *last* child, so Tailwind's `space-y` / `divide-y` (`:not(:last-child)`)
+   gave the real last row a phantom margin for the length of the exit — rule 24 broken by 8 px.
+
+The reference, measured the same way: a notification row put back by Undo in the inbox, and a
+notification landing in the open bell popover. Both: `row-in` at 0 of 480 ms, opacity 0 → 1, 4 px —
+the same class, the same beat. The inbox dismiss beside it showed a fifth thing: of ten survivors,
+the four urgent rows slid and the six dismissible ones jumped. Frame by frame, the jumpers still
+carried their finished `arrive` animation (`currentTime` 625 of 460 ms, fill `both`), and a finished
+animation that still fills outranks an inline style — so the FLIP transform `<MotionList>` wrote was
+simply not applied. Urgent rows are exempt from the arrival (rule 17), which is the only reason they
+could move. Every `data-arrival` list had this since §10: a row could leave, but nothing after it
+could slide.
+
+### 12.2 21st.dev, this pass
+
+Nine searches (animated field array / dynamic list add-delete / staggered form rows / list insert-remove
+/ todo add-remove / auto-animate reorder / invoice line items / add-more inputs), zero retrievals; the
+two daily retrievals were not spent. Candidates, read from their descriptions and previews:
+
+| Candidate | What it is | Verdict |
+|---|---|---|
+| *Dynamic Field Array* #25057 (felipemenezes098), *Invoice Form with Line Item Dialog* #25094 | React Hook Form + Zod field arrays; a dialog per line | Form-state logic, no motion pattern to port; RHF/Zod are outside the stack |
+| *Animated To-Do List* #6922 (uniquesonu) | AnimatePresence; a removed item fades and moves off-screen | Runtime, and an exit that travels — ours settles where it sat (rule 24) |
+| *List Item* #10469, *Stacked List* #10477, *Animated Collection* #10456 (0xUrvish) | Motion `AnimatePresence` + `layout` | Judged in §7.5: the DOM-diff `<MotionList>` does both without the runtime |
+| *Animate Presence modes* #24526, *Exit animation* #24551, *Layout animation* #24522, *Reorder items* #24575 (motion.dev) | The runtime's own primitives | The thing `<MotionList>` replaces, not a pattern |
+| *Interactive List* #7766, *Animated Table rows* #8312 | Animated removal only | Half the gesture; nothing on insertion |
+| *Animated File Upload* #18031, *Animated Tags* #18103 (educalvolpz) | A growing file list; tags with blur + spring | Closest in shape; blur and spring are both refused (rules 15, 20) |
+| *Todo List Item* #1138, *Delete Button* #10461, *BeUI Swipeable List* #16172 | Swipe-to-delete, strike-through | Gestures we do not have; decoration |
+| *Filter Grid* #23525, *Reorder List* #23550 (ddoemonn) | FLIP reflow on filter; keyboard drag reorder | Reorder, not insert; the FLIP is what we already do |
+| *Animated List* #869 (magicui), #4072, *Stagger Reveal Grid* #18357 | Sequential showcase reveals | Landing-page entrance choreography (rule 23) |
+| *Invoice Line Items Table* #25157, *Tags Input* #18100, *AI Diff* #23794 | Static table; tag input; a code diff that wipes lines in | Not a form row |
+
+Nothing here beats what `<MotionList>` already does — every animated candidate is the Motion runtime
+doing the same two things, several add decoration, and the field-array ones have no motion at all.
+So: `<MotionList>`, and the gap closed at the cause.
+
+### 12.3 What changed
+
+**`<MotionList>`, three repairs.** (1) The pinned exit node is inserted *before* the last child, never
+as the last child, so no sibling changes pseudo-class for the length of the exit — the two-step move
+is gone. (2) The FLIP's cleanup ends only on the row's *own* `transitionend`: the event bubbles, and a
+colour or opacity transition ending on a descendant (a dismiss button fading in under the parked
+pointer, a press relaxing) cleared the row's transition mid-slide — a latent hazard found on the way,
+not the inbox's cause. (3) A companion hook, `useRowFocus`: the row a form just added is scrolled
+into view (`scrollIntoView` at `nearest`, instant — the viewport moving to stage the row is not
+motion, the row's entrance is) and its first field takes focus with `preventScroll`, in the commit
+that mounts it, before the entrance has finished. Reduced motion changes nothing there.
+
+**The arrival fills backwards.** `[data-arrival] > *` was `animation: arrive … both`; it is now
+`backwards`. The from-keyframe still holds through the stagger delay, and the end state *is* the
+element's own, so a forwards fill had nothing to hold but the transform property itself. Guarded by
+`tests/motion-vocabulary.test.mjs` ("an arrived row can still be moved"). Measured after: all ten inbox
+survivors slide.
+
+**Nested lists, one per level that grows.** Services (settings and onboarding), Hours, Emergencies and
+Menu & policies each became `<MotionList>`s at every level under which a row can be inserted: the rows
+in their `<ul>`; the add button and the hint in the section; the day cards in the week; the footer (and
+Back, and Skip) in the form. Nothing under an inserted row jumps any more — it makes room at the
+standard beat, which is the "making room" the eye reads as an insertion, and the row fades into the room
+being made. The properties page got the same treatment for the add-unit form under each unit list.
+
+**Phones.** Under `md` the tab bar is fixed over the bottom of the viewport, so `html` now carries
+`scroll-padding-bottom: 6rem` (the space `main` already reserves): whatever the browser scrolls into
+view — a focused field, the row a form just added — stops above the bar.
+
+### 12.4 Rules added (continuing §11.4)
+
+28. **What sits under an inserted row makes room at the standard beat.** A list's neighbours are part
+    of the insertion. Anything that would jump by a row height is itself a keyed child of a list —
+    nested `<MotionList>`s, one per level that grows — so it slides. The FLIP is the "making room"; the
+    row's fade is the arrival; without the first, the second is invisible on a row with nothing in it.
+29. **A form's new row takes focus and comes into view in the commit that mounts it.** Focus lands
+    before the entrance has finished, never after; the scroll is the least the viewport can move and
+    is not animated (two motions on one click would blur both); on a phone the fixed bar is reserved
+    with `scroll-padding-bottom`. Reduced motion: identical.
+30. **An entrance whose end state is the element's own state fills backwards, never forwards.** A
+    finished animation that still fills outranks an inline style, and the transform it holds is the
+    one every later slide needs. `both` is for an animation whose end state differs from the base.
+31. **A leaving row is put back where it cannot change a sibling's pseudo-class** — before the last
+    child, never as the last child. `:last-child` is how the utilities space a list, and a row that is
+    out of flow must also be out of the selectors.
+32. **A row's slide ends only on its own `transitionend`.** The event bubbles; a descendant finishing a
+    hover colour is not the row arriving.
+
+### 12.5 Verification (2026-09-06, dev server on 3001, 1100 × 800 unless stated)
+
+Harness in the session scratchpad (`rows.js`; `db.mjs` creates and removes the `[row-check]` rows it
+needs; `compare.mjs` the beat table; `sheet.js` the contact sheet). 60 checks: 58 pass, and the two that
+do not are the harness's own expectation on an empty portfolio — the first property card mounts a
+fresh list and arrives by the page's cascade rather than as a row, and deleting the only card unmounts
+the list, so there is no exit node to measure. Both are correct behaviour.
+
+- **Beat for beat.** The service row, the inbox row and the bell row on one relative clock, sampled
+  every frame: opacity 0 / .152 / .291 / .415 / .614 / .805 / .927 / .987 / .999 / 1 at 0 / 17 / 33 /
+  50 / 83 / 133 / 200 / 300 / 400 / 480 ms, travel 4 → 3.4 → 2.8 → 2.3 → 1.5 → 0.8 → 0.3 → 0.1 → 0 px,
+  in all three; worst opacity gap between any two, 0.001. The contact sheet (`out/frame-series.png`)
+  shows one add, one remove of the last row, and the inbox re-arrival at the same nine beats.
+- **Services, settings and onboarding:** focus in the new row at its first frame and text typed
+  straight after the click lands in it; the input hit-testable at row opacity 0; existing rows shift
+  0 px; add, hint, footer (and Back) slide 111 px at the standard beat, in both directions; removing
+  the last row: nothing lands on the leaving row, no two-step move; removing the first: survivors
+  slide, followers slide. A row landing below the fold is scrolled fully into view (scroll 229 → 293,
+  focus still first). At 390 × 844 with the add button parked above the tab bar, the new row's bottom
+  lands at 744 px against a bar top of 786.
+- **Which lists were broken, which already worked.** Broken the same way (arrival fine, focus on the
+  button, followers jumping): Services in both places, Hours periods (the next day card and the footer
+  jumped 56 px), custom emergencies (the fields below jumped 56), menu items (Policies and the footer
+  jumped 117), units (the add-unit form jumped 61). Already working: vendors (a server list; nothing
+  sits under the grid) and properties (the cards after a new one slide). All now pass.
+- **Reduced motion:** the row is complete at its first frame (opacity 1, no animation), focus and
+  typing still land, a removed row is simply gone.
+- `npm test` 107/107 (the new fill-mode guard included), goldens byte-identical, `eslint` and
+  `tsc --noEmit` clean.
+
+Left as found: after a Remove, focus falls to `<body>` (the control that was clicked is gone); the
+inbox's Undo already moves focus deliberately, the forms do not yet.

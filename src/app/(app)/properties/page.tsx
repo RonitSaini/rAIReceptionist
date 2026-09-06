@@ -53,9 +53,12 @@ export default async function PropertiesPage() {
                 </form>
               }
             >
-              {p.address ? <p className="-mt-1 mb-3 text-sm text-gray-500">{p.address}</p> : null}
+              {/* The card body is a list too, so the add-unit form under the units slides down when
+                  a unit arrives and up when one leaves, instead of jumping (motion spec §12). */}
+              <MotionList as="div">
+              {p.address ? <p key="address" className="-mt-1 mb-3 text-sm text-gray-500">{p.address}</p> : null}
 
-              <MotionList className="divide-y divide-gray-100">
+              <MotionList key="units" className="divide-y divide-gray-100">
                 {p.units.map((u) => (
                   <li key={u.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
                     <div className="min-w-0">
@@ -76,13 +79,14 @@ export default async function PropertiesPage() {
                 ))}
               </MotionList>
 
-              <form action={saveUnit} className="mt-3 flex gap-2">
+              <form key="add" action={saveUnit} className="mt-3 flex gap-2">
                 <input type="hidden" name="propertyId" value={p.id} />
                 <input name="label" placeholder="Add a unit, e.g. 3B" required className="flex-1 rounded-xl border border-gray-300 bg-surface px-3 py-2 text-sm" />
                 <button type="submit" className="press rounded-xl border border-gray-300 px-3 py-2 text-sm font-semibold">
                   Add unit
                 </button>
               </form>
+              </MotionList>
             </Card>
           </div>
           ))}

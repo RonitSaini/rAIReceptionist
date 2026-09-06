@@ -1,6 +1,6 @@
 "use client";
 
-import { Children, isValidElement, useEffect, useLayoutEffect, useRef, type HTMLAttributes, type ReactNode } from "react";
+import { Children, isValidElement, useCallback, useEffect, useLayoutEffect, useRef, useState, type HTMLAttributes, type ReactNode } from "react";
 import { INTERACTION, prefersReducedMotion, scaled } from "@/lib/motion";
 import { cx } from "@/lib/cx";
 
@@ -85,7 +85,12 @@ export function MotionList({ as: Tag = "ul", children, className, ...rest }: { a
             void el.offsetWidth; // flush, so the slide starts from the old spot
             el.style.transition = "transform var(--m-standard) var(--m-ease)";
             el.style.transform = "";
-            const done = () => {
+            const done = (e: TransitionEvent) => {
+              // transitionend bubbles. A colour or opacity transition ending on a DESCENDANT (a dismiss
+              // button fading in under the parked pointer, a press relaxing) must not end the row's own
+              // slide: clearing the transition mid-flight snaps the row to its destination, which is
+              // what made the inbox's dismissible rows jump while the urgent ones slid (spec §12.3).
+              if (e.target !== el) return;
               el.style.transition = "";
               el.removeEventListener("transitionend", done);
             };
@@ -112,7 +117,13 @@ export function MotionList({ as: Tag = "ul", children, className, ...rest }: { a
         old.el.style.top = `${old.y}px`;
         old.el.style.width = `${old.w}px`;
         old.el.style.height = `${old.h}px`;
-        list.appendChild(old.el);
+        // Never as the LAST child. Tailwind's space-y / divide-y put their margin or border on every
+        // child but the last, and the bell rows drop their border with `last:`; appended at the end,
+        // the pinned node made the real last row "not last" for the length of the exit — an 8–12 px
+        // phantom that everything below then closed a second time when the node was dropped
+        // (spec §12.3). Before the last child it is out of flow AND out of the pseudo-classes; only
+        // an empty list gets it appended, where there is nothing left to mis-style.
+        list.insertBefore(old.el, list.lastElementChild);
         // Urgent rows leave at the clamped fast exit; everything else at the standard exit as the CSS is scaling it.
         const ms = (old.el.dataset.urgent !== undefined ? INTERACTION.exit.fast : scaled(INTERACTION.exit.standard)) + 30;
         const t = window.setTimeout(() => {
@@ -144,4 +155,31 @@ export function MotionList({ as: Tag = "ul", children, className, ...rest }: { a
       {children}
     </Tag>
   );
+}
+
+/**
+ * The row a form just added: it is scrolled into view and its first field takes focus, in the same
+ * commit that mounts it — before its entrance has finished, so typing can start at once and a row
+ * that would have landed below the fold is on screen for its first frame (motion spec §12).
+ *
+ * The scroll is the browser's plain `scrollIntoView` at `nearest`: the least the viewport can move,
+ * and not a smooth scroll — the row's entrance is the motion, the viewport moving to stage it is not,
+ * and two motions on one click would blur both. Focus is taken with `preventScroll` so the two do
+ * not argue. Reduced motion changes nothing here: the row is simply there, and focus still lands.
+ *
+ *   const { focusRow, rowRef } = useRowFocus<number>();
+ *   onClick: const row = newRow(); setRows((prev) => [...prev, row]); focusRow(row.key);
+ *   <li key={row.key} ref={rowRef(row.key)}>
+ *
+ * The ref is only handed to the marked row, so React invokes it exactly once, when that row mounts;
+ * the rows that were already there never receive it.
+ */
+export function useRowFocus<K>() {
+  const [key, setKey] = useState<K | null>(null);
+  const land = useCallback((el: HTMLElement | null) => {
+    if (!el) return;
+    el.scrollIntoView({ block: "nearest", inline: "nearest" });
+    el.querySelector<HTMLElement>("input:not([type=hidden]):not([type=checkbox]):not([type=radio]), textarea, select")?.focus({ preventScroll: true });
+  }, []);
+  return { focusRow: setKey, rowRef: (k: K) => (k === key ? land : undefined) };
 }

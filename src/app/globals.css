@@ -378,7 +378,8 @@ body {
    The rule the whole thing exists to serve: content must become visible BY ARRIVING. A page that
    fades in as a block is fully visible before its rows move, which reads as static however good the
    row motion is — so wherever a page HAS a data layer the block fade is switched off and the data's
-   own arrival is the only entrance. Every arrival is `animation: … both`, so the from-keyframe is in
+   own arrival is the only entrance. Every arrival fills BACKWARDS (the page fade `both`, the rows
+   `backwards` — see the note on [data-arrival] > * for why not `both`), so the from-keyframe is in
    force on the first styled frame: the first frame that contains content is the first frame of its
    arrival. Transform and opacity only — the layout box never moves, so zero layout shift.
    ========================================================================================== */
@@ -441,7 +442,13 @@ body {
    in spec §10.2). `data-arrival` goes on the element whose CHILDREN settle in; grandchildren are
    deliberately untouched, so an element takes part in exactly one entrance (§8.1). */
 [data-arrival] > * {
-  animation: arrive var(--m-arrive) var(--m-ease) both;
+  /* `backwards`, not `both`: the from-keyframe must hold through the stagger delay, but the end
+     state IS the element's own (opacity 1, no transform), so there is nothing for a forwards fill to
+     hold — except the transform property itself. A finished animation that still fills outranks an
+     inline style, so with `both` every arrived row silently refused the FLIP slide <MotionList>
+     writes when a neighbour leaves; only urgent rows, exempt from the arrival, could move
+     (spec §12.3). */
+  animation: arrive var(--m-arrive) var(--m-ease) backwards;
   animation-delay: calc(var(--arrive-offset, 0ms) + var(--m-arrive-spread) * var(--arrive-step, 0));
 }
 @keyframes arrive {
@@ -1733,6 +1740,14 @@ textarea {
 
 .safe-bottom {
   padding-bottom: env(safe-area-inset-bottom);
+}
+/* Under md the tab bar is fixed over the bottom of the viewport (main reserves pb-24 for it), so
+   whatever the browser scrolls into view — a focused field, the row a form just added (motion spec
+   §12) — has to stop above the bar, not under it. The same 6 rem main reserves. */
+@media (width < 48rem) {
+  html {
+    scroll-padding-bottom: 6rem;
+  }
 }
 
 /* Lists that show "as many rows as fit": soften the cut-off edge. */
