@@ -1430,3 +1430,61 @@ the list, so there is no exit node to measure. Both are correct behaviour.
 
 Left as found: after a Remove, focus falls to `<body>` (the control that was clicked is gone); the
 inbox's Undo already moves focus deliberately, the forms do not yet.
+
+## 13. The header that moved (2026-09-06)
+
+Reported: *"navigating to Home from another section, the business name in the header shifts slightly
+and settles back."* Chrome never enters (§8.1): the logo, the header, the progress track and the
+nameplate are outside every arrival, and only the data layer travels. Four suspects were named
+before anything was touched — the corridor's `--arrive-from` inheriting into the header on Home; the
+header sitting inside Home's `[data-arrival]` boundary; a layout shift from Home's KPI tiles or
+count-ups reflowing the header's width; a font or width change in the nameplate landing after first
+paint — and the rule for telling them apart was: if it is Home-only, it is the boundary or the reflow.
+
+### 13.1 Measured
+
+A harness (`header.js`, session scratchpad) sampled every frame of every rail transition, down the
+rail and back up (14 on desktop, 12 on a phone where Notifications lives in the bell), and beside the
+header's and the nameplate's bounding boxes recorded the things that could move them: the viewport's
+client width, whether the document had a scrollbar, whether the header sat inside `.page-enter`,
+`[data-arrival]` or `[data-guided]`, whether `--arrive-from` reached it, its transform, any animation
+running inside it, and the nameplate's font.
+
+The first runs saw nothing move anywhere — and that was the first finding: Playwright launches
+headless Chromium with `--hide-scrollbars`, so a document scrollbar takes no width there and the one
+suspect that changes the header's width is invisible to a headless harness. With classic scrollbars
+back (15 px), at 2560 × 1440 — the one size at which Home's content fits the viewport — exactly one
+transition moved: **Home (up)**, the nameplate 7.5 px to the left at 169 ms and back at 470 ms, with
+the client width 2560 → 2545 → 2560 beside it. Home's route skeleton (`dashboard/loading.tsx`) is
+taller than the viewport; the content that replaces it is not; the scrollbar came and went, and a
+centred header reflows by half a gutter each way. At 1920 × 1080 the same reflow changed the header's
+box on 9 of 14 transitions, and at 1280 × 800 on 13 of 14 — there the nameplate held, because below
+the header container's max-width its left edge is pinned to the column and the 15 px came off the
+right, moving the bell and the theme toggle instead. On every run: the header outside every boundary,
+no `--arrive-from` on it, no transform, no animation inside it, the font constant.
+
+So: the third suspect, through the document scrollbar rather than the tiles themselves, and Home-only
+only where Home fits the viewport.
+
+### 13.2 The fix, at the cause
+
+`html { scrollbar-gutter: stable }`: the viewport reserves its gutter whether or not the document
+scrolls, so nothing a page does — its height, its skeleton's height, a list that empties — can change
+the header's width. Overlay scrollbars (phones, macOS) have no gutter and are unaffected. Nothing in
+the header changed, because nothing in the header was wrong.
+
+33. **Chrome's width is reserved, not observed.** The viewport keeps its scrollbar gutter at all
+    times; a page may be any height without the header, the rail or the tab bar learning of it. A
+    harness that checks chrome must run with classic scrollbars — hidden ones make the check vacuous.
+
+### 13.3 Verification (2026-09-06, dev server on 3001, plumbing test account)
+
+After: 14 of 14 transitions keep both boxes to the pixel at 1280 × 800, 1920 × 1080 and 2560 × 1440,
+light and dark; 12 of 12 on the phone (390 × 844, the tab bar), light and dark; computed
+`scrollbar-gutter: stable` on the root in every run. The assertion is now part of the nav regression
+harness (`nav.js` + `sampler.js`, the §10 scratchpad): every journey transition checks that the header
+and the nameplate never move, prints the client widths it saw, and the harness launches Chromium with
+scrollbars kept. `npm test` 107/107, goldens byte-identical.
+
+Left as found: Home's route skeleton is taller than Home's content at 1440p, so a scrollbar thumb
+still appears in the reserved gutter for about 300 ms of the arrival. The header no longer sees it.

@@ -68,6 +68,13 @@
 html {
   -webkit-text-size-adjust: 100%;
   color-scheme: light;
+  /* The viewport's width is reserved whether or not the document scrolls. Without this a page that
+     fits the viewport arriving after one that did not (or a route skeleton taller than the content it
+     stands in for — Home's, at 1440p) takes the scrollbar away and gives it back, and the centred
+     header reflows by half a gutter each way: the business name shifted 7.5 px and settled back on
+     every navigation to Home (motion spec §13). Chrome never enters and never moves; its width is
+     nobody's to change. Overlay scrollbars (phones, macOS) have no gutter and are unaffected. */
+  scrollbar-gutter: stable;
 }
 
 /*
