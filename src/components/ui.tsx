@@ -106,11 +106,69 @@ export function Toggle({ label, description, name, defaultChecked, checked, onCh
   );
 }
 
-export function Checkbox({ label, name, value, defaultChecked }: { label: string; name: string; value: string; defaultChecked?: boolean }) {
+/**
+ * The app's one checkbox (motion spec §14). A native <input type="checkbox"> — so `required`, form
+ * data, keyboard and the checked state itself are the browser's and flip the instant of the click —
+ * laid invisibly over a drawn box. The box answers the finger (a 60 ms down-stroke, released at the
+ * fast beat) and the tick is DRAWN across it at the fast step rather than switched on: one stroke
+ * from its short arm to its long one, the way a hand makes one, on a tint arriving at the same beat
+ * (the picker card's selected look, at box scale). Unticking un-draws it at the fast exit, the tint
+ * following. The timing lives in .check-box / .check-mark in globals.css and is clamped — a checkbox
+ * is press feedback and never slows with the scale.
+ *
+ * Two looks: "card" (a bordered row that presses — the emergency-type lists) and "inline" (the box
+ * beside its label in a dense row, `size="sm"` for a 16 px box). The label may be rich (the consent
+ * sentence with its links); `align="start"` keeps the box on a wrapped label's first line.
+ */
+export function Checkbox({
+  label,
+  variant = "card",
+  size = "md",
+  align = "center",
+  className,
+  onChange,
+  ...input
+}: Omit<ComponentProps<"input">, "type" | "size" | "onChange" | "className" | "children"> & {
+  label: ReactNode;
+  variant?: "card" | "inline";
+  size?: "md" | "sm";
+  align?: "center" | "start";
+  className?: string;
+  onChange?: (checked: boolean) => void;
+}) {
   return (
-    <label className="press-soft flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-gray-200 bg-surface px-4 py-2">
-      <input type="checkbox" name={name} value={value} defaultChecked={defaultChecked} className="h-5 w-5 rounded border-gray-300 accent-brand-600" />
-      <span className="text-base">{label}</span>
+    <label
+      className={cx(
+        "group cursor-pointer",
+        variant === "card" ? "press-soft flex min-h-12 gap-3 rounded-xl border border-gray-200 bg-surface px-4 py-2 text-base" : "flex gap-2",
+        align === "start" ? "items-start" : "items-center",
+        className,
+      )}
+    >
+      <span className={cx("check relative inline-flex shrink-0", size === "sm" ? "h-4 w-4" : "h-5 w-5", align === "start" && "mt-0.5")}>
+        <input
+          type="checkbox"
+          className="check-input peer absolute inset-0 z-10 m-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+          onChange={onChange ? (e) => onChange(e.target.checked) : undefined}
+          {...input}
+        />
+        <span
+          aria-hidden="true"
+          className={cx(
+            "check-box absolute inset-0 flex border border-gray-300 bg-surface text-brand-700 group-hover:border-gray-400 peer-checked:border-brand-600 peer-checked:bg-brand-50 peer-indeterminate:border-brand-600 peer-indeterminate:bg-brand-50 peer-focus-visible:ring-2 peer-focus-visible:ring-brand-400 peer-focus-visible:ring-offset-2 peer-disabled:opacity-50",
+            size === "sm" ? "rounded p-px" : "rounded-md p-0.5",
+          )}
+        >
+          {/* The tick is written left to right (short arm down, long arm up) — the icon set's check
+              path runs the other way, which would draw it from the tip. The dash is the
+              :indeterminate mark and draws on the same beat. */}
+          <svg viewBox="0 0 24 24" className="h-full w-full overflow-visible">
+            <path className="check-mark" pathLength={1} d="M4 12l5 5L20 6" />
+            <path className="check-dash" pathLength={1} d="M6 12h12" />
+          </svg>
+        </span>
+      </span>
+      <span>{label}</span>
     </label>
   );
 }

@@ -6,7 +6,7 @@ import { saveHours } from "@/actions/onboarding";
 import { DAYS_OF_WEEK } from "@/lib/constants";
 import { ALL_DAY_CLOSE, ALL_DAY_OPEN, isAllDay } from "@/lib/time";
 import { leaveGuided } from "@/lib/motion";
-import { Button, inputClass } from "@/components/ui";
+import { Button, Checkbox, inputClass } from "@/components/ui";
 import { FormFooter, type FormMode } from "@/components/form-footer";
 import { ActionForm } from "@/components/action-form";
 import { Disclosure } from "@/components/disclosure";
@@ -96,24 +96,8 @@ export function HoursForm({ hours, mode, backHref, nextHref }: { hours: Business
                 {/* Mutually exclusive by construction: a day cannot be shut and open round the clock,
                     so ticking either one clears the other rather than leaving both on. */}
                 <div className="flex items-center gap-4">
-                  <label className="press-soft flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={d.isAllDay}
-                      onChange={(e) => updateDay(day, { isAllDay: e.target.checked, isClosed: e.target.checked ? false : d.isClosed })}
-                      className="h-5 w-5 accent-brand-600"
-                    />
-                    24 hours
-                  </label>
-                  <label className="press-soft flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={d.isClosed}
-                      onChange={(e) => updateDay(day, { isClosed: e.target.checked, isAllDay: e.target.checked ? false : d.isAllDay })}
-                      className="h-5 w-5 accent-brand-600"
-                    />
-                    Closed
-                  </label>
+                  <Checkbox variant="inline" label="24 hours" checked={d.isAllDay} onChange={(v) => updateDay(day, { isAllDay: v, isClosed: v ? false : d.isClosed })} className="text-sm" />
+                  <Checkbox variant="inline" label="Closed" checked={d.isClosed} onChange={(v) => updateDay(day, { isClosed: v, isAllDay: v ? false : d.isAllDay })} className="text-sm" />
                 </div>
               </div>
               {d.isAllDay ? <p className="mt-2 text-sm text-gray-500">Open all day and all night — {DAYS_OF_WEEK[day]} has no opening or closing time.</p> : null}

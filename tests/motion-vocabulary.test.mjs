@@ -149,7 +149,35 @@ test("an arrived row can still be moved: entrances never fill forwards", () => {
 
 test("every interaction class is in the reduced-motion block", () => {
   const reduce = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"));
-  for (const cls of [".press", ".press-soft", ".switch", ".seg-ind", ".seg-item", ".row-enter", ".row-exit", ".badge-swap > .badge-in", ".badge-swap > .badge-out", ".tick-in", ".tick-out", ".toast", ".content-in", ".menu-in", ".menu-out", ".draw-fast.is-drawing path", ".saved-in", ".notif-panel", ".swap", ".guided [data-guided]", ".guided .cascade > *", ".guided[data-leaving]", ".slide-in", ".progress-fill", "[data-arrival] > *", ".nav-pill", ".nav-tab-ind", ".route-skeleton", ".page-enter[data-leaving]"]) {
+  for (const cls of [".press", ".press-soft", ".switch", ".check", ".check-box", ".check-box path", ".check:has(.check-input:active)", ".seg-ind", ".seg-item", ".row-enter", ".row-exit", ".badge-swap > .badge-in", ".badge-swap > .badge-out", ".tick-in", ".tick-out", ".toast", ".content-in", ".menu-in", ".menu-out", ".draw-fast.is-drawing path", ".saved-in", ".notif-panel", ".swap", ".guided [data-guided]", ".guided .cascade > *", ".guided[data-leaving]", ".slide-in", ".progress-fill", "[data-arrival] > *", ".nav-pill", ".nav-tab-ind", ".route-skeleton", ".page-enter[data-leaving]"]) {
     assert.ok(reduce.includes(cls), `${cls} is listed under prefers-reduced-motion`);
   }
+});
+
+test("a checkbox answers at the fast step, clamped, and its tick is drawn rather than switched on", () => {
+  // Spec section 14: the box and the mark read only the clamped fast tokens (a checkbox is press
+  // feedback and never slows with the scale); the mark is a stroke that draws (dashoffset 1 to 0)
+  // at the fast step and un-draws at the fast exit, so unchecking is quicker than checking.
+  const rules = [...css.matchAll(/(?<=\})([^{}]*\.check\b[^{}]*)\{([^}]*)\}/g)].map((m) => ({ sel: m[1].trim(), decl: m[2] }));
+  assert.ok(rules.length >= 7, `globals.css times the checkbox (${rules.length} rules)`);
+  for (const r of rules) {
+    assert.ok(!/--m-(standard|slow|exit|exit-slow|stagger|cascade|arrive|arrive-spread|arrive-group|toggle)(?![\w-])/.test(r.decl), `a checkbox rule reads only the fast tokens: ${r.sel}`);
+  }
+  const mark = rules.find((r) => /\.check-box path$/.test(r.sel));
+  assert.ok(mark, "the mark is styled");
+  assert.match(mark.decl, /stroke-dasharray:\s*1\s*;/);
+  assert.match(mark.decl, /stroke-dashoffset:\s*1\s*;/, "at rest the mark is undrawn");
+  assert.match(mark.decl, /transition-property:\s*stroke-dashoffset/, "the mark animates by its stroke");
+  assert.match(mark.decl, /transition-duration:\s*var\(--m-exit-fast\)/, "the un-draw runs at the fast exit");
+  const drawn = rules.find((r) => /:checked[^{]*\.check-mark/.test(r.sel));
+  assert.ok(drawn, "the checked state draws the mark");
+  assert.match(drawn.decl, /stroke-dashoffset:\s*0\s*;/);
+  assert.match(drawn.decl, /transition-duration:\s*var\(--m-fast\)/, "the draw runs at the fast step");
+  // The state rules set DURATIONS only: a shorthand there would outrank the reduce block's `transition: none`.
+  for (const r of rules.filter((x) => /:checked|:indeterminate/.test(x.sel))) assert.doesNotMatch(r.decl, /transition:/, `state rules never re-declare the shorthand: ${r.sel}`);
+  assert.ok(INTERACTION.exit.fast < INTERACTION.fast, "uncheck leaves faster than check arrives");
+  const press = rules.find((r) => /\.check:has\(\.check-input:active\)$/.test(r.sel) && !r.sel.includes("prefers"));
+  assert.ok(press && /scale\(/.test(press.decl) && /60ms/.test(press.decl), "the wrapper presses with the 60 ms down-stroke");
+  const reduce = css.slice(css.indexOf("@media (prefers-reduced-motion: reduce)"));
+  assert.match(reduce, /\.check:has\(\.check-input:active\)\s*\{\s*transform:\s*none/, "reduced motion: no press either");
 });

@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { saveServices } from "@/actions/field-service";
 import type { AccountView } from "@/lib/serialize";
 import type { ServiceOfferingView } from "@/lib/serialize";
-import { Button, Field, Input, Toggle } from "@/components/ui";
+import { Button, Checkbox, Field, Input, Toggle } from "@/components/ui";
 import { FormFooter, type FormMode } from "@/components/form-footer";
 import { ActionForm } from "@/components/action-form";
 import { MotionList, useRowFocus } from "@/components/motion-list";
@@ -71,16 +71,10 @@ export function ServicesForm({ account, services, mode, backHref }: { account: A
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-12">
                   <Input aria-label="Service name" placeholder="Service type" value={r.name} onChange={(e) => update(r.key, { name: e.target.value })} className="sm:col-span-7" />
                   <Input aria-label="Starting price" inputMode="decimal" placeholder="Price ($)" value={r.priceFrom} onChange={(e) => update(r.key, { priceFrom: e.target.value })} className="sm:col-span-3" />
-                  <label className="flex items-center gap-2 text-xs font-semibold text-gray-600 sm:col-span-2">
-                    <input type="checkbox" checked={r.canQuote} onChange={(e) => update(r.key, { canQuote: e.target.checked })} className="h-4 w-4" />
-                    Quote it
-                  </label>
+                  <Checkbox variant="inline" size="sm" label="Quote it" checked={r.canQuote} onChange={(v) => update(r.key, { canQuote: v })} className="text-xs font-semibold text-gray-600 sm:col-span-2" />
                 </div>
                 <div className="mt-2 flex items-center justify-between">
-                  <label className="flex items-center gap-2 text-xs text-gray-500">
-                    <input type="checkbox" checked={r.enabled} onChange={(e) => update(r.key, { enabled: e.target.checked })} className="h-4 w-4" />
-                    Offered
-                  </label>
+                  <Checkbox variant="inline" size="sm" label="Offered" checked={r.enabled} onChange={(v) => update(r.key, { enabled: v })} className="text-xs text-gray-500" />
                   <button type="button" onClick={() => setRows((prev) => (prev.length > 1 ? prev.filter((x) => x.key !== r.key) : prev))} className="press-soft text-xs font-semibold text-red-600">
                     Remove
                   </button>

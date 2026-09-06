@@ -1220,6 +1220,58 @@ button[aria-expanded="true"] .fold-arrow {
     scale var(--m-fast) var(--m-ease);
 }
 
+/* Checkbox (<Checkbox>, motion spec §14). The native input sits invisibly over .check-box inside
+   .check, so the checked state is the browser's and flips the instant of the click; what follows is
+   the answer. The wrapper answers the finger like a button (a 60 ms down-stroke, released at the
+   fast beat) — on the WRAPPER, not the box, so a state that flips while the finger is still down
+   (a tap) never borrows the press's 60 ms for its tint. The tick is DRAWN, not switched on: its
+   stroke runs from the short arm to the long one over the fast step, on the tint arriving at the
+   same beat. Unticking un-draws it at the fast exit, the tint following (rule 15: exits shorter).
+   Every duration here is a clamped token — a checkbox is press feedback and never slows with the
+   scale. The rest state declares the exit durations and the checked state the entrance ones, as
+   durations only, so each direction has its own beat with no JavaScript and the reduce block's
+   `transition: none` still wins (a state rule that re-declared the shorthand would outrank it). The
+   mark is hidden by a stepped opacity as well as its offset, because a round cap at offset 1 would
+   leave a dot at the start of the path; on the way out the step waits two thirds of the exit, where
+   the retraction is 96 % done — later, and the cap sits as a speck for the last three frames. */
+.check {
+  transition: transform var(--m-fast) var(--m-ease);
+}
+.check:has(.check-input:active) {
+  transform: scale(0.92);
+  transition-duration: 60ms;
+}
+.check-box {
+  transition:
+    background-color var(--m-exit-fast) var(--m-ease),
+    border-color var(--m-exit-fast) var(--m-ease);
+}
+.check-input:checked ~ .check-box,
+.check-input:indeterminate ~ .check-box {
+  transition-duration: var(--m-fast);
+}
+.check-box path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  opacity: 0;
+  transition-property: stroke-dashoffset, opacity;
+  transition-timing-function: var(--m-ease), linear;
+  transition-duration: var(--m-exit-fast), 0s;
+  transition-delay: 0s, calc(var(--m-exit-fast) * 2 / 3);
+}
+.check-input:checked:not(:indeterminate) ~ .check-box .check-mark,
+.check-input:indeterminate ~ .check-box .check-dash {
+  stroke-dashoffset: 0;
+  opacity: 1;
+  transition-duration: var(--m-fast), 0s;
+  transition-delay: 0s, 0s;
+}
+
 /* Segmented strips (<SegmentedLinks>): one indicator that slides to the picked pill, in three
    transform-only pieces — two round caps that translate and a 1px body that scales between them,
    overlapping the caps by half their width, so no corner is ever distorted and no seam shows. The
@@ -1594,6 +1646,9 @@ button[aria-expanded="true"] .fold-arrow {
   .press-soft,
   .switch,
   .switch::after,
+  .check,
+  .check-box,
+  .check-box path,
   .seg-item,
   .seg-ind,
   .seg-ind-mid,
@@ -1629,7 +1684,8 @@ button[aria-expanded="true"] .fold-arrow {
     display: none;
   }
   .press-soft:active,
-  .lift:active {
+  .lift:active,
+  .check:has(.check-input:active) {
     transform: none;
   }
   /* The navigation gesture, reduced: every page is complete and static the moment it is there.

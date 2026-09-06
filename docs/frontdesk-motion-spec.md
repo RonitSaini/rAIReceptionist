@@ -1488,3 +1488,153 @@ scrollbars kept. `npm test` 107/107, goldens byte-identical.
 
 Left as found: Home's route skeleton is taller than Home's content at 1440p, so a scrollbar thumb
 still appears in the reserved gutter for about 300 ms of the arrival. The header no longer sees it.
+
+## 14. The checkbox that switched instead of answering (2026-09-06)
+
+Reported: *"The Quote it and Offered checkboxes on the Services form toggle with no animation."* The
+brief named two hypotheses — the form's boxes are not the shared `Checkbox`, or the shared one only
+animates the colour swap and not the mark — and asked which. Both, and the second is worse than stated.
+
+### 14.1 Diagnosis, by reading
+
+The Services form's two boxes were raw `<input type="checkbox" className="h-4 w-4">` inside their own
+labels — not the shared component. And the shared `Checkbox` in `ui.tsx` was a **native** input with
+`accent-color`: §7.3 counted it as "adopted by inheritance", but the only thing it inherited was
+`.press-soft` on the wrapping label. The browser paints a native checkbox's mark and fill itself, in
+one frame, and `accent-color` only recolours that paint — so the shared component animated neither the
+mark nor the colour swap. Nothing about a checkbox anywhere in the app had ever answered a click.
+
+Every checkbox in the app, found by grepping `type="checkbox"` and confirmed in the browser (14.5):
+
+| Where | Was | Rendered through |
+|---|---|---|
+| Services "Quote it", "Offered" (settings and onboarding step 5) | raw input, 16 px, no accent | outside |
+| Hours "24 hours", "Closed" (settings and onboarding step 3) | raw input, 20 px, accent, `.press-soft` label | outside |
+| Menu "Available" (restaurant settings and onboarding) | raw input, 16 px, accent | outside |
+| Terms consent (`TermsCheckbox`: sign-up, Google step 1, re-consent) | raw input, 16 px, accent, `required` | outside |
+| Emergency types (trades, settings and onboarding step 6); urgent cases (auto repair handoffs) | `Checkbox` — native input in a card label | the shared component, native inside |
+
+Not checkboxes, and left alone: `<Toggle>` (a switch on a hidden input, its own §7 treatment); the
+profession picker's cards (a radio group; the 18 px check that draws on selection is §8.2's, at the
+slow beat); the filter chips ("Unread only", dietary tags, the voice gender filter) are `aria-pressed`
+buttons and links. **No indeterminate state exists anywhere** — nothing sets the property and the
+component did not expose it.
+
+### 14.2 21st.dev, this pass
+
+Eight searches (animated checkbox / drawn checkmark / checkbox / check-uncheck scale / toggle switch /
+indeterminate / card option / todo strike-through), zero retrievals; the two daily retrievals were not
+spent — a checkbox is not structurally complex enough to buy. Candidates, from descriptions and previews:
+
+| Candidate | What it is | Verdict |
+|---|---|---|
+| *Animated Checkbox* #10239 (tom_ui), *Animate Checkbox* #4217 (molecule-lab-rushil), *Animated Check Box* #2174 (ringlabs) | Spring transitions on the box and a strike-through on the text; Radix + Motion | Springs overshoot (rule 15); strike-through is a to-do idiom, not a form's |
+| *Checkbox Group* #10365 (micka_design), *Checkbox Group* #25106 (edwinvakayil) | Animated checkmarks with spring, proximity hover, merged selections | The runtime again, and the tick springs |
+| *Animated Signature* #16799 (dqnamo), *Line Draw SVG* #18352 (pulkitxm), *Path drawing* #24528 (motion.dev) | `stroke-dashoffset` self-draw of any path | The mechanism we already own (`<DrawIcon>`, rule 1); nothing to port |
+| shadcn #1289, coss #11447, Radix #1766, HeroUI #13836, Reshaped #17578, originui #662 / #660, Subframe #5900, Interfaces #11863, sean0205 #2369 | Radix/Base checkboxes: the indicator icon appears when checked | A switch-on — the colour flip the brief refuses; HeroUI's indeterminate and Reshaped's card composition are static states |
+| *Select All* #24915 / #24957, *Nested Tree* #24923, *Parent Group* #24909 | Indeterminate parents over child lists | State logic; no motion, and no such list here |
+| *Card Style Checkbox* #24954, *Checkbox Card* #5902, *Payment Method Card* #24917 | A bordered card that highlights when selected | Our card variant already is one |
+| *Neobrutalism* #733, *Checkbox 02* #9530, *Todo List Item* #1138 | Styling; swipe-to-complete | Decoration, gestures we do not have |
+
+Nothing beats a drawn check on the existing shared component: every animated candidate is a spring or the
+Motion runtime, every plain one switches an icon on. So it is built there.
+
+### 14.3 What changed
+
+**One `<Checkbox>`, drawn.** A native `<input type="checkbox">` — so `required`, form data, keyboard, the
+validation bubble and the checked state itself stay the browser's and flip the instant of the click — laid
+invisibly (`opacity: 0`, `inset: 0`) over a box it is the `peer` of. The **wrapper** presses like a button
+(`scale(.92)` in 60 ms, released at the fast beat, via `:has(.check-input:active)` — the codebase's
+`has-[]` idiom). The tick is a `<path pathLength="1">` written **left to right** (`M4 12l5 5L20 6` — the
+icon set's check runs from the tip, which would draw it backwards) and drawn by `stroke-dashoffset` 1 → 0
+over the fast step, on a tint arriving at the same beat. Unticking un-draws it at the fast exit and the
+tint follows. A second path, a dash, is the `:indeterminate` mark and draws on the same beat; when an
+indeterminate box was checked, the tick gives way to it (tick out at the exit, dash in at the entrance).
+Focus is a ring on the box (`peer-focus-visible`); hover darkens an unchecked border (`group-hover`).
+
+**Two looks, four props.** `variant="card"` (default) is the bordered `.press-soft` row the emergency lists
+had; `variant="inline"` is the box beside its label; `size="sm"` is a 16 px box for dense rows;
+`align="start"` keeps the box on a wrapped label's first line; `label` is a `ReactNode`, so the consent
+sentence keeps its two links; `onChange(checked: boolean)` like `<Toggle>`; everything else spreads onto
+the input (`id`, `name`, `value`, `required`, `checked`, `defaultChecked`). The six straggler sites became
+one-line calls; `TermsCheckbox` is now a thin wrapper that only fixes `id`/`name`/`required`.
+
+**The look changed, on purpose.** Native `accent-color` gave a filled brand box with a white tick. A white
+mark drawn on a fill that is itself mid-transition is invisible for its first frames — at 40 ms the fill is
+65 % brand, and the draw is 70 % done by then — so the draw could not read as drawn. Considered and
+rejected: the mark delayed 40 ms behind the fill (190 ms total, and the first third still masked); the mark
+scaling in (rule 1: icons draw); an instant fill with the mark drawn on it (a stepped colour is reduced
+motion's answer, not an interaction's). The checked look is now the app's own selected idiom, the picker
+card's at box scale: brand border, brand-50 tint, brand-700 mark — visible from its first frame, and the
+dark tokens re-light it (`#06212f` tint, `#84afd0` mark on the black surface).
+
+**Timing, in the stylesheet.** `.check` / `.check-box` / `.check-box path` read only `--m-fast` and
+`--m-exit-fast`. The rest state declares the exit durations and the checked state the entrance ones — as
+`transition-duration` only, never the shorthand, so each direction has its own beat with no JavaScript and
+the reduce block still wins. The mark is hidden by a stepped opacity as well as its offset (a round cap at
+offset 1 leaves a dot at the path's start); on the way out the step waits two thirds of the exit, where the
+retraction is 96 % done — at the full exit the cap sat as a speck for the last three frames of the film.
+
+**Guarded.** `tests/motion-vocabulary.test.mjs`: every checkbox rule reads only the fast tokens; the mark
+is a stroke that draws at `--m-fast` and un-draws at `--m-exit-fast`; state rules never re-declare the
+shorthand; the wrapper presses with the 60 ms down-stroke; `.check`, `.check-box`, `.check-box path` and
+the press are in the reduce block.
+
+### 14.4 Rules added (continuing §13)
+
+34. **A checkbox is press feedback.** Its box presses like a button (60 ms down, released at the fast beat)
+    and its mark answers at the fast step, clamped; unchecking leaves at the fast exit. Nothing about a
+    checkbox reads the scale, and the state flips before any of it plays.
+35. **A control's mark is drawn, never switched on, and it is visible from its first frame.** It is
+    drawn in a colour that reads on the surface it lands on, not on a fill that is itself arriving. Rule
+    8's 18 px floor governs the 700 ms icon draw; a two-segment tick over 150 ms at 12–14 px reads as a
+    tick being made, not as a glyph flickering in (measured, 14.5).
+36. **State rules set durations, never the shorthand.** A `:checked` rule that re-declares `transition`
+    outranks the reduce block's `transition: none` and brings the motion back for the one visitor who
+    asked for none (measured before the fix: the draw ran under reduced motion). The rest state carries the
+    exit beat, the state the entrance beat; both as `transition-duration`.
+37. **The press lives on an element the state does not style.** A state that flips while the finger is
+    still down — a tap — must not borrow the press's 60 ms: measured on a 390 px tap before the fix, the
+    tint left in 60 ms instead of 100. The wrapper presses; the box and the mark keep their own beats.
+
+### 14.5 Verification (2026-09-06, dev server on 3001, 1100 × 800 unless stated)
+
+Harness in the session scratchpad (`check.js`, filmed at DPR 2 through the CDP screencast; `db.mjs`
+creates and removes the `[row-check]` service it needs; `sheet.js` the contact sheet). 65 checks across
+eleven scenarios, all passing; the seven `npm test` failures seen on the way were the server-bound tests
+defaulting to port 3000 with nothing listening there (108/108 with `BASE_URL` on 3001).
+
+- **Every checkbox is the shared component.** Audited in the browser: sign-up (1), Services settings and
+  step 5 (10 boxes + the prices toggle), Hours settings and step 3 (14), Emergencies settings and step 6
+  (6), the restaurant's Menu (10 + 3 toggles), auto repair's Urgent cases (4): no `<input type="checkbox">`
+  outside the component remains, and on every one the pointer hits the input over the box.
+- **Beat for beat, "Offered" against a Save press** (same clock, sampled every frame; release columns from
+  the release, state columns from the click): tick draw 0 / .44 / .72 / .87 / .94 / .98 / .99 / 1 at 0 /
+  17 / 33 / 50 / 67 / 83 / 100 / 117 ms, box release .44 / .71 / .86 / .94 / .97 / .99 / 1, button release
+  .43 / .73 / .87 / .93 / .97 / 1 / 1 — one curve, worst gap 0.021; tint .45 / .70 / .85 / .95 / 1. The
+  button's release is credited to its first frame 29 ms after its mouseup and the box's 5 ms (a composited
+  transform starts a frame or two later than a main-thread one; pre-existing, and true of every `.press`).
+  Uncheck: un-draw .60 / .87 / .96 / .99 / 1 at 33 / 50 / 67 / 83 / 100, settled ~110 vs the check's ~150.
+  The contact sheet (`out/frame-series.png`) shows the held press, check, uncheck, a keyboard check and the
+  button press on the same twelve beats.
+- **The state is the browser's.** `input.checked` and the form's hidden `services` JSON read the new value
+  at the first frame after the click (t = 5–16 ms), every time. A probe row's "Quote it" ticked and the
+  form submitted **64–68 ms later** — inside the 150 ms draw — reached the server as `canQuote: true`, and
+  the reload rendered it drawn. The consent box: `id`/`name`/`required` intact, the form invalid until
+  ticked, `FormData` carrying `acceptTerms=on` at the first frame, both links still inside the label.
+- **Keyboard.** Tab lands on the box with a visible ring; Space held presses it (.92) exactly like the
+  pointer, and its dash series matches the click's within 0.035 at every beat (1 / .56 / .28 / .13 /
+  .02 / .00 / 0 at 0 / 17 / 33 / 50 / 83 / 117 / 150).
+- **The card variant.** Pressing the row's *text*, 40 px from the box: the label activates the input, so
+  the box presses (.92) and the row presses with it (.99, 1 px), and the mark draws at 150.
+- **Indeterminate** (set by script — nothing in the app sets it): the dash draws at 150 on the tint, the
+  tick hidden, settled in 151 ms.
+- **Reduced motion:** no press while held (scale 1), both directions complete at the first frame with no
+  transition running. **390 px tap:** the state flips at the first frame and the un-draw runs at 100.
+  **Dark:** tint `rgb(6,33,47)`, mark `rgb(132,175,208)`, surface black, gray border `rgb(69,69,69)`.
+- `npm test` 108/108, goldens byte-identical, `eslint` and `tsc --noEmit` clean.
+
+Left as found, flagged: the profession picker's check draws at the **slow** beat (720 ms, §8.2's recorded
+choice) while every checkbox now answers at 150 — the one click-answer in the app slower than the fast
+step; the picker is a radio group, so it was not migrated. And `<Toggle>` still has no visible focus ring
+(its input is `sr-only` and the track carries none) — the checkbox got one; the toggle did not, today.

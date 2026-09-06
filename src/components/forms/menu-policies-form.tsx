@@ -4,7 +4,7 @@ import { useActionState, useState } from "react";
 import { saveMenuPolicies } from "@/actions/onboarding";
 import type { AccountView, MenuItemView } from "@/lib/serialize";
 import { DIETARY_TAGS, MENU_CATEGORIES } from "@/lib/constants";
-import { Button, Field, Input, Toggle, inputClass } from "@/components/ui";
+import { Button, Checkbox, Field, Input, Toggle, inputClass } from "@/components/ui";
 import { FormFooter, type FormMode } from "@/components/form-footer";
 import { DeliveryRadiusMap, deliveryMapAvailable } from "@/components/forms/delivery-radius-map";
 import { accountCountry, displayDistance, postalLabel, toMiles, unitWord } from "@/lib/locale";
@@ -74,10 +74,7 @@ export function MenuPoliciesForm({ account, menu, mode, backHref }: { account: A
                   {expanded === r.key ? "Hide details" : "Category, description, dietary tags"}
                 </button>
                 <div className="flex items-center gap-3">
-                  <label className="flex items-center gap-1 text-xs text-gray-600">
-                    <input type="checkbox" checked={r.enabled} onChange={(e) => update(r.key, { enabled: e.target.checked })} className="h-4 w-4 accent-brand-600" />
-                    Available
-                  </label>
+                  <Checkbox variant="inline" size="sm" label="Available" checked={r.enabled} onChange={(v) => update(r.key, { enabled: v })} className="text-xs text-gray-600" />
                   <button type="button" onClick={() => setRows((prev) => prev.filter((x) => x.key !== r.key))} className="press-soft text-sm font-semibold text-red-600" aria-label="Remove item">
                     Remove
                   </button>
