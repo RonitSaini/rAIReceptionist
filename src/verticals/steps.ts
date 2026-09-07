@@ -4,9 +4,10 @@ import type { OnboardingStep } from "./types";
  * The shared onboarding step registry.
  *
  * A vertical's `onboardingSteps` is an ordered list drawn from here plus any steps of its own.
- * Position in that list IS the step number in /onboarding/[step] and the value stored in
- * `Account.onboardingStep`, so steps may be reordered or omitted per vertical but their ids must
- * stay stable — the id is what picks the component to render.
+ * Position in that list is the step number in /onboarding/[step] - a URL and nothing more. What
+ * an account stores is the step's id (`Account.onboardingStepId`), so steps may be reordered or
+ * omitted per vertical freely; the ids must stay stable, because the id is what picks the
+ * component to render and what a parked account is resumed from.
  *
  * Every vertical must be able to answer the phone with only `account`, `businessBasics` and
  * `phone` completed; nothing else may be load-bearing for taking a call.

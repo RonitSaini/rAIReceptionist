@@ -128,7 +128,7 @@ function account(v, overrides = {}) {
     agentSyncedAt: null,
     agentSyncError: null,
     lastSeenAt: null,
-    onboardingStep: 9,
+    onboardingStepId: "done",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
     ...v.referral,

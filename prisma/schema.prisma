@@ -218,12 +218,9 @@ model Account {
 
   // App state
   lastSeenAt     DateTime?
-  /// LEGACY, unread since the step-id column landed: position in the vertical's list. Kept through
-  /// one deploy so the running build never meets a column it cannot read; the contract migration
-  /// drops it (docs: the onboarding migration plan, 2026-09-06).
-  onboardingStep Int       @default(2)
   /// The next step to complete, by id ("business-basics" ... "payment"), or "done". An id rather
-  /// than a position, so reordering a vertical's steps never needs a data migration again.
+  /// than a position, so reordering a vertical's steps never needs a data migration again. (The
+  /// positional Int it replaced was dropped by 20260914000000_drop_onboarding_step.)
   onboardingStepId String  @default("business-basics")
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
