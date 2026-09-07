@@ -20,6 +20,8 @@ model User {
   passwordHash  String? // null for Google-only users
   googleId      String?   @unique
   emailVerified DateTime?
+  /// When the last verification link went out: the resend cooldown, and what the banner reports.
+  emailVerificationSentAt DateTime?
   image         String?
   accountId     String?
   account       Account?  @relation(fields: [accountId], references: [id], onDelete: SetNull)
@@ -109,6 +111,23 @@ model Account {
   // Mirrored from Stripe by the webhook (src/app/api/stripe/webhook) and the explicit "Refresh status" action.
   subscriptionCurrentPeriodEnd  DateTime?
   subscriptionCancelAtPeriodEnd Boolean            @default(false)
+
+  /// Billing enforcement (docs/frontdesk-billing-spec.md). Every clock here is set by applySubscription
+  /// and cleared the moment a subscription is active again, so a reactivation inside a window keeps
+  /// everything. `isInternal` exempts the owner's own and test accounts from all of it.
+  isInternal          Boolean   @default(false)
+  /// First failed payment of the current lapse: grace runs from here.
+  paymentFailedAt     DateTime?
+  /// Grace expired without payment: the agent is in billing-paused mode from here. Doubles as the
+  /// "owner told, agent re-synced" marker so the daily sweep does neither twice.
+  billingPausedAt     DateTime?
+  /// The subscription ended (cancelled, or grace ran out unpaid): the number-reclamation clock.
+  subscriptionEndedAt DateTime?
+  reclamationWarnedAt DateTime?
+  numberReleasedAt    DateTime?
+  /// When this account's number was last added to the A2P Messaging Service sender pool. Null means
+  /// the sweep still owes it an attempt (docs/frontdesk-sms-spec.md).
+  smsPoolAttachedAt   DateTime?
   setupFeePaidAt                DateTime?
 
   /// The code this account hands out. Issued once at sign-up and never re-rolled: it gets printed
@@ -792,6 +811,9 @@ model Call {
   /// Raw provider error when ringing the manager failed. Diagnostics only — the owner-facing
   /// notification carries plain language (src/lib/provider-errors.ts), never this text.
   managerCallError    String?
+  /// The owner was told this call was fielded in billing-paused mode (message only, no booking).
+  /// Idempotency for the Retell webhook, which retries.
+  billingPausedNotifiedAt DateTime?
   reservationId       String?
   reservation         Reservation?       @relation(fields: [reservationId], references: [id], onDelete: SetNull)
   jobId               String?
