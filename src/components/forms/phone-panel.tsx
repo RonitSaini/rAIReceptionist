@@ -15,7 +15,7 @@ import { vocabularyFor } from "@/verticals";
 import { WebTestCall } from "@/components/web-test-call";
 import { ActionForm } from "@/components/action-form";
 
-type Status = { twilio: boolean; retell: boolean; publicUrl: boolean; subscribed: boolean; appUrl: string; lastSynced: string | null };
+type Status = { twilio: boolean; retell: boolean; publicUrl: boolean; subscribed: boolean; unverifiedEmail: string | null; appUrl: string; lastSynced: string | null };
 
 export function PhonePanel({ account, mode, status, backHref, paymentHref }: { account: AccountView; mode: FormMode; status: Status; backHref?: string; paymentHref?: string }) {
   const [provisionState, provisionAction, provisioning] = useActionState(provisionPhoneNumber, null);
@@ -25,7 +25,7 @@ export function PhonePanel({ account, mode, status, backHref, paymentHref }: { a
   // and a dimmed fill (motion spec rule 16), the others simply disable.
   const [busy, setBusy] = useState<"sync" | "repair" | "call" | null>(null);
   const ready = status.twilio && status.retell && status.publicUrl;
-  const canConnect = ready && status.subscribed;
+  const canConnect = ready && status.subscribed && !status.unverifiedEmail;
   const hasNumber = !!account.twilioNumber;
   const areaCodeDefault = account.cellPhone?.replace(/\D/g, "").replace(/^1/, "").slice(0, 3) ?? "";
 
@@ -80,10 +80,16 @@ export function PhonePanel({ account, mode, status, backHref, paymentHref }: { a
                 </Link>
               </Alert>
             ) : null}
+            {status.subscribed && status.unverifiedEmail ? (
+              <Alert kind="info">
+                <p className="font-semibold">Confirm your email first.</p>
+                <p className="mt-1">We sent a link to {status.unverifiedEmail}. Your number is issued as soon as it&apos;s confirmed - use Resend at the top of the page if it hasn&apos;t arrived.</p>
+              </Alert>
+            ) : null}
             {provisionState && !provisionState.ok && provisionState.error ? <Alert>{provisionState.error}</Alert> : null}
             {provisionState?.ok && provisionState.message ? <Alert kind="success">{provisionState.message}</Alert> : null}
-            <Button type="submit" size="lg" full disabled={!canConnect || provisioning} title={status.subscribed ? undefined : "Requires an active subscription"}>
-              {provisioning ? "Setting up your number and AI host…" : status.subscribed ? "Get my number" : "Subscribe to get a number"}
+            <Button type="submit" size="lg" full disabled={!canConnect || provisioning} title={!status.subscribed ? "Requires an active subscription" : status.unverifiedEmail ? "Requires a verified email" : undefined}>
+              {provisioning ? "Setting up your number and AI host…" : !status.subscribed ? "Subscribe to get a number" : status.unverifiedEmail ? "Verify your email to get a number" : "Get my number"}
             </Button>
           </ActionForm>
         )}

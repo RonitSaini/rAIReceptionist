@@ -1,6 +1,7 @@
 "use server";
 
 import { accountCountry } from "@/lib/locale";
+import { currentUserVerification } from "@/lib/email-verification";
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
@@ -29,6 +30,10 @@ export async function provisionPhoneNumber(_prev: ActionState, fd: FormData): Pr
   // A number rents real money every month, so only a paying (or trialing) account gets one. This is
   // the enforcing side of the gate — the panel's disabled button is a courtesy, this is the rule.
   if (!canConnectNumber(account)) return { ok: false, error: "An active subscription is needed before a number can be connected. Subscribe under Settings → Billing, then come back here." };
+  // The one hard gate email verification has (src/lib/email-verification.ts): a number that bills
+  // every month is not issued to an inbox nobody has proven they read.
+  const verification = await currentUserVerification();
+  if (verification && !verification.verified) return { ok: false, error: `Verify your email address first - we sent a link to ${verification.email}. Use Resend at the top of the page if it hasn't arrived, then come back here.` };
   if (!twilioConfigured() || !retellConfigured()) return { ok: false, error: "Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and RETELL_API_KEY to the environment first." };
   if (!appUrlIsPublic()) return { ok: false, error: `NEXT_PUBLIC_APP_URL must be a public https URL so Twilio and Retell can reach the app (currently ${appUrl()}). Use your Vercel URL or an ngrok tunnel.` };
 

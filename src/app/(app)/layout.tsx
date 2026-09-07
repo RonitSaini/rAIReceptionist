@@ -5,9 +5,12 @@ import { ArrowRightIcon } from "@/components/icons";
 import { requireAccount } from "@/lib/current-account";
 import { hasAcceptedCurrentTerms } from "@/lib/terms-acceptance";
 import { countUnread, recentNotifications } from "@/lib/notifications";
-import { onboardingDoneStep } from "@/verticals";
+import { hasFinishedOnboarding, lastOnboardingStep, onboardingPosition, onboardingResumeHref } from "@/verticals";
 import { stripeConfigured } from "@/lib/env";
 import { subscriptionActive } from "@/lib/billing-ui";
+import { billingState, graceDaysLeft } from "@/lib/billing-state";
+import { currentUserVerification } from "@/lib/email-verification";
+import { VerifyEmailBanner } from "@/components/verify-email-banner";
 import { AppNav } from "@/components/app-nav";
 import { navItemsFor } from "@/lib/nav";
 import { NavOrderProvider } from "@/components/nav-corridor";
@@ -23,11 +26,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Accounts that predate the current terms version are blocked here, before any page renders,
   // by the one-time interstitial. Read-only: the acceptance itself is an explicit action there.
   if (!(await hasAcceptedCurrentTerms(userId))) redirect("/accept-terms");
-  const [unread, recent] = await Promise.all([countUnread(account.id), recentNotifications(account.id)]);
-  const setupIncomplete = account.onboardingStep < onboardingDoneStep(account);
-  // Billing nag only once setup is done and Stripe is actually wired up on this deployment.
-  const billingLapsed = !setupIncomplete && stripeConfigured() && !subscriptionActive(account);
-  const paymentFailed = account.subscriptionStatus === "past_due";
+  const [unread, recent, verification] = await Promise.all([countUnread(account.id), recentNotifications(account.id), currentUserVerification()]);
+  const setupIncomplete = !hasFinishedOnboarding(account);
+  const stepsDone = onboardingPosition(account, account.onboardingStepId) - 1;
+  const stepsTotal = lastOnboardingStep(account);
+  // Billing banners only once setup is done. Enforced (docs/frontdesk-billing-spec.md): grace and
+  // paused are red and say exactly what the agent is doing about it. Not enforced on this deployment
+  // but Stripe wired up: the old amber nudge to subscribe.
+  const billing = setupIncomplete ? "exempt" : billingState(account);
+  const nudgeToSubscribe = billing === "exempt" && !setupIncomplete && !account.isInternal && stripeConfigured() && !subscriptionActive(account);
   // Resolved once and used twice: the rail renders it, and the page transition reads its ORDER to work
   // out which way the owner is walking (motion spec §10, beat two).
   const sidebarItems = navItemsFor(account, "sidebar");
@@ -78,14 +85,24 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </header>
 
         {setupIncomplete ? (
-          <Link href={`/onboarding/${account.onboardingStep}`} className="flex items-center justify-center gap-1 bg-amber-100 px-4 py-2 text-center text-sm font-semibold text-amber-900">
-            Setup is {account.onboardingStep - 1} of 8 steps done — tap to continue <ArrowRightIcon size={16} />
+          <Link href={onboardingResumeHref(account)} className="flex items-center justify-center gap-1 bg-amber-100 px-4 py-2 text-center text-sm font-semibold text-amber-900">
+            Setup is {stepsDone} of {stepsTotal} steps done — tap to continue <ArrowRightIcon size={16} />
           </Link>
         ) : null}
 
-        {billingLapsed ? (
-          <Link href="/settings?tab=billing" className={`flex items-center justify-center gap-1 px-4 py-2 text-center text-sm font-semibold ${paymentFailed ? "bg-red-100 text-red-900" : "bg-amber-100 text-amber-900"}`}>
-            {paymentFailed ? "Your last payment failed — update your card to keep the AI host answering" : "Set up billing to keep your AI host answering"} <ArrowRightIcon size={16} />
+        {verification && !verification.verified ? <VerifyEmailBanner email={verification.email} /> : null}
+
+        {billing === "grace" ? (
+          <Link href="/settings?tab=billing" className="flex items-center justify-center gap-1 bg-red-100 px-4 py-2 text-center text-sm font-semibold text-red-900">
+            Your last payment failed — {graceDaysLeft(account)} {graceDaysLeft(account) === 1 ? "day" : "days"} left before {account.hostName} stops booking. Update your card <ArrowRightIcon size={16} />
+          </Link>
+        ) : billing === "paused" ? (
+          <Link href="/settings?tab=billing" className="flex items-center justify-center gap-1 bg-red-100 px-4 py-2 text-center text-sm font-semibold text-red-900">
+            {account.subscriptionStatus === "none" ? `Set up billing — ${account.hostName} is taking messages only until you subscribe` : `Billing paused — ${account.hostName} is taking messages only. Reactivate to book again`} <ArrowRightIcon size={16} />
+          </Link>
+        ) : nudgeToSubscribe ? (
+          <Link href="/settings?tab=billing" className="flex items-center justify-center gap-1 bg-amber-100 px-4 py-2 text-center text-sm font-semibold text-amber-900">
+            Set up billing to keep your AI host answering <ArrowRightIcon size={16} />
           </Link>
         ) : null}
 

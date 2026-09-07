@@ -14,6 +14,7 @@ import type { Vertical } from "@prisma/client";
 import { DEFAULT_CLOSE, DEFAULT_OPEN } from "@/lib/availability";
 import { hasAcceptedCurrentTerms, recordTermsAcceptance, requestIp } from "@/lib/terms-acceptance";
 import { checkReferralCodeAvailable, claimReferralCodeQuietly, issueReferralCode } from "@/lib/referrals";
+import { confirmVerification, sendVerification } from "@/lib/email-verification";
 
 /** Server-side gate, not UI decoration: a hand-crafted POST without the checkbox lands here too. */
 const TERMS_ERROR = "Please accept the Terms of Service and Privacy Policy to create your account.";
@@ -127,15 +128,16 @@ export async function signUp(_prev: ActionState, formData: FormData): Promise<Ac
   const ip = await requestIp();
 
   let accountId: string;
+  let userId: string;
   try {
-    accountId = await prisma.$transaction(async (tx) => {
+    ({ accountId, userId } = await prisma.$transaction(async (tx) => {
       const account = await createAccountWithDefaults(businessName, vertical, tx);
       // The unique index on email is what makes this safe under concurrency: a second
       // request with the same address fails here and rolls its account back.
       const user = await tx.user.create({ data: { email, passwordHash, accountId: account.id } });
       await recordTermsAcceptance(user.id, ip, tx);
-      return account.id;
-    });
+      return { accountId: account.id, userId: user.id };
+    }));
   } catch (e) {
     if (typeof e === "object" && e !== null && (e as { code?: string }).code === "P2002") {
       return { ok: false, error: "An account with that email already exists. Try logging in." };
@@ -148,11 +150,33 @@ export async function signUp(_prev: ActionState, formData: FormData): Promise<Ac
   if (referral.code) await claimReferralCodeQuietly(accountId, referral.code);
 
   // After the response, so a slow email API never stretches the sign-up; a failure only logs.
+  // The verification link goes first: it is the one of the three the owner has to act on.
   after(async () => {
+    await sendVerification(userId, { force: true }).catch((e) => console.error("[email] verification failed", e));
     await sendWelcomeEmail(email, businessName, vertical).catch((e) => console.error("[email] welcome failed", e));
     await sendReferralFollowUp(accountId, email, businessName);
   });
   return { ok: true };
+}
+
+/** The Resend button on the verify-your-email banner. Respects the one-minute cooldown. */
+export async function resendVerificationEmail(): Promise<ActionState> {
+  const session = await auth();
+  if (!session?.user?.id) return { ok: false, error: "Please log in again." };
+  const outcome = await sendVerification(session.user.id);
+  if (outcome === "sent") return { ok: true, message: "Sent - check your inbox." };
+  if (outcome === "cooldown") return { ok: false, error: "We sent one less than a minute ago - give it a moment, and check spam." };
+  if (outcome === "verified") return { ok: true, message: "Your email is already verified." };
+  return { ok: false, error: "Please log in again." };
+}
+
+/**
+ * The confirm button on /verify-email. Plain form action: the page reads the token and this is
+ * the write. Redirects back to the page with the outcome, then the owner continues from there.
+ */
+export async function confirmEmailVerification(formData: FormData): Promise<void> {
+  const outcome = await confirmVerification(str(formData, "token"));
+  redirect(`/verify-email?result=${outcome}`);
 }
 
 /**
@@ -262,7 +286,7 @@ export async function changeEmail(_prev: ActionState, formData: FormData): Promi
   if (!deliverable.ok) return { ok: false, error: deliverable.error };
 
   try {
-    // Verification (if ever added) starts over for the new address.
+    // Verification starts over for the new address: the old inbox's click proves nothing about this one.
     await prisma.user.update({ where: { id: r.user.id }, data: { email, emailVerified: null } });
   } catch (e) {
     if (typeof e === "object" && e !== null && (e as { code?: string }).code === "P2002") {
@@ -270,7 +294,8 @@ export async function changeEmail(_prev: ActionState, formData: FormData): Promi
     }
     throw e;
   }
-  return { ok: true, message: "Email updated. Use the new address the next time you log in." };
+  after(() => sendVerification(r.user.id, { force: true }).catch((e) => console.error("[email] verification failed", e)));
+  return { ok: true, message: "Email updated. We sent a verification link to the new address - use it the next time you log in." };
 }
 
 export async function changePassword(_prev: ActionState, formData: FormData): Promise<ActionState> {
