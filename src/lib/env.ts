@@ -1,3 +1,6 @@
+import type { SubscriptionStatus } from "@prisma/client";
+import { subscriptionActive } from "./billing-ui";
+
 /** Small helpers around environment configuration for the integrations. */
 
 export function appUrl(): string {
@@ -35,13 +38,37 @@ export function billingRequired(): boolean {
 }
 
 /**
- * "true" = an account must have an active subscription before a phone number is issued. A number
- * rents real dollars every month, so this existed as a hard rule; it is a flag now — currently OFF
- * at the owner's request (2026-09-01) so signups can connect a number before billing enforcement
- * begins. Re-enable with PHONE_REQUIRES_SUBSCRIPTION=true and a redeploy — no code change.
+ * A phone number is only issued to an account with an active subscription. ON unless
+ * PHONE_REQUIRES_SUBSCRIPTION is explicitly "false".
+ *
+ * Note the polarity — this is the one flag in this file that defaults ON, and deliberately. A
+ * number rents real dollars every month for as long as it exists, so the failure worth designing
+ * against is the quiet one: an environment where nobody remembered to set the variable, handing
+ * out numbers nobody is paying for. Defaulting to enforcement puts the cost of a forgotten
+ * variable on us noticing a blocked step, not on next month's Twilio bill.
+ *
+ * History, because the polarity looks like a mistake otherwise: it was a hard rule, then a
+ * default-off flag from 2026-09-01 so the first signups could connect a number before billing
+ * enforcement began. Enforcement is on again at the owner's request (2026-09-06). The off switch
+ * stays, because it was genuinely needed once — PHONE_REQUIRES_SUBSCRIPTION=false and a redeploy.
  */
 export function phoneRequiresSubscription(): boolean {
-  return process.env.PHONE_REQUIRES_SUBSCRIPTION === "true";
+  return process.env.PHONE_REQUIRES_SUBSCRIPTION !== "false";
+}
+
+/**
+ * May this account be issued a phone number? The one place that decides.
+ *
+ * Both sites that care ask this: the action that buys the number, and the panel that decides
+ * whether the button is live. They used to compute it separately, as exact negations of each
+ * other — which is a button that can lie, offering "Get my number" to someone the server will
+ * refuse the moment they click it.
+ *
+ * Skipped where Stripe is not configured at all: local dev and preview have no way to subscribe,
+ * and a gate nobody in that environment can pass is just a step that never opens.
+ */
+export function canConnectNumber(account: { subscriptionStatus: SubscriptionStatus }): boolean {
+  return !phoneRequiresSubscription() || !stripeConfigured() || subscriptionActive(account);
 }
 
 /** Both integrations present — the phone number can be provisioned and wired to an agent. */
