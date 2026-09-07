@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { billingState, graceDaysLeft, reclamationDueAt, reclamationWarnAt, GRACE_DAYS, RECLAIM_DAYS, RECLAIM_WARN_DAYS } from "@/lib/billing-state";
+import { billingState, demoCapped, graceDaysLeft, reclamationDueAt, reclamationWarnAt, DEMO_CALL_LIMIT, DEMO_CALL_MAX_MS, GRACE_DAYS, RECLAIM_DAYS, RECLAIM_WARN_DAYS } from "@/lib/billing-state";
 
 /**
  * The billing state machine (docs/frontdesk-billing-spec.md §1, §3), pinned as a table.
@@ -98,6 +98,23 @@ test("the reclamation clock runs from the end of the subscription, or the end of
   assert.deepEqual(reclamationDueAt(both), daysLater(RECLAIM_DAYS));
 
   assert.equal(reclamationDueAt(account()), null);
+});
+
+test("the browser demo is capped for anyone who has not paid, and only them", () => {
+  // Three calls of three minutes: the numbers the owner set (spec §5). Independent of
+  // BILLING_REQUIRED - metered minutes are metered whether or not enforcement is on.
+  assert.equal(DEMO_CALL_LIMIT, 3);
+  assert.equal(DEMO_CALL_MAX_MS, 3 * 60_000);
+  withEnv({ STRIPE_SECRET_KEY: "sk_test_cap_only_never_sent_anywhere", BILLING_REQUIRED: undefined }, () => {
+    assert.equal(demoCapped(account({ subscriptionStatus: "none" })), true);
+    assert.equal(demoCapped(account({ subscriptionStatus: "cancelled" })), true);
+    assert.equal(demoCapped(account({ subscriptionStatus: "past_due" })), true, "past_due has not paid this month");
+    assert.equal(demoCapped(account({ subscriptionStatus: "active" })), false);
+    assert.equal(demoCapped(account({ subscriptionStatus: "trialing" })), false);
+    assert.equal(demoCapped(account({ subscriptionStatus: "none", isInternal: true })), false, "the owner's own accounts demo freely");
+  });
+  // No Stripe on this deployment: nobody can pay, so a cap nobody can lift is a demo that stops working.
+  withEnv({ STRIPE_SECRET_KEY: undefined }, () => assert.equal(demoCapped(account({ subscriptionStatus: "none" })), false));
 });
 
 test("reactivation is a clean slate: an active account has no clocks that matter", () => {

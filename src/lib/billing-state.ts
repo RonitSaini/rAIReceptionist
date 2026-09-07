@@ -1,5 +1,5 @@
 import type { Account } from "@prisma/client";
-import { billingRequired } from "./env";
+import { billingRequired, stripeConfigured } from "./env";
 import { subscriptionActive } from "./billing-ui";
 import { ONBOARDING_DONE } from "@/verticals/steps";
 
@@ -24,6 +24,26 @@ import { ONBOARDING_DONE } from "@/verticals/steps";
 export type BillingState = "exempt" | "ok" | "grace" | "paused";
 
 export type BillingAccount = Pick<Account, "subscriptionStatus" | "isInternal" | "paymentFailedAt" | "subscriptionEndedAt" | "onboardingStepId">;
+
+/**
+ * The browser demo for an account that has not paid (docs/frontdesk-billing-spec.md §5):
+ * three test calls, three minutes each. Enough to hear the greeting and book something; not
+ * enough to run metered Retell minutes indefinitely on an account that never pays.
+ */
+export const DEMO_CALL_LIMIT = 3;
+export const DEMO_CALL_MAX_MS = 3 * 60_000;
+/** What a paying account's calls may run to, unchanged from before the cap existed. */
+export const FULL_CALL_MAX_MS = 20 * 60_000;
+
+/**
+ * Whether the demo cap applies. Independent of BILLING_REQUIRED - this is about metered minutes
+ * nobody is paying for, not about enforcement policy - but it shares the two exemptions the phone
+ * gate has: internal accounts, and deployments where nobody can pay (no Stripe), because a cap
+ * nobody can lift is a demo that just stops working.
+ */
+export function demoCapped(a: Pick<Account, "subscriptionStatus" | "isInternal">): boolean {
+  return stripeConfigured() && !a.isInternal && !subscriptionActive(a);
+}
 
 export const GRACE_DAYS = 10;
 export const RECLAIM_WARN_DAYS = 20;

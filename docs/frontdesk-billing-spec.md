@@ -19,7 +19,7 @@ The agent still answers, still takes the caller's name, number and what they nee
 
 Enforced in two layers that cannot drift apart, both reading `billingState`:
 
-1. **The prompt.** `buildGeneralPrompt` appends a `BILLING PAUSED` section for a paused account. It is appended, never woven in, so a non-paused prompt is byte-identical to before — the goldens in `tests/snapshots` prove it. The agent is re-synced the moment the state crosses the paused boundary in either direction (`applySubscription`, and the daily sweep for a grace that ran out).
+1. **The prompt.** `buildGeneralPrompt` appends a `BILLING PAUSED` section for a paused account. It is appended, never woven in, so a non-paused prompt is byte-identical to before — the goldens in `tests/snapshots` prove it. The agent is re-synced the moment the state crosses the paused boundary in either direction (`applySubscription`, and the sweep for a grace that ran out).
 2. **The function endpoint.** `/api/retell/functions/[name]` refuses every creating or availability function for a paused account with an instruction to take a message instead. A stale agent that never got the re-synced prompt still cannot book.
 
 Every call fielded this way creates one urgent notification for the owner (`Call.billingPausedNotifiedAt` keeps a webhook retry from making two).
@@ -31,7 +31,7 @@ All set in `applySubscription` (`src/lib/billing.ts`), the one place Stripe stat
 | Column                | Set when                                                     | Starts                                  |
 | --------------------- | ------------------------------------------------------------ | --------------------------------------- |
 | `paymentFailedAt`     | status becomes `past_due` (first failure of this lapse)      | the 10-day grace                        |
-| `billingPausedAt`     | the daily sweep sees `paused` for the first time             | nothing — it is the "owner told, agent re-synced" marker |
+| `billingPausedAt`     | the sweep sees `paused` for the first time             | nothing — it is the "owner told, agent re-synced" marker |
 | `subscriptionEndedAt` | status becomes `cancelled`                                   | the 30-day reclamation clock            |
 | `reclamationWarnedAt` | the sweep sent the day-20 warning                            | —                                       |
 | `numberReleasedAt`    | the sweep released the number                                | —                                       |
@@ -40,14 +40,27 @@ The reclamation clock starts at `subscriptionEndedAt`, or — for a lapse Stripe
 
 ## 4. Number reclamation
 
-Daily sweep (`src/lib/reclamation.ts`, run by `/api/cron/escalations`), for paused accounts that still hold a number:
+The sweep (`src/lib/reclamation.ts`, run by `/api/cron/escalations` every five minutes), for paused accounts that still hold a number:
 
 - **Day 20** — one warning notification: the number goes in 10 days.
 - **Day 30** — the Twilio number is removed from the A2P sender pool and released, the Retell agent and its LLM are deleted, the account's number and agent columns are cleared, and the owner gets a notification **and an email** (`sendNumberReleasedEmail`) — the email because an owner a month past their last payment is probably not opening the app.
 
 A released number cannot be reclaimed. Re-subscribing issues a fresh one through the normal phone step.
 
-## 5. The rules
+## 5. The browser demo cap
+
+An account that has not paid may make **`DEMO_CALL_LIMIT` (3) browser test calls of `DEMO_CALL_MAX_MS` (3 minutes) each.** Enough to hear the greeting and book something; not enough to run metered Retell minutes forever on an account that never pays.
+
+Independent of `BILLING_REQUIRED` — this is about minutes nobody is paying for, not enforcement policy — and it shares the phone gate's two exemptions: `Account.isInternal`, and deployments with no Stripe (a cap nobody can lift is a demo that just stops working). `demoCapped()` in `billing-state.ts` decides.
+
+Two layers:
+
+1. **The count** — `/api/retell/web-call` counts the account's browser test calls (`Call.isTest` with no Twilio leg; an unpaid account cannot make the other kind) and refuses the fourth with a 403 that names the payment step, *before* the agent is built, so a capped account causes no Retell activity at all.
+2. **The length** — `buildAgentConfig` sets the agent's own `max_call_duration_ms` to three minutes for an unpaid account, so Retell ends the call whatever the browser does. `applySubscription` re-syncs the agent when the subscription goes active, which lifts it to the full twenty.
+
+The component tells the owner where they stand from the moment a call is requested ("Test call 2 of 3 · up to 3 minutes each until you subscribe"), so the limit is never a surprise mid-sentence.
+
+## 6. The rules
 
 1. **`billingState` is the only source of truth.** Never compare `subscriptionStatus` to decide behaviour at a call site; ask the function, and pass `now` in tests.
 2. **The agent answers in every state.** Enforcement changes what it may *do*, never whether it picks up. A refusal at the function layer tells the agent to take a message, never to end the call.
@@ -58,7 +71,7 @@ A released number cannot be reclaimed. Re-subscribing issues a fresh one through
 7. **Non-paused prompts stay byte-identical.** The paused section is appended by `buildGeneralPrompt`, and only then. `tests/snapshots` are the check.
 8. **Setup is exempt, because the demo is the sale.** The voice step's browser test call runs before the payment step; a prospect hearing an agent that refuses to book buys nothing. No number exists before payment, so nothing but the owner's own tests can reach the agent — enforcement starts the moment `onboardingStepId` becomes `done`. Lives in `billingState`, not at a call site (rule 1).
 
-## 6. Where things live
+## 7. Where things live
 
 | Concern                              | File                                        |
 | ------------------------------------ | ------------------------------------------- |

@@ -8,6 +8,8 @@ import { DrawIcon } from "@/components/draw-icon";
 
 type Status = "idle" | "starting" | "connected" | "ended" | "error";
 type Line = { role: "agent" | "user"; content: string };
+/** The unpaid-account demo allowance, as the route reports it (docs/frontdesk-billing-spec.md §5). */
+type Demo = { used: number; limit: number; maxMinutes: number; paymentHref?: string };
 
 /**
  * In-browser test call with the restaurant's AI host (Retell web call over WebRTC).
@@ -21,6 +23,9 @@ export function WebTestCall({ hostName, compact = false }: { hostName: string; c
   const [transcript, setTranscript] = useState<Line[]>([]);
   const [callId, setCallId] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(0);
+  const [demo, setDemo] = useState<Demo | null>(null);
+  // Set when the cap is hit: the error gets a way to the payment step instead of a dead end.
+  const [capHref, setCapHref] = useState<string | null>(null);
   const clientRef = useRef<RetellWebClient | null>(null);
   const transcriptRef = useRef<HTMLDivElement | null>(null);
 
@@ -42,15 +47,18 @@ export function WebTestCall({ hostName, compact = false }: { hostName: string; c
 
   async function start() {
     setError(null);
+    setCapHref(null);
     setTranscript([]);
     setSeconds(0);
     setMuted(false);
     setStatus("starting");
     try {
       const res = await fetch("/api/retell/web-call", { method: "POST" });
-      const data = (await res.json()) as { accessToken?: string; callId?: string; error?: string };
+      const data = (await res.json()) as { accessToken?: string; callId?: string; error?: string; paymentHref?: string; demo?: Demo | null };
+      if (res.status === 403 && data.paymentHref) setCapHref(data.paymentHref);
       if (!res.ok || !data.accessToken) throw new Error(data.error ?? "Could not start the call.");
       setCallId(data.callId ?? null);
+      setDemo(data.demo ?? null);
 
       const { RetellWebClient } = await import("retell-client-js-sdk");
       const client = new RetellWebClient();
@@ -127,8 +135,31 @@ export function WebTestCall({ hostName, compact = false }: { hostName: string; c
 
       {error ? (
         <div className="mt-3">
-          <Alert>{error}</Alert>
+          <Alert>
+            {error}
+            {capHref ? (
+              <Link href={capHref} className="ml-2 font-semibold underline underline-offset-2">
+                {capHref.startsWith("/settings") ? "Open Billing →" : "Go to payment →"}
+              </Link>
+            ) : null}
+          </Alert>
         </div>
+      ) : null}
+
+      {/* Where an unpaid account stands. Shown from the moment the call is requested, so the three
+          minute limit is never a surprise mid-sentence. */}
+      {demo && !error ? (
+        <p className="mt-3 text-xs text-gray-500">
+          Test call {demo.used} of {demo.limit} · up to {demo.maxMinutes} minutes each until you subscribe.
+          {demo.paymentHref ? (
+            <>
+              {" "}
+              <Link href={demo.paymentHref} className="font-semibold text-brand-700">
+                {demo.paymentHref.startsWith("/settings") ? "Open Billing" : "Go to payment"} →
+              </Link>
+            </>
+          ) : null}
+        </p>
       ) : null}
 
       {transcript.length > 0 ? (

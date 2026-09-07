@@ -100,11 +100,14 @@ export async function applySubscription(accountId: string, sub: StripeSubscripti
   });
 
   // Crossing the paused boundary in either direction changes what the agent's prompt says it may
-  // do (docs/frontdesk-billing-spec.md §2). Re-sync now rather than waiting for the daily sweep: a
-  // reactivated owner expects the next call to book again, not the one after tomorrow's cron.
+  // do (docs/frontdesk-billing-spec.md §2), and going active lifts the demo cap on its call length
+  // (§5). Re-sync now rather than waiting for the sweep: an owner who just paid expects the next
+  // call to book, and to run past three minutes, not the one after the next cron.
   const before = billingState(current, now);
   const after = billingState(updated, now);
-  if ((before === "paused") !== (after === "paused")) await syncRetellAgentQuietly(accountId);
+  const pausedFlipped = (before === "paused") !== (after === "paused");
+  const activeFlipped = subscriptionActive(current) !== subscriptionActive(updated);
+  if (pausedFlipped || activeFlipped) await syncRetellAgentQuietly(accountId);
   return status;
 }
 

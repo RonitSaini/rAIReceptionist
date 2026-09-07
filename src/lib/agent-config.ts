@@ -3,7 +3,7 @@ import { generateGreeting } from "./greeting";
 import { verticalFor } from "@/verticals";
 import { UNKNOWN_CALLER } from "./caller-context";
 import { AGENT_FUNCTIONS, CLASSIFICATION_CHOICES, MESSAGE_REASONS, classificationChoicesFor, type AgentFunctionName, type AgentSource } from "@/verticals/types";
-import { billingState } from "./billing-state";
+import { billingState, demoCapped, DEMO_CALL_MAX_MS, FULL_CALL_MAX_MS } from "./billing-state";
 
 /**
  * Builds the Retell LLM + agent configuration for one account.
@@ -22,7 +22,7 @@ export type FunctionName = AgentFunctionName;
 export { MESSAGE_REASONS, CLASSIFICATION_CHOICES };
 
 /**
- * The one thing a caller must never hear (docs/frontdesk-billing-spec.md §5, rule 3), spelled out
+ * The one thing a caller must never hear (docs/frontdesk-billing-spec.md §6, rule 3), spelled out
  * for the agent. Appended, never woven in: a prompt for any account that is not paused is byte for
  * byte what it was, which the goldens in tests/snapshots hold it to.
  */
@@ -89,7 +89,10 @@ export function buildAgentConfig(src: AgentSource, llmId: string, voiceId: strin
     webhook_url: `${src.appUrl}/api/retell/webhook`,
     webhook_timeout_ms: 10000,
     post_call_analysis_data: buildPostCallAnalysis(src),
-    max_call_duration_ms: 20 * 60_000,
+    // The agent enforces the demo cap itself: an unpaid account has no number, so this agent only
+    // ever takes the owner's browser test calls, and Retell ends each one at three minutes whatever
+    // the browser does. Re-synced the moment a subscription goes active (applySubscription).
+    max_call_duration_ms: demoCapped(a) ? DEMO_CALL_MAX_MS : FULL_CALL_MAX_MS,
     end_call_after_silence_ms: 45_000,
     interruption_sensitivity: 0.8,
     responsiveness: 0.9,

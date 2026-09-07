@@ -17,7 +17,7 @@ process.env.DATABASE_URL ??= "postgresql://snapshot:snapshot@localhost:5432/snap
 process.env.RETELL_FUNCTION_SECRET = "snapshot-function-secret";
 process.env.RETELL_LLM_MODEL = "gpt-4.1";
 
-const { buildGeneralPrompt } = await import("../src/lib/agent-config.ts");
+const { buildGeneralPrompt, buildAgentConfig } = await import("../src/lib/agent-config.ts");
 
 function account(overrides = {}) {
   return {
@@ -130,6 +130,16 @@ test("grace is not paused: the agent keeps booking for ten days after a failed p
   withEnv({ BILLING_REQUIRED: "true" }, () => {
     const inGrace = buildGeneralPrompt(src({ subscriptionStatus: "past_due", paymentFailedAt: new Date() }));
     assert.ok(!inGrace.includes(SECTION_START));
+  });
+});
+
+test("an unpaid account's agent ends every call at three minutes; a paid one keeps twenty", () => {
+  // The length half of the demo cap (spec §5) lives on the agent, so it holds whatever the browser
+  // does. The golden's fixture is active, which is why the snapshot's AGENT CONFIG is unchanged.
+  withEnv({ STRIPE_SECRET_KEY: "sk_test_cap_only_never_sent_anywhere" }, () => {
+    assert.equal(buildAgentConfig(src({ subscriptionStatus: "none" }), "llm_x", "11labs-Adrian").max_call_duration_ms, 3 * 60_000);
+    assert.equal(buildAgentConfig(src({ subscriptionStatus: "active" }), "llm_x", "11labs-Adrian").max_call_duration_ms, 20 * 60_000);
+    assert.equal(buildAgentConfig(src({ subscriptionStatus: "none", isInternal: true }), "llm_x", "11labs-Adrian").max_call_duration_ms, 20 * 60_000);
   });
 });
 
