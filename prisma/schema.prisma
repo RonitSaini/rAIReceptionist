@@ -443,6 +443,12 @@ model Job {
   @@index([accountId, status])
   @@index([customerPhone])
   @@index([customerId])
+  /// Created by 20260905000100_job_property_links and never declared here, which left `migrate diff`
+  /// wanting to drop them every time (the referrals migration refused to). Declared 2026-09-06 so
+  /// schema, history and database agree with no SQL: both are SetNull foreign keys, and Postgres
+  /// walks these indexes when a property or unit is deleted.
+  @@index([propertyId])
+  @@index([unitId])
 }
 
 /// What a trade, shop or clinic sells, and the equivalent of MenuItem for those verticals.
