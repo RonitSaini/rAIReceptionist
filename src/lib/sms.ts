@@ -2,7 +2,7 @@ import type { Account } from "@prisma/client";
 import { randomUUID } from "node:crypto";
 import { prisma } from "./prisma";
 import { formatDateTime } from "./time";
-import { sendSms } from "./twilio";
+import { addNumberToMessagingService, messagingServiceSid, sendSms, TwilioError } from "./twilio";
 import { appUrl, twilioConfigured } from "./env";
 import { createNotification } from "./notifications";
 import { formatUsPhone } from "./form";
@@ -40,8 +40,13 @@ export type SmsFailureReason = "no_number" | "not_configured" | "opted_out" | "p
 
 export type SmsResult = { ok: true; sid: string } | { ok: false; error: string; reason: SmsFailureReason; skipped?: boolean };
 
+/**
+ * Always the business's own number (spec section 7). The Messaging Service rides alongside it on
+ * the request and makes the traffic registered; it never chooses the sender. A message from
+ * Ridgeway Plumbing must come from Ridgeway Plumbing's number, whatever else is in the pool.
+ */
 function sender(account: Pick<Account, "twilioNumber">): string | undefined {
-  return process.env.TWILIO_MESSAGING_SERVICE_SID ? undefined : (account.twilioNumber ?? undefined);
+  return account.twilioNumber ?? undefined;
 }
 
 /** What a guest message was for. Stored so cost reporting can break SMS spend down by cause. */
@@ -56,7 +61,11 @@ export async function sendGuestSms(
   if (!to) return { ok: false, error: "no phone number", reason: "no_number", skipped: true };
   if (!twilioConfigured()) return { ok: false, error: "Twilio not configured", reason: "not_configured", skipped: true };
   const from = sender(account);
-  if (!from && !process.env.TWILIO_MESSAGING_SERVICE_SID) return { ok: false, error: "no sending number yet", reason: "not_configured", skipped: true };
+  if (!from) return { ok: false, error: "no sending number yet", reason: "not_configured", skipped: true };
+  // The fallback the spec allows and nothing else: with no service the text goes out from the raw
+  // number, which US carriers filter as unregistered traffic. Loud on purpose - this line in a
+  // production log is the whole diagnosis.
+  if (!messagingServiceSid()) console.warn(`[sms] TWILIO_MESSAGING_SERVICE_SID is not set; sending from the raw number ${from}, which US carriers filter as unregistered A2P traffic`);
 
   // They asked us to stop. Twilio would refuse this anyway; refusing it here means the refusal is
   // ours, carries the real reason, and cannot be mistaken for a message that went out. The row is
@@ -159,6 +168,109 @@ export async function notifyUndeliveredSms(
     jobId: about.jobId ?? null,
     callId: about.callId ?? null,
   }).catch((e) => console.warn("[sms] could not notify about an undelivered text", e));
+}
+
+/** What the message was, in the owner's words. Mirrors SmsPurpose. */
+export const PURPOSE_LABEL: Record<SmsPurpose, string> = {
+  reservation_confirmation: "Their booking confirmation never reached them",
+  takeout_confirmation: "Their order confirmation never reached them",
+  escalation_followup: "The follow-up promising a call back never reached them",
+  cancellation_reply: "The confirmation of their cancellation never reached them",
+  inbound_reply: "Our reply never reached them",
+  unacknowledged: "The message telling them nobody had picked up never reached them",
+  running_late: "The running-late notice never reached them",
+};
+
+/**
+ * Say out loud that a recorded message did not arrive (spec rule 4), from its row.
+ *
+ * Shared by the delivery receipt (the carrier said no) and the stale sweep (the carrier said
+ * nothing for half an hour), so the two failures read the same to the owner.
+ */
+export async function reportUndeliveredSms(row: { accountId: string; toNumber: string; purpose: string | null; reservationId: string | null; jobId: string | null; callId: string | null }, error: string, reason: "opted_out" | "provider"): Promise<void> {
+  const customer = await prisma.customer.findUnique({
+    where: { accountId_phone: { accountId: row.accountId, phone: row.toNumber } },
+    select: { name: true },
+  });
+  await notifyUndeliveredSms(
+    { id: row.accountId },
+    { ok: false, error, reason },
+    {
+      name: customer?.name && customer.name !== "Unknown caller" ? customer.name : formatUsPhone(row.toNumber),
+      phone: row.toNumber,
+      what: PURPOSE_LABEL[row.purpose as SmsPurpose] ?? "A text to them never arrived",
+      reservationId: row.reservationId,
+      takeoutOrderId: null,
+      jobId: row.jobId,
+      callId: row.callId,
+    },
+  );
+}
+
+/** Twilio accepted it and has not said what the carrier did. Anything else is an answer. */
+const IN_FLIGHT_STATUSES = ["queued", "accepted", "sending", "scheduled"];
+export const SMS_RECEIPT_TIMEOUT_MINUTES = 30;
+
+/**
+ * The 30-minute rule (spec section 7): a message still in flight half an hour after it was sent is
+ * failed and said out loud, not left pending forever.
+ *
+ * Before this, a text the carrier silently dropped - the exact shape of unregistered A2P traffic -
+ * sat at "queued" on its row indefinitely and read as sent. Twilio's own "sent" is deliberately not
+ * in the list: that is the carrier accepting the message, and plenty of carriers never follow it
+ * with a delivered receipt.
+ *
+ * Idempotent: the claim is an updateMany on the in-flight statuses, so two sweeps cannot both
+ * notify, and a receipt arriving a second later finds a terminal row and does nothing.
+ */
+export async function sweepStaleSms(opts: { limit?: number; now?: Date } = {}): Promise<{ failed: number }> {
+  const now = opts.now ?? new Date();
+  const cutoff = new Date(now.getTime() - SMS_RECEIPT_TIMEOUT_MINUTES * 60_000);
+  const stale = await prisma.smsMessage.findMany({
+    where: { direction: "outbound", status: { in: IN_FLIGHT_STATUSES }, createdAt: { lt: cutoff } },
+    orderBy: { createdAt: "asc" },
+    take: opts.limit ?? 50,
+  });
+  let failed = 0;
+  for (const row of stale) {
+    const error = `No delivery receipt within ${SMS_RECEIPT_TIMEOUT_MINUTES} minutes of sending (last status: ${row.status})`;
+    const claimed = await prisma.smsMessage.updateMany({ where: { id: row.id, status: { in: IN_FLIGHT_STATUSES } }, data: { status: "failed", error } });
+    if (claimed.count === 0) continue;
+    failed++;
+    await reportUndeliveredSms(row, error, "provider").catch((e) => console.warn("[sms] could not report a stale message", row.id, e));
+  }
+  return { failed };
+}
+
+/**
+ * Put a number in the A2P sender pool and remember that it is there (spec section 7). Called at
+ * provisioning, and by the daily sweep for any number a provisioning-time failure left out.
+ * Nothing without a service configured: there is no pool to join.
+ */
+export async function attachNumberToSmsPool(accountId: string, numberSid: string): Promise<boolean> {
+  const service = messagingServiceSid();
+  if (!service) return false;
+  try {
+    await addNumberToMessagingService(service, numberSid);
+    await prisma.account.update({ where: { id: accountId }, data: { smsPoolAttachedAt: new Date() } });
+    return true;
+  } catch (e) {
+    console.error(`[sms] could not add number to the messaging service for account ${accountId}: ${e instanceof TwilioError ? e.message : String(e)}`);
+    return false;
+  }
+}
+
+/** Every number that should be in the pool and is not yet recorded as such. */
+export async function sweepSmsPool(): Promise<{ attached: number; failed: number }> {
+  if (!messagingServiceSid() || !twilioConfigured()) return { attached: 0, failed: 0 };
+  const owed = await prisma.account.findMany({ where: { twilioNumberSid: { not: null }, smsPoolAttachedAt: null }, select: { id: true, twilioNumberSid: true } });
+  let attached = 0;
+  let failed = 0;
+  for (const a of owed) {
+    if ((await attachNumberToSmsPool(a.id, a.twilioNumberSid as string))) attached++;
+    else failed++;
+  }
+  return { attached, failed };
 }
 
 /**

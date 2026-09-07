@@ -24,6 +24,8 @@ const RAW = {
   optedOutMessage: "The message From/To pair violates a blacklist rule.",
   optedOutCode: "21610 Attempt to send to unsubscribed recipient",
   skippedByUs: "Recipient has opted out of messages from this number (replied STOP).",
+  // The stale sweep's own wording: Twilio accepted it and the carrier said nothing for half an hour.
+  noReceipt: "No delivery receipt within 30 minutes of sending (last status: queued)",
 };
 
 test("common failures map to plain owner-facing language", () => {
@@ -65,4 +67,10 @@ test("an opt-out is named as an opt-out, never as an unfinished setup", () => {
 
 test("carrier filtering is still its own thing, not an opt-out", () => {
   assert.equal(friendlyProviderError("sms", RAW.filtered), "their carrier or opt-out settings blocked it");
+});
+
+test("a message nobody confirmed is named as that, not as an unfinished setup", () => {
+  // "No delivery receipt" carries the word "no", which the setup bucket's `no ... phone number`
+  // pattern would otherwise have had a go at.
+  assert.equal(friendlyProviderError("sms", RAW.noReceipt), "the carrier never confirmed it was delivered");
 });

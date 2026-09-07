@@ -26,8 +26,19 @@ export class TwilioError extends Error {
 }
 
 async function request<T>(method: "GET" | "POST" | "DELETE", path: string, params?: Record<string, string | undefined>): Promise<T> {
-  const { sid, auth } = creds();
-  let url = `${API}/Accounts/${sid}${path}`;
+  const { sid } = creds();
+  return call<T>(method, `${API}/Accounts/${sid}${path}`, params);
+}
+
+/** The Messaging API lives on its own host and is not scoped under the account path. */
+const MESSAGING_API = "https://messaging.twilio.com/v1";
+
+function messagingRequest<T>(method: "GET" | "POST" | "DELETE", path: string, params?: Record<string, string | undefined>): Promise<T> {
+  return call<T>(method, `${MESSAGING_API}${path}`, params);
+}
+
+async function call<T>(method: "GET" | "POST" | "DELETE", url: string, params?: Record<string, string | undefined>): Promise<T> {
+  const { auth } = creds();
   const body = new URLSearchParams();
   for (const [k, v] of Object.entries(params ?? {})) if (v !== undefined && v !== "") body.set(k, v);
   const init: RequestInit = { method, headers: { Authorization: auth } };
@@ -114,6 +125,40 @@ export async function releaseNumber(numberSid: string): Promise<void> {
   await request("DELETE", `/IncomingPhoneNumbers/${numberSid}.json`);
 }
 
+// ---------- A2P 10DLC: the Messaging Service sender pool ----------
+
+/**
+ * The one Messaging Service every customer number belongs to (docs/frontdesk-sms-spec.md §7).
+ *
+ * US carriers filter application traffic from a number that is not attached to a registered
+ * campaign, and the campaign is attached to a Messaging Service. So a number sends registered
+ * traffic only while it sits in this service's sender pool - which is why provisioning adds it
+ * there, the daily sweep retries any it missed, and reclamation removes it before release.
+ */
+export function messagingServiceSid(): string | undefined {
+  return process.env.TWILIO_MESSAGING_SERVICE_SID || undefined;
+}
+
+export async function addNumberToMessagingService(serviceSid: string, numberSid: string): Promise<void> {
+  try {
+    await messagingRequest("POST", `/Services/${serviceSid}/PhoneNumbers`, { PhoneNumberSid: numberSid });
+  } catch (e) {
+    // Already in the pool (a retry, or the backfill running twice) is the outcome we wanted.
+    if (e instanceof TwilioError && e.code === 21712) return;
+    throw e;
+  }
+}
+
+/** Best-effort by design: a number about to be released does not need its pool membership to survive. */
+export async function removeNumberFromMessagingService(serviceSid: string, numberSid: string): Promise<void> {
+  try {
+    await messagingRequest("DELETE", `/Services/${serviceSid}/PhoneNumbers/${numberSid}`);
+  } catch (e) {
+    if (e instanceof TwilioError && e.status === 404) return;
+    throw e;
+  }
+}
+
 // ---------- Calls + SMS ----------
 
 /** Place an outbound call; Twilio fetches TwiML from `url` when the callee answers. */
@@ -142,7 +187,16 @@ export type SentSms = {
 };
 
 /**
- * Send an SMS. Uses the Messaging Service when configured, otherwise the given `from` number.
+ * Send an SMS.
+ *
+ * Both the Messaging Service and `from` go on the request when both exist: the service is what
+ * makes the traffic registered A2P (its campaign), and `from` pins the sender to this business's own
+ * number rather than letting the pool pick one - a customer who texted Ridgeway Plumbing must be
+ * answered from Ridgeway Plumbing's number. Twilio accepts the pair as long as `from` is in the
+ * service's sender pool, which provisioning guarantees (addNumberToMessagingService).
+ *
+ * With no service configured the message goes out from the raw number - unregistered traffic that
+ * US carriers filter. sendGuestSms logs that it is doing so.
  *
  * `statusCallback` is where Twilio reports what the carrier did with the message afterwards. Without
  * it the only failure this app can see is a synchronous rejection — the ones Twilio refuses outright,
@@ -150,7 +204,7 @@ export type SentSms = {
  * comes back only on the callback, so without one it stays "queued" forever and reads as sent.
  */
 export async function sendSms(opts: { to: string; body: string; from?: string; statusCallback?: string }): Promise<SentSms> {
-  const service = process.env.TWILIO_MESSAGING_SERVICE_SID;
+  const service = messagingServiceSid();
   if (!service && !opts.from) throw new Error("sendSms needs TWILIO_MESSAGING_SERVICE_SID or a from number.");
   const data = await request<{ sid: string; num_segments?: string; status?: string; encoding?: string; from?: string }>(
     "POST",
@@ -158,8 +212,8 @@ export async function sendSms(opts: { to: string; body: string; from?: string; s
     {
       To: opts.to,
       Body: opts.body,
-      MessagingServiceSid: service || undefined,
-      From: service ? undefined : opts.from,
+      MessagingServiceSid: service,
+      From: opts.from,
       StatusCallback: opts.statusCallback,
     },
   );

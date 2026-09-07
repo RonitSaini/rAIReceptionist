@@ -9,6 +9,7 @@ import { str, type ActionState } from "@/lib/form";
 import { appUrl, appUrlIsPublic, canConnectNumber, retellConfigured, twilioConfigured } from "@/lib/env";
 import { createCall, isTrialRestriction, listOwnedNumbers, purchaseNumber, searchAvailableNumbers, updateNumberWebhooks, TwilioError } from "@/lib/twilio";
 import { syncRetellAgent } from "@/lib/agent-sync";
+import { attachNumberToSmsPool } from "@/lib/sms";
 
 function webhookUrls() {
   const base = appUrl();
@@ -46,7 +47,11 @@ export async function provisionPhoneNumber(_prev: ActionState, fd: FormData): Pr
       const free = owned.find((n) => !taken.has(n.phoneNumber));
       if (free) {
         await updateNumberWebhooks(free.sid, { ...webhookUrls(), friendlyName });
-        await prisma.account.update({ where: { id: account.id }, data: { twilioNumber: free.phoneNumber, twilioNumberSid: free.sid } });
+        await prisma.account.update({ where: { id: account.id }, data: { twilioNumber: free.phoneNumber, twilioNumberSid: free.sid, smsPoolAttachedAt: null } });
+        // Into the A2P sender pool, so its texts ride the registered campaign. Best-effort here: a
+        // number that answers calls today is worth more than one that waits on Twilio's pool API,
+        // and the daily sweep retries whatever this could not do.
+        await attachNumberToSmsPool(account.id, free.sid);
         revalidatePath("/", "layout");
         return { ok: true, message: `Connected your existing Twilio number ${free.phoneNumber}.` };
       }
@@ -68,7 +73,8 @@ export async function provisionPhoneNumber(_prev: ActionState, fd: FormData): Pr
     }
     if (!purchased) return { ok: false, error: `Could not purchase a number: ${lastError}` };
 
-    await prisma.account.update({ where: { id: account.id }, data: { twilioNumber: purchased.phoneNumber, twilioNumberSid: purchased.sid } });
+    await prisma.account.update({ where: { id: account.id }, data: { twilioNumber: purchased.phoneNumber, twilioNumberSid: purchased.sid, smsPoolAttachedAt: null } });
+    await attachNumberToSmsPool(account.id, purchased.sid);
     revalidatePath("/", "layout");
     return { ok: true, message: `Your number is ready: ${purchased.phoneNumber}` };
   } catch (e) {

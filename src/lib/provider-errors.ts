@@ -32,6 +32,12 @@ export function friendlyProviderError(channel: ProviderChannel, raw?: string | n
   if (/\b21610\b|opted out|opt-out|unsubscrib|blacklist/.test(r)) {
     return "they've opted out of messages from this number";
   }
+  // Nobody ever said no. Twilio accepted the message and the carrier never reported back, which
+  // after half an hour means it did not arrive (docs/frontdesk-sms-spec.md, the 30-minute rule).
+  // Tested before the setup bucket because "no delivery receipt" carries the word "no".
+  if (/no delivery receipt/.test(r)) {
+    return "the carrier never confirmed it was delivered";
+  }
   // The account can't send yet: Twilio trial limits, unverified destination, unregistered A2P
   // campaign, missing or SMS-incapable number. All of them read as "finish setting up".
   if (/unverified|\btrial\b|not.*regist|10dlc|a2p|campaign|is not a valid|invalid.*\b(to|from|number)\b|sms.?capable|no .{0,20}phone number|21211|21606|21608|21408|63018|30034|30038/.test(r)) {

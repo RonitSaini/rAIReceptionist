@@ -2,9 +2,8 @@ import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseTwilioForm, publicRequestUrl, validateTwilioSignature } from "@/lib/twilio";
 import { appUrl, twilioConfigured } from "@/lib/env";
-import { notifyUndeliveredSms, type SmsPurpose } from "@/lib/sms";
+import { reportUndeliveredSms } from "@/lib/sms";
 import { markOptedOutFromDeliveryFailure } from "@/lib/sms-opt-out";
-import { formatUsPhone } from "@/lib/form";
 
 export const dynamic = "force-dynamic";
 
@@ -14,17 +13,6 @@ const FAILED = new Set(["failed", "undelivered"]);
 
 /** Twilio's code for "attempt to send to unsubscribed recipient". */
 const OPTED_OUT_CODE = "21610";
-
-/** What the message was, in the owner's words. Mirrors SmsPurpose. */
-const PURPOSE_LABEL: Record<SmsPurpose, string> = {
-  reservation_confirmation: "Their booking confirmation never reached them",
-  takeout_confirmation: "Their order confirmation never reached them",
-  escalation_followup: "The follow-up promising a call back never reached them",
-  cancellation_reply: "The confirmation of their cancellation never reached them",
-  inbound_reply: "Our reply never reached them",
-  unacknowledged: "The message telling them nobody had picked up never reached them",
-  running_late: "The running-late notice never reached them",
-};
 
 /**
  * What the carrier did with a message Twilio already accepted.
@@ -75,24 +63,9 @@ export async function POST(req: NextRequest) {
   // next message being attempted too.
   if (code === OPTED_OUT_CODE) await markOptedOutFromDeliveryFailure(row.accountId, row.toNumber);
 
-  const customer = await prisma.customer.findUnique({
-    where: { accountId_phone: { accountId: row.accountId, phone: row.toNumber } },
-    select: { name: true },
-  });
-
-  await notifyUndeliveredSms(
-    { id: row.accountId },
-    { ok: false, error: error ?? "", reason: code === OPTED_OUT_CODE ? "opted_out" : "provider" },
-    {
-      name: customer?.name && customer.name !== "Unknown caller" ? customer.name : formatUsPhone(row.toNumber),
-      phone: row.toNumber,
-      what: PURPOSE_LABEL[row.purpose as SmsPurpose] ?? "A text to them never arrived",
-      reservationId: row.reservationId,
-      takeoutOrderId: null,
-      jobId: row.jobId,
-      callId: row.callId,
-    },
-  );
+  // The same words the stale sweep uses, so "the carrier said no" and "the carrier said nothing"
+  // read alike to the owner.
+  await reportUndeliveredSms(row, error ?? "", code === OPTED_OUT_CODE ? "opted_out" : "provider");
 
   return new Response("", { status: 204 });
 }
