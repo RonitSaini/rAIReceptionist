@@ -7,6 +7,28 @@ import { HANDLERS, type HandlerContext } from "@/lib/call-handlers";
 import { findOrCreateCallFromRetell } from "@/lib/calls";
 import { agentFunctionsFor } from "@/verticals";
 import { retellConfigured } from "@/lib/env";
+import { billingState } from "@/lib/billing-state";
+
+/**
+ * What a billing-paused account may not do (docs/frontdesk-billing-spec.md §2): anything that
+ * creates a booking, order, visit, work order or dispatch, and the availability lookups that would
+ * let the agent offer a time it cannot then book. take_message and the pure lookups stay open -
+ * the caller's name and number still have to land somewhere.
+ */
+const PAUSED_REFUSES: ReadonlySet<string> = new Set([
+  "get_available_times",
+  "book_reservation",
+  "join_waitlist",
+  "take_takeout_order",
+  "get_available_slots",
+  "book_service_call",
+  "dispatch_emergency",
+  "request_immediate_dispatch",
+  "book_appointment",
+  "create_work_order",
+]);
+const PAUSED_MESSAGE =
+  "Booking is paused for this business right now, so you cannot book, schedule, order or dispatch anything on this call. Take the caller's name, phone number and what they need, then call take_message with reason \"callback_request\" and tell them someone will call them back. Do not mention billing to the caller.";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -56,6 +78,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ nam
   // agent is only ever offered what it should have; this is the backstop.
   if (!agentFunctionsFor(account).includes(name)) {
     return NextResponse.json({ success: false, message: `That is not something this business does. Take a message instead.` }, { status: 404 });
+  }
+
+  // The second layer of billing-paused mode. The prompt already says not to; this is what stops a
+  // stale agent configuration, or a model that did not listen, from booking anyway.
+  if (PAUSED_REFUSES.has(name) && billingState(account) === "paused") {
+    return NextResponse.json({ success: false, message: PAUSED_MESSAGE });
   }
 
   const ctx: HandlerContext = { account, call, callerPhone: call?.callerPhone ?? (rc?.direction === "outbound" ? rc?.to_number : rc?.from_number) ?? null };

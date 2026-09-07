@@ -1,7 +1,9 @@
 import type { Account, SubscriptionStatus } from "@prisma/client";
 import { prisma } from "./prisma";
 import { createNotification } from "./notifications";
-import { appUrl, billingRequired, stripeConfigured } from "./env";
+import { appUrl, stripeConfigured } from "./env";
+import { billingState, GRACE_DAYS } from "./billing-state";
+import { syncRetellAgentQuietly } from "./agent-sync";
 import { subscriptionActive } from "./billing-ui";
 import {
   createCoupon,
@@ -67,11 +69,6 @@ export function periodEndOf(sub: StripeSubscription): Date | null {
   return ends.length ? new Date(Math.max(...ends) * 1000) : null;
 }
 
-/** Whether the AI host may answer calls for this account. Billing is only enforced when BILLING_REQUIRED=true. */
-export function canTakeCalls(a: Pick<Account, "subscriptionStatus">): boolean {
-  return !billingRequired() || subscriptionActive(a);
-}
-
 // ---------- Writing Stripe state onto the account ----------
 
 /**
@@ -80,12 +77,16 @@ export function canTakeCalls(a: Pick<Account, "subscriptionStatus">): boolean {
  */
 export async function applySubscription(accountId: string, sub: StripeSubscription): Promise<SubscriptionStatus> {
   const status = mapSubscriptionStatus(sub.status);
-  const current = await prisma.account.findUnique({ where: { id: accountId }, select: { subscriptionStatus: true, stripeSubscriptionId: true } });
+  const current = await prisma.account.findUnique({
+    where: { id: accountId },
+    select: { subscriptionStatus: true, stripeSubscriptionId: true, isInternal: true, paymentFailedAt: true, subscriptionEndedAt: true },
+  });
   if (!current) return "none";
   const isOtherSubscription = !!current.stripeSubscriptionId && current.stripeSubscriptionId !== sub.id;
   if (isOtherSubscription && !subscriptionActive({ subscriptionStatus: status })) return current.subscriptionStatus;
 
-  await prisma.account.update({
+  const now = new Date();
+  const updated = await prisma.account.update({
     where: { id: accountId },
     data: {
       stripeCustomerId: idOf(sub.customer),
@@ -93,9 +94,34 @@ export async function applySubscription(accountId: string, sub: StripeSubscripti
       subscriptionStatus: status,
       subscriptionCurrentPeriodEnd: periodEndOf(sub),
       subscriptionCancelAtPeriodEnd: !!sub.cancel_at_period_end,
+      ...billingClocks(status, current, now),
     },
+    select: { subscriptionStatus: true, isInternal: true, paymentFailedAt: true, subscriptionEndedAt: true },
   });
+
+  // Crossing the paused boundary in either direction changes what the agent's prompt says it may
+  // do (docs/frontdesk-billing-spec.md §2). Re-sync now rather than waiting for the daily sweep: a
+  // reactivated owner expects the next call to book again, not the one after tomorrow's cron.
+  const before = billingState(current, now);
+  const after = billingState(updated, now);
+  if ((before === "paused") !== (after === "paused")) await syncRetellAgentQuietly(accountId);
   return status;
+}
+
+/**
+ * The enforcement clocks (docs/frontdesk-billing-spec.md §3), set here and nowhere else.
+ *
+ * `active` clears everything - that is the "reactivation inside the window keeps everything" rule,
+ * and it is a single line so it cannot be half-applied. `past_due` starts grace once per lapse
+ * (`??` keeps the first failure's date through Stripe's retries); `cancelled` starts reclamation.
+ */
+function billingClocks(status: SubscriptionStatus, current: Pick<Account, "paymentFailedAt" | "subscriptionEndedAt">, now: Date) {
+  if (subscriptionActive({ subscriptionStatus: status })) {
+    return { paymentFailedAt: null, billingPausedAt: null, subscriptionEndedAt: null, reclamationWarnedAt: null };
+  }
+  if (status === "past_due") return { paymentFailedAt: current.paymentFailedAt ?? now };
+  if (status === "cancelled") return { subscriptionEndedAt: current.subscriptionEndedAt ?? now };
+  return {};
 }
 
 /** Pull the current state from Stripe (explicit action — the "Refresh status" button). */
@@ -205,7 +231,7 @@ export async function handleStripeEvent(event: StripeWebhookEvent): Promise<void
         type: "system",
         priority: "urgent",
         title: event.type === "invoice.payment_failed" ? "Payment failed" : "Payment needs your attention",
-        body: "We couldn't collect this month's subscription. Update your card in Settings → Billing → Open billing portal to keep the AI host answering.",
+        body: `We couldn't collect this month's subscription. ${account.hostName} keeps answering and booking as normal for ${GRACE_DAYS} days; after that, calls are taken as messages only. Update your card in Settings → Billing → Open billing portal.`,
       });
       return;
     }

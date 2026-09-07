@@ -44,6 +44,81 @@ async function sendEmail(to: string, subject: string, html: string, text: string
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+/**
+ * The verification link (src/lib/email-verification.ts). Short on purpose: one sentence of why, one
+ * button, one line for the person who never signed up. The welcome email carries the warmth.
+ */
+export async function sendVerificationEmail(to: string, businessName: string, url: string): Promise<void> {
+  const name = businessName.trim() || "your business";
+  const subject = "Confirm your email for FrontDesk AI";
+  const text = [
+    `Confirm this is the right address for ${name}'s FrontDesk AI account, so we can reach you about your calls, bookings and billing:`,
+    ``,
+    url,
+    ``,
+    `The link works for 48 hours. If you didn't create a FrontDesk AI account, ignore this email - nothing happens without the click.`,
+    ``,
+    `— The FrontDesk AI team`,
+  ].join("\n");
+  const html = `
+  <div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a2b3c;">
+    <h1 style="font-size:22px;margin:0 0 16px;">Confirm your email</h1>
+    <p style="font-size:15px;line-height:1.6;margin:0 0 20px;">
+      Confirm this is the right address for <strong>${esc(name)}</strong>'s FrontDesk AI account, so we can reach you about your calls, bookings and billing.
+    </p>
+    <p style="margin:0 0 24px;">
+      <a href="${url}" style="display:inline-block;background:#176f57;color:#ffffff;text-decoration:none;font-weight:600;padding:12px 20px;border-radius:10px;">Confirm email</a>
+    </p>
+    <p style="font-size:13px;color:#6b7c8c;line-height:1.6;margin:0;">
+      The link works for 48 hours. If you didn't create a FrontDesk AI account, ignore this email - nothing happens without the click.
+    </p>
+  </div>`;
+  await sendEmail(to, subject, html, text);
+}
+
+/**
+ * The one email billing enforcement sends: the number is gone (docs/frontdesk-billing-spec.md).
+ *
+ * Email rather than only an in-app notification, deliberately. An owner who stopped paying a month
+ * ago has probably stopped opening the app; the fact that callers now get a dead number has to
+ * reach them where they still look.
+ */
+export async function sendNumberReleasedEmail(to: string, businessName: string, number: string): Promise<void> {
+  const url = appUrl();
+  const name = businessName.trim() || "your business";
+  const subject = `Your FrontDesk AI number ${number} has been released`;
+  const text = [
+    `Hi,`,
+    ``,
+    `Your FrontDesk AI subscription for ${name} ended more than 30 days ago, so the phone number ${number} has been released today. Calls to it will no longer be answered.`,
+    ``,
+    `If you had forwarded your business line to it, turn that forwarding off now (dial *73 on most carriers) so your callers reach you again.`,
+    ``,
+    `To come back, re-subscribe at ${url}/settings?tab=billing and we will issue a new number right away. The old number cannot be reclaimed.`,
+    ``,
+    `Questions? Just reply to this email - a real person reads it.`,
+    ``,
+    `— The FrontDesk AI team`,
+  ].join("\n");
+  const html = `
+  <div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1a2b3c;">
+    <h1 style="font-size:22px;margin:0 0 16px;">Your number ${esc(number)} has been released</h1>
+    <p style="font-size:15px;line-height:1.6;margin:0 0 16px;">
+      Your FrontDesk AI subscription for <strong>${esc(name)}</strong> ended more than 30 days ago, so the phone number
+      <strong>${esc(number)}</strong> has been released today. Calls to it will no longer be answered.
+    </p>
+    <p style="font-size:15px;line-height:1.6;margin:0 0 16px;">
+      If you had forwarded your business line to it, turn that forwarding off now (dial <strong>*73</strong> on most carriers)
+      so your callers reach you again.
+    </p>
+    <p style="font-size:15px;line-height:1.6;margin:0 0 24px;">
+      To come back, <a href="${url}/settings?tab=billing" style="color:#176f57;font-weight:600;">re-subscribe</a> and we will issue a new number right away. The old number cannot be reclaimed.
+    </p>
+    <p style="font-size:13px;color:#6b7c8c;margin:0;">Questions? Just reply to this email - a real person reads it.</p>
+  </div>`;
+  await sendEmail(to, subject, html, text);
+}
+
 /** The warm hello a brand-new account gets, written for the owner who just signed up. */
 export async function sendWelcomeEmail(to: string, businessName: string, vertical: Vertical): Promise<void> {
   const words = vocabularyFor(vertical);

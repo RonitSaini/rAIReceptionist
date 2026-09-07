@@ -7,6 +7,11 @@ import { CLASSIFICATION_CHOICES } from "@/lib/agent-config";
 import { retellConfigured } from "@/lib/env";
 import { afterMissedCall } from "@/lib/outcomes";
 import { sweepEscalations } from "@/lib/escalations";
+import { sweepStaleSms } from "@/lib/sms";
+import { billingState } from "@/lib/billing-state";
+import { createNotification } from "@/lib/notifications";
+import { formatUsPhone } from "@/lib/form";
+import { formatTime } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -87,7 +92,25 @@ export async function POST(req: NextRequest) {
   if ((event.event === "call_ended" || event.event === "call_analyzed") && updated.classification === "missed" && !updated.notifiedAt) {
     await afterMissedCall(updated.account, updated);
   }
-  // Escalations whose acknowledge window lapsed: text the guest. Runs after the response so Retell is never kept waiting.
+  // A call fielded in billing-paused mode: the owner is told every time (docs/frontdesk-billing-spec.md
+  // §2). Once per call - Retell retries this webhook, and the marker is what keeps it to one.
+  if (event.event === "call_ended" && !updated.isTest && !updated.billingPausedNotifiedAt && billingState(updated.account) === "paused") {
+    const claimed = await prisma.call.updateMany({ where: { id: updated.id, billingPausedNotifiedAt: null }, data: { billingPausedNotifiedAt: new Date() } });
+    if (claimed.count > 0) {
+      const who = updated.callerName?.trim() || (updated.callerPhone ? formatUsPhone(updated.callerPhone) : "A caller");
+      await createNotification({
+        accountId: updated.accountId,
+        type: "system",
+        priority: "urgent",
+        title: `Billing paused: ${who} was taken as a message only`,
+        body: `${who} called at ${formatTime(updated.startedAt, updated.account.timeZone)}. ${updated.account.hostName} took their details but could not book anything because the subscription is not active. Reactivate under Settings → Billing to book again.`,
+        callId: updated.id,
+      });
+    }
+  }
+  // Escalations whose acknowledge window lapsed: text the guest; texts with no receipt for half an
+  // hour: recorded as failed and said out loud. Both after the response so Retell is never kept waiting.
   after(() => sweepEscalations().catch((e) => console.error("[escalations] sweep failed", e)));
+  after(() => sweepStaleSms().catch((e) => console.error("[sms] stale sweep failed", e)));
   return NextResponse.json({ ok: true });
 }

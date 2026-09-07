@@ -4,7 +4,6 @@ import { callerContextFor } from "@/lib/caller-context";
 import { parseTwilioForm, publicRequestUrl, twimlDialSip, twimlSay, validateTwilioSignature } from "@/lib/twilio";
 import { registerPhoneCall, sipUriForCall, RetellError } from "@/lib/retell";
 import { appUrl, retellConfigured, twilioConfigured } from "@/lib/env";
-import { canTakeCalls } from "@/lib/billing";
 import { formatDateString, formatTime, todayString } from "@/lib/time";
 import { formatUsPhone } from "@/lib/form";
 
@@ -39,10 +38,8 @@ export async function POST(req: NextRequest) {
   if (!account || !account.retellAgentId) {
     return twimlSay("Sorry, this business's phone assistant isn't ready yet. Please call back later.");
   }
-  // Phase 4: with BILLING_REQUIRED=true a lapsed subscription stops answering (the owner sees a banner in the app).
-  if (!canTakeCalls(account)) {
-    return twimlSay("Sorry, this business's phone assistant is currently unavailable. Please call back later.");
-  }
+  // A lapsed subscription no longer stops the answer. The agent picks up in every billing state and
+  // billing-paused mode changes only what it may do on the call (docs/frontdesk-billing-spec.md §2).
 
   // Twilio may retry the webhook — reuse the registration if we already have one for this CallSid.
   if (callSid) {
