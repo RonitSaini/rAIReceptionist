@@ -31,3 +31,6 @@ secrets/
 
 # dev server log (scratch, never committed)
 dev.log
+
+# production server log (scratch, never committed)
+prod.log
