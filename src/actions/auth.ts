@@ -8,6 +8,7 @@ import { hashPassword, verifyPassword } from "@/lib/password";
 import { auth } from "@/lib/auth";
 import { generateGreeting } from "@/lib/greeting";
 import { isEmail, str, type ActionState } from "@/lib/form";
+import { checkEmailDomain } from "@/lib/email-address";
 import { isVerticalAvailable, vocabularyFor } from "@/verticals";
 import type { Vertical } from "@prisma/client";
 import { DEFAULT_CLOSE, DEFAULT_OPEN } from "@/lib/availability";
@@ -111,6 +112,12 @@ export async function signUp(_prev: ActionState, formData: FormData): Promise<Ac
   // in to that account. A Google user signs in with Google; the form must never touch their row.
   const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
   if (existing) return { ok: false, error: "An account with that email already exists. Try logging in." };
+
+  // Only now that the address is well-formed and unclaimed: does its domain take mail at all? This
+  // is the one check on the path that costs a DNS round trip, so it sits behind the two that can
+  // answer without one — and in front of everything that creates something.
+  const deliverable = await checkEmailDomain(email);
+  if (!deliverable.ok) return { ok: false, error: deliverable.error };
 
   // Checked before anything is created: see checkReferralCodeAvailable for why it cannot wait.
   const referral = await checkReferralCodeAvailable(str(formData, "ref"));
@@ -248,6 +255,11 @@ export async function changeEmail(_prev: ActionState, formData: FormData): Promi
     return { ok: false, error: "Current password is incorrect." };
   }
   if (email === r.user.email) return { ok: true, message: "That is already your email." };
+
+  // Same bar as sign-up: an account is not allowed to move itself to an address we cannot reach.
+  // Behind the password check by design, so this action is never an open DNS lookup for a stranger.
+  const deliverable = await checkEmailDomain(email);
+  if (!deliverable.ok) return { ok: false, error: deliverable.error };
 
   try {
     // Verification (if ever added) starts over for the new address.

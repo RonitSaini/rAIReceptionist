@@ -52,8 +52,41 @@ export function json<T>(fd: FormData, key: string, fallback: T): T {
   }
 }
 
+/** Local part: dot-separated atoms of the characters a domain is required to accept unquoted. */
+const EMAIL_LOCAL = /^[A-Za-z0-9!#$%&'*+\/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+\/=?^_`{|}~-]+)*$/;
+/** One domain label: alphanumeric at both ends, hyphens only inside, 63 characters at most. */
+const EMAIL_LABEL = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/;
+/** The last label. No TLD is numeric and none is a single letter, so "x.7" and "x.c" are not typos to forgive. */
+const EMAIL_TLD = /^[A-Za-z]{2,63}$/;
+
+/**
+ * Is this shaped like an address mail can actually be delivered to?
+ *
+ * The old one-liner asked only for an @ and a dot somewhere after it, which let through everything
+ * a slipped finger produces: `me@gmail..com`, `me@-gmail.com`, `me@example`, `me@x.c`, `.me@x.com`.
+ * This checks the parts RFC 5321 genuinely constrains — the length caps, dot-atom local part,
+ * label shape, and an alphabetic TLD.
+ *
+ * Deliberately narrower than the RFC in two places: quoted local parts (`"a b"@x.com`) and
+ * non-ASCII domains are refused. Neither can be handed to an email API without escaping or
+ * punycode first, and nobody signing up a US or Canadian business types one by accident.
+ *
+ * Syntax only. Whether the domain exists is a DNS question, and `@/lib/email-address` asks it.
+ */
 export function isEmail(s: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+  if (s.length > 254) return false; // RFC 5321's cap on the whole address
+  const at = s.lastIndexOf("@");
+  if (at < 1 || at === s.length - 1) return false;
+  const local = s.slice(0, at);
+  if (local.length > 64 || !EMAIL_LOCAL.test(local)) return false;
+  const labels = s.slice(at + 1).split(".");
+  if (labels.length < 2 || !EMAIL_TLD.test(labels[labels.length - 1])) return false;
+  return labels.every((label) => EMAIL_LABEL.test(label));
+}
+
+/** The domain half of an address that has already passed `isEmail`. */
+export function emailDomain(email: string): string {
+  return email.slice(email.lastIndexOf("@") + 1);
 }
 
 /** Normalize a US phone number to E.164 (+1XXXXXXXXXX). Returns null if it can't be parsed. */

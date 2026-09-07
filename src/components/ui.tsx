@@ -62,14 +62,26 @@ export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
   return <textarea className={cx(inputClass, "min-h-24 py-3", className)} {...props} />;
 }
 
-export function Field({ label, hint, htmlFor, children, className }: { label: string; hint?: string; htmlFor?: string; children: ReactNode; className?: string }) {
+/**
+ * `error` takes the hint's place rather than stacking under it: the hint explains the field in the
+ * abstract ("At least 8 characters"), and once something is actually wrong with what was typed,
+ * that sentence is the one worth the line. Reuses `.slide-in` — the same arrival `Alert` uses, and
+ * already in the reduced-motion block, so it adds no new animated class (motion spec §5 rule 7).
+ */
+export function Field({ label, hint, error, htmlFor, children, className }: { label: string; hint?: string; error?: string | null; htmlFor?: string; children: ReactNode; className?: string }) {
   return (
     <div className={cx("space-y-1.5", className)}>
       <label htmlFor={htmlFor} className="block text-sm font-semibold text-gray-800">
         {label}
       </label>
       {children}
-      {hint ? <p className="text-xs text-gray-500">{hint}</p> : null}
+      {error ? (
+        <p className="slide-in text-xs font-medium text-red-700" role="alert">
+          {error}
+        </p>
+      ) : hint ? (
+        <p className="text-xs text-gray-500">{hint}</p>
+      ) : null}
     </div>
   );
 }

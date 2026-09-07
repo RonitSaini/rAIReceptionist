@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { signIn } from "next-auth/react";
 import { signUp } from "@/actions/auth";
-import type { ActionState } from "@/lib/form";
+import { isEmail, type ActionState } from "@/lib/form";
 import { Alert, Button, Field, Input } from "@/components/ui";
 import { GoogleButton } from "@/components/google-button";
 import { VerticalPicker } from "@/components/forms/vertical-picker";
@@ -19,6 +19,10 @@ export function SignupForm({ googleEnabled, catalog, referralCode = null }: { go
   // Unchecked by default, and both signup paths key off it: the submit button stays disabled and
   // the Google button won't leave for OAuth until it's ticked. The server checks again regardless.
   const [agreed, setAgreed] = useState(false);
+  // Shape only, and the same `isEmail` the server uses — a typo shouldn't cost a round trip, and
+  // this box can't be the one that says whether the domain exists. On blur rather than on every
+  // keystroke: an address is invalid for most of the time it takes to type one.
+  const [emailError, setEmailError] = useState<string | null>(null);
   // React resets the form once a server action completes, so the credentials must be captured
   // on the way in — reading the fields afterwards yields empty strings and a failed sign-in.
   const credsRef = useRef<{ email: string; password: string } | null>(null);
@@ -43,15 +47,29 @@ export function SignupForm({ googleEnabled, catalog, referralCode = null }: { go
         <Field label="Business name" htmlFor="businessName">
           <Input id="businessName" name="businessName" required placeholder="Luigi's Trattoria" autoComplete="organization" />
         </Field>
-        <Field label="Email" htmlFor="email">
-          <Input id="email" name="email" type="email" required autoComplete="email" inputMode="email" placeholder="you@yourbusiness.com" />
+        <Field label="Email" htmlFor="email" error={emailError}>
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            inputMode="email"
+            placeholder="you@yourbusiness.com"
+            aria-invalid={emailError ? true : undefined}
+            onBlur={(e) => {
+              const value = e.target.value.trim().toLowerCase();
+              setEmailError(value === "" || isEmail(value) ? null : "Enter a valid email address.");
+            }}
+            onChange={() => setEmailError(null)}
+          />
         </Field>
         <Field label="Password" htmlFor="password" hint="At least 8 characters.">
           <Input id="password" name="password" type="password" required minLength={8} autoComplete="new-password" placeholder="••••••••" />
         </Field>
         <ReferralField value={code} onChange={setCode} prefilled={!!referralCode} />
         <TermsCheckbox checked={agreed} onChange={setAgreed} />
-        <Button type="submit" size="lg" full disabled={pending || !!state?.ok || !vertical || !agreed}>
+        <Button type="submit" size="lg" full disabled={pending || !!state?.ok || !vertical || !agreed || !!emailError}>
           {pending ? "Creating account…" : "Create account"}
         </Button>
       </form>
