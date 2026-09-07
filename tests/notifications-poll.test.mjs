@@ -7,9 +7,12 @@
  * Requires at least one unread notification for the demo account (run `npm run db:seed` to top one up).
  */
 import test from "node:test";
+import { requireServer } from "./require-server.mjs";
 import assert from "node:assert/strict";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
+// One clear failure, not seven, when the server is not there (tests/require-server.mjs).
+requireServer(BASE);
 const EMAIL = process.env.DEMO_EMAIL ?? "demo@callcover.app";
 const PASSWORD = process.env.DEMO_PASSWORD ?? "password123";
 

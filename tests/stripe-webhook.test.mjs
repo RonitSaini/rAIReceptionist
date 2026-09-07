@@ -9,12 +9,15 @@
  * Needs STRIPE_WEBHOOK_SECRET (from the environment or .env) — the whole file is skipped without it.
  */
 import test from "node:test";
+import { requireServer } from "./require-server.mjs";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import Stripe from "stripe";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
+// One clear failure, not seven, when the server is not there (tests/require-server.mjs).
+requireServer(BASE);
 
 function webhookSecret() {
   if (process.env.STRIPE_WEBHOOK_SECRET) return process.env.STRIPE_WEBHOOK_SECRET;

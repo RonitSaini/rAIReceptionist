@@ -5,6 +5,7 @@
   "scripts": {
     "db:migrate:prod": "node scripts/migrate-prod.mjs",
     "dev": "next dev",
+    "dev:3001": "next dev -p 3001",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint .",

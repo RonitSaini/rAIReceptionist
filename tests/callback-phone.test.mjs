@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import { requireServer } from "./require-server.mjs";
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -18,6 +19,8 @@ import { dirname, resolve } from "node:path";
  */
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
+// One clear failure, not seven, when the server is not there (tests/require-server.mjs).
+requireServer(BASE);
 const here = dirname(fileURLToPath(import.meta.url));
 
 const env = {};
