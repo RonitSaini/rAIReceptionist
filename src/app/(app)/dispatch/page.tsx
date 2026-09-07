@@ -5,12 +5,12 @@ import { nowUtc, timeAgo } from "@/lib/time";
 import { formatUsPhone } from "@/lib/form";
 import { humanize } from "@/lib/constants";
 import { friendlyProviderError } from "@/lib/provider-errors";
-import { vocabularyFor } from "@/verticals";
+import { archetypeFor, vocabularyFor } from "@/verticals";
 import { setJobStatus } from "@/actions/field-service";
 import { Badge, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { StatusButtons } from "@/components/status-buttons";
 import { MotionList } from "@/components/motion-list";
-import { JOB_STATUS_TONE, JOB_TRANSITIONS } from "@/lib/jobs-ui";
+import { JOB_STATUS_TONE, jobTransitions } from "@/lib/jobs-ui";
 
 export const metadata = { title: "Dispatch" };
 
@@ -29,6 +29,7 @@ const LIVE = ["requested", "dispatched", "en_route", "in_progress"] as const;
 export default async function DispatchPage() {
   const { account } = await requireAccount();
   const words = vocabularyFor(account);
+  const archetype = archetypeFor(account);
   const now = nowUtc();
 
   const jobs = await prisma.job.findMany({
@@ -108,7 +109,7 @@ export default async function DispatchPage() {
                 ) : null}
 
                 <div className="mt-3 border-t border-gray-100 pt-3">
-                  <StatusButtons id={job.id} current={job.status} transitions={JOB_TRANSITIONS[job.status]} action={setJobStatus} returnTo="/dispatch" size="sm" />
+                  <StatusButtons id={job.id} current={job.status} transitions={jobTransitions(archetype, job.status)} action={setJobStatus} returnTo="/dispatch" size="sm" />
                 </div>
               </li>
             );

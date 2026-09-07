@@ -5,11 +5,11 @@ import { prisma } from "@/lib/prisma";
 import { formatDateTime } from "@/lib/time";
 import { formatUsPhone } from "@/lib/form";
 import { humanize } from "@/lib/constants";
-import { vocabularyFor } from "@/verticals";
+import { archetypeFor, vocabularyFor } from "@/verticals";
 import { setJobStatus } from "@/actions/field-service";
 import { Badge, Card, PageHeader } from "@/components/ui";
 import { StatusButtons } from "@/components/status-buttons";
-import { JOB_STATUS_TONE, JOB_TRANSITIONS } from "@/lib/jobs-ui";
+import { JOB_STATUS_TONE, jobTransitions } from "@/lib/jobs-ui";
 
 export const metadata = { title: "Job" };
 
@@ -20,6 +20,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
 
   const job = await prisma.job.findFirst({ where: { id, accountId: account.id }, include: { customer: true } });
   if (!job) notFound();
+
+  const transitions = jobTransitions(archetypeFor(account), job.status);
 
   const details = (job.details ?? {}) as Record<string, unknown>;
   const detailRows = Object.entries(details).filter(([, v]) => v !== null && v !== undefined && v !== "");
@@ -76,8 +78,8 @@ export default async function JobPage({ params }: { params: Promise<{ id: string
       </Card>
 
       <Card title="Move it along">
-        <StatusButtons id={job.id} current={job.status} transitions={JOB_TRANSITIONS[job.status]} action={setJobStatus} returnTo={`/jobs/${job.id}`} />
-        {JOB_TRANSITIONS[job.status].length === 0 ? <p className="text-sm text-gray-500">This {words.booking.one} is {humanize(job.status).toLowerCase()}.</p> : null}
+        <StatusButtons id={job.id} current={job.status} transitions={transitions} action={setJobStatus} returnTo={`/jobs/${job.id}`} />
+        {transitions.length === 0 ? <p className="text-sm text-gray-500">This {words.booking.one} is {humanize(job.status).toLowerCase()}.</p> : null}
       </Card>
 
       {job.customer ? (

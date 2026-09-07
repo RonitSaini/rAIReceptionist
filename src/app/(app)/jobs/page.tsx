@@ -5,10 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { formatDateTime, nowUtc, timeAgo } from "@/lib/time";
 import { formatUsPhone } from "@/lib/form";
 import { humanize } from "@/lib/constants";
-import { verticalFor, vocabularyFor } from "@/verticals";
+import { archetypeFor, verticalFor, vocabularyFor } from "@/verticals";
 import { Badge, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { SegmentedLinks } from "@/components/segmented-links";
-import { JOB_STATUS_TONE, JOB_STATUS_ORDER } from "@/lib/jobs-ui";
+import { JOB_STATUS_TONE, JOB_STATUS_ORDER, jobStatusOrder } from "@/lib/jobs-ui";
 import { getGoogleCalendarStatus } from "@/lib/google-calendar-view";
 import { calendarBlurbFor, calendarSettingsHref } from "@/lib/calendar-sync-ui";
 import { CalendarSyncPrompt } from "@/components/calendar-sync-prompt";
@@ -38,6 +38,11 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
     offerCalendarHere ? getGoogleCalendarStatus(account.id) : null,
   ]);
   const countFor = (s: JobStatus) => counts.find((c) => c.status === s)?._count._all ?? 0;
+  // The statuses this profession can still reach, plus any it cannot but has rows sitting in:
+  // field service dropped `dispatched` / `en_route` on 2026-09-06, and an old job parked in one of
+  // them has to stay reachable by filter rather than only findable under "All".
+  const reachable = jobStatusOrder(archetypeFor(account));
+  const tabs = JOB_STATUS_ORDER.filter((s) => reachable.includes(s) || countFor(s) > 0);
 
   return (
     <div className="space-y-4">
@@ -59,7 +64,7 @@ export default async function JobsPage({ searchParams }: { searchParams: Promise
         inactiveClass="border-gray-300 bg-surface text-gray-700"
         items={[
           { key: "all", href: "/jobs", label: "All", active: !active },
-          ...JOB_STATUS_ORDER.map((s) => ({
+          ...tabs.map((s) => ({
             key: s,
             href: `/jobs?status=${s}`,
             label: (

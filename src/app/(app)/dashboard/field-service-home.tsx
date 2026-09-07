@@ -6,11 +6,11 @@ import { formatUsPhone } from "@/lib/form";
 import { humanize } from "@/lib/constants";
 import { loadDashboard } from "@/lib/dashboard";
 import { loadJobDashboard } from "@/lib/job-dashboard";
-import { verticalFor, vocabularyFor } from "@/verticals";
+import { archetypeFor, verticalFor, vocabularyFor } from "@/verticals";
 import { setJobStatus } from "@/actions/field-service";
 import { Badge, Card, LinkButton, PageHeader } from "@/components/ui";
 import { StatusButtons } from "@/components/status-buttons";
-import { JOB_STATUS_TONE, JOB_TRANSITIONS } from "@/lib/jobs-ui";
+import { JOB_STATUS_TONE, jobTransitions } from "@/lib/jobs-ui";
 import { CountUp } from "@/components/count-up";
 import { StatTile } from "@/components/stat-tile";
 import { Columns } from "@/components/charts";
@@ -27,6 +27,7 @@ export async function FieldServiceHome({ account, previousSeenAt, changed }: { a
   const tz = account.timeZone;
   const now = nowUtc();
   const words = vocabularyFor(account);
+  const archetype = archetypeFor(account);
   const definition = verticalFor(account);
   // Where "today's work" lives differs by archetype: a diary for a trade, a live queue for a tow
   // truck, a work-order list for a property manager who schedules nothing from this screen.
@@ -94,7 +95,7 @@ export async function FieldServiceHome({ account, previousSeenAt, changed }: { a
                       <Badge tone={job.isEmergency ? "red" : JOB_STATUS_TONE[job.status]} className={changed === job.id ? "badge-pop" : undefined}>
                         {job.isEmergency ? "Emergency" : humanize(job.status)}
                       </Badge>
-                      <StatusButtons id={job.id} current={job.status} transitions={JOB_TRANSITIONS[job.status].slice(0, 1)} action={setJobStatus} returnTo="/dashboard" size="sm" />
+                      <StatusButtons id={job.id} current={job.status} transitions={jobTransitions(archetype, job.status).slice(0, 1)} action={setJobStatus} returnTo="/dashboard" size="sm" />
                     </div>
                   </li>
                 ))}

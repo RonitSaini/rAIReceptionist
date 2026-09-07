@@ -1,5 +1,5 @@
 import type { Vertical } from "@prisma/client";
-import type { OnboardingStep, VerticalCatalogEntry, VerticalDefinition, Vocabulary } from "./types";
+import type { Archetype, OnboardingStep, VerticalCatalogEntry, VerticalDefinition, Vocabulary } from "./types";
 import { restaurant } from "./restaurant";
 import { plumbing } from "./plumbing";
 import { hvac } from "./hvac";
@@ -101,6 +101,11 @@ export function verticalFor(source: Vertical | { vertical: Vertical }): Vertical
 /** The nouns to use when talking to or about this account. */
 export function vocabularyFor(source: Vertical | { vertical: Vertical }): Vocabulary {
   return verticalFor(source).vocabulary;
+}
+
+/** The shape of the work: who travels to whom, and therefore how a job moves along. */
+export function archetypeFor(source: Vertical | { vertical: Vertical }): Archetype {
+  return verticalFor(source).archetype;
 }
 
 // ---------- Onboarding ----------
