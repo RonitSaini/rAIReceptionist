@@ -87,7 +87,7 @@ async function main() {
       offersDelivery: true,
       deliveryZip: "10013",
       deliveryRadiusMiles: "3.0",
-      onboardingStep: 9,
+      onboardingStepId: "done",
       lastSeenAt: minutesAgo(60 * 14),
     },
   });

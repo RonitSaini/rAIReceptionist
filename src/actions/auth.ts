@@ -52,7 +52,7 @@ async function createAccountWithDefaults(businessName: string, vertical: Vertica
   const account = await tx.account.create({
     // The referral code is issued here and nowhere else: reads never write (AGENTS.md), so no page
     // render can mint one lazily, and an account without a code would have nothing to share.
-    data: { businessName, vertical, greeting: generateGreeting(businessName, "Alex"), hostName: "Alex", onboardingStep: 2, referralCode: await issueReferralCode(tx) },
+    data: { businessName, vertical, greeting: generateGreeting(businessName, "Alex"), hostName: "Alex", onboardingStepId: "business-basics", referralCode: await issueReferralCode(tx) },
   });
   await tx.businessHours.createMany({ data: defaultHours(account.id) });
   await tx.notification.create({

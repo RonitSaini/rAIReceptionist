@@ -123,8 +123,8 @@ export function fieldServiceVertical(cfg: FieldServiceConfig): VerticalDefinitio
     vocabulary: cfg.vocabulary,
 
     onboardingSteps: cfg.dispatchFirst
-      ? [STEP.account, STEP.businessBasics, STEP.hours, FIELD_SERVICE_STEP.serviceArea, FIELD_SERVICE_STEP.dispatch, FIELD_SERVICE_STEP.services, FIELD_SERVICE_STEP.emergencies, STEP.voice, STEP.phone, STEP.payment]
-      : [STEP.account, STEP.businessBasics, STEP.hours, FIELD_SERVICE_STEP.serviceArea, FIELD_SERVICE_STEP.services, FIELD_SERVICE_STEP.emergencies, STEP.voice, STEP.phone, STEP.payment],
+      ? [STEP.account, STEP.businessBasics, STEP.hours, FIELD_SERVICE_STEP.serviceArea, FIELD_SERVICE_STEP.dispatch, FIELD_SERVICE_STEP.services, FIELD_SERVICE_STEP.emergencies, STEP.voice, STEP.payment, STEP.phone]
+      : [STEP.account, STEP.businessBasics, STEP.hours, FIELD_SERVICE_STEP.serviceArea, FIELD_SERVICE_STEP.services, FIELD_SERVICE_STEP.emergencies, STEP.voice, STEP.payment, STEP.phone],
 
     intakeSchema: cfg.intakeSchema,
     emergencyTypes: cfg.emergencies,

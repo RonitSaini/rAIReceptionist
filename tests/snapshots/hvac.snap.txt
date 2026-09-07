@@ -698,15 +698,15 @@ cancel other:      Northside Climate: That booking for Wed, Sep 2, 10:00 AM is c
     },
     {
       "step": 8,
-      "id": "phone",
-      "title": "Phone number",
-      "short": "Phone"
-    },
-    {
-      "step": 9,
       "id": "payment",
       "title": "Payment",
       "short": "Pay"
+    },
+    {
+      "step": 9,
+      "id": "phone",
+      "title": "Phone number",
+      "short": "Phone"
     }
   ],
   "emergencyTypes": [

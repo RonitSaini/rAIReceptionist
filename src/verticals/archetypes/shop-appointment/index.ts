@@ -106,7 +106,7 @@ export function shopAppointmentVertical(cfg: ShopAppointmentConfig): VerticalDef
 
     vocabulary: cfg.vocabulary,
 
-    onboardingSteps: [STEP.account, STEP.businessBasics, STEP.hours, SHOP_STEP.appointments, SHOP_STEP.handoffs, STEP.voice, STEP.phone, STEP.payment],
+    onboardingSteps: [STEP.account, STEP.businessBasics, STEP.hours, SHOP_STEP.appointments, SHOP_STEP.handoffs, STEP.voice, STEP.payment, STEP.phone],
 
     intakeSchema: cfg.intakeSchema,
     emergencyTypes: cfg.emergencies,

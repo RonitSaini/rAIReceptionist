@@ -750,15 +750,15 @@ no acknowledgement: Northside Towing: We haven't been able to confirm someone ye
     },
     {
       "step": 9,
-      "id": "phone",
-      "title": "Phone number",
-      "short": "Phone"
-    },
-    {
-      "step": 10,
       "id": "payment",
       "title": "Payment",
       "short": "Pay"
+    },
+    {
+      "step": 10,
+      "id": "phone",
+      "title": "Phone number",
+      "short": "Phone"
     }
   ],
   "emergencyTypes": [

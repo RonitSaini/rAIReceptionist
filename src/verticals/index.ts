@@ -10,6 +10,9 @@ import { towing } from "./towing";
 import { auto_repair } from "./auto_repair";
 import { veterinary } from "./veterinary";
 import { property_management } from "./property_management";
+import { ONBOARDING_DONE } from "./steps";
+
+export { ONBOARDING_DONE };
 
 /**
  * The vertical registry — the only place professions are enumerated.
@@ -111,22 +114,55 @@ export function archetypeFor(source: Vertical | { vertical: Vertical }): Archety
 // ---------- Onboarding ----------
 
 /**
- * Onboarding is an ordered list per vertical, and position in that list is the step number in
- * /onboarding/[step] and the value held in `Account.onboardingStep`. A restaurant's list is the
- * same eight steps in the same order it has always had, so its numbering is unchanged.
+ * Onboarding is an ordered list per vertical. Position in that list is the step number in
+ * /onboarding/[step] - a URL, nothing more. What the account stores is the step's ID
+ * (`Account.onboardingStepId`), so the list can be reordered without a data migration: an account
+ * parked on "phone" is on the phone step wherever the phone step now sits.
+ *
+ * Payment comes before phone in every list (2026-09-06): a number is only issued to a paying
+ * account, so the step that takes the payment has to run before the step that hands out the number.
  */
 export function onboardingStepsFor(source: Vertical | { vertical: Vertical }): readonly OnboardingStep[] {
   return verticalFor(source).onboardingSteps;
 }
 
-/** The last real step. `Account.onboardingStep` above this means setup is finished. */
+/** The last real step's position. */
 export function lastOnboardingStep(source: Vertical | { vertical: Vertical }): number {
   return onboardingStepsFor(source).length;
 }
 
-/** The sentinel stored once every step is done (restaurant: 9). */
+/** The position `onboardingPosition` reports for ONBOARDING_DONE: one past the last real step (restaurant: 9). */
 export function onboardingDoneStep(source: Vertical | { vertical: Vertical }): number {
   return lastOnboardingStep(source) + 1;
+}
+
+/**
+ * Where a step id sits in this vertical's list, 1-based; ONBOARDING_DONE is one past the end. An id
+ * this vertical does not have (a row from before a step was removed, say) resolves to the first
+ * real step rather than to nothing, so the owner is sent somewhere that renders.
+ */
+export function onboardingPosition(source: Vertical | { vertical: Vertical }, stepId: string): number {
+  const steps = onboardingStepsFor(source);
+  if (stepId === ONBOARDING_DONE) return steps.length + 1;
+  const index = steps.findIndex((s) => s.id === stepId);
+  return index < 0 ? 2 : index + 1;
+}
+
+/** The id to store once `completedStepId` is finished: the next in the list, or ONBOARDING_DONE. */
+export function nextOnboardingStepId(source: Vertical | { vertical: Vertical }, completedStepId: string): string {
+  const steps = onboardingStepsFor(source);
+  const index = steps.findIndex((s) => s.id === completedStepId);
+  if (index < 0) throw new Error(`Step "${completedStepId}" is not part of the ${typeof source === "string" ? source : source.vertical} onboarding flow.`);
+  return steps[index + 1]?.id ?? ONBOARDING_DONE;
+}
+
+export function hasFinishedOnboarding(account: { onboardingStepId: string }): boolean {
+  return account.onboardingStepId === ONBOARDING_DONE;
+}
+
+/** Where "continue setup" should send the owner: the position of the step they are on. */
+export function onboardingResumeHref(account: { vertical: Vertical; onboardingStepId: string }): string {
+  return `/onboarding/${onboardingPosition(account, account.onboardingStepId)}`;
 }
 
 /**

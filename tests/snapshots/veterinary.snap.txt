@@ -425,15 +425,15 @@ HARD RULES:
     },
     {
       "step": 7,
-      "id": "phone",
-      "title": "Phone number",
-      "short": "Phone"
-    },
-    {
-      "step": 8,
       "id": "payment",
       "title": "Payment",
       "short": "Pay"
+    },
+    {
+      "step": 8,
+      "id": "phone",
+      "title": "Phone number",
+      "short": "Phone"
     }
   ],
   "emergencyTypes": [

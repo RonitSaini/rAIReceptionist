@@ -8,6 +8,7 @@ import { serializeAccount, serializeMenuItem, serializeServiceOffering } from "@
 import { MAX_ONBOARDING_STEPS, VERTICAL_CATALOG, onboardingStepsFor, verticalFor } from "@/verticals";
 import { OnboardingProgress } from "@/components/onboarding-progress";
 import { getGoogleCalendarView } from "@/lib/google-calendar-view";
+import { onboardingStepHref } from "@/lib/onboarding-flow";
 import { CreateAccountForm } from "@/components/forms/create-account-form";
 import { BusinessBasicsForm } from "@/components/forms/business-basics-form";
 import { HoursForm } from "@/components/forms/hours-form";
@@ -175,9 +176,11 @@ export default async function OnboardingStepPage({ params, searchParams }: { par
         </Frame>
       );
     case "phone":
+      // Payment precedes this step, so the panel assumes billing is active and provisions directly.
+      // The way back to payment is only for the edge case where it did not go through.
       return (
         <Frame progress={progress}>
-          <PhoneStep account={view} mode="onboarding" backHref={backHref} nextHref={nextHref} />
+          <PhoneStep account={view} mode="onboarding" backHref={backHref} paymentHref={onboardingStepHref(account, "payment")} />
         </Frame>
       );
     case "payment": {

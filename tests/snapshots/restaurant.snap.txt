@@ -2652,13 +2652,13 @@ cancel order:     Corner Cafe: Your order for Wed, Sep 2, 7:00 PM is cancelled. 
     },
     {
       "step": 7,
-      "title": "Phone number",
-      "short": "Phone"
+      "title": "Payment",
+      "short": "Pay"
     },
     {
       "step": 8,
-      "title": "Payment",
-      "short": "Pay"
+      "title": "Phone number",
+      "short": "Phone"
     }
   ],
   "ESCALATION_TYPES": [

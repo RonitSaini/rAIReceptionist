@@ -65,7 +65,7 @@ export function propertyManagementVertical(cfg: PropertyManagementConfig): Verti
 
     vocabulary: cfg.vocabulary,
 
-    onboardingSteps: [STEP.account, STEP.businessBasics, STEP.hours, PM_STEP.portfolio, PM_STEP.maintenance, STEP.voice, STEP.phone, STEP.payment],
+    onboardingSteps: [STEP.account, STEP.businessBasics, STEP.hours, PM_STEP.portfolio, PM_STEP.maintenance, STEP.voice, STEP.payment, STEP.phone],
 
     intakeSchema: cfg.intakeSchema,
     emergencyTypes: cfg.emergencies,

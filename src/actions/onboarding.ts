@@ -3,8 +3,6 @@
 import { formatRestaurantAddress, geocodeAddress } from "@/lib/geo";
 import { accountCountry, asCountry, CA_PROVINCES, isPostalCodeFor, normalizePostalCode, toMiles } from "@/lib/locale";
 
-import type { Account } from "@prisma/client";
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -15,39 +13,10 @@ import { requireAccount } from "@/lib/current-account";
 import { bool, int, json, normalizeUsPhone, optDecimal, optInt, optStr, str, type ActionState } from "@/lib/form";
 import { greetingHasDisclosure } from "@/lib/greeting";
 import { DIETARY_TAGS, timeZonesFor, US_STATES, VOICES } from "@/lib/constants";
-import { onboardingDoneStep, onboardingStepsFor } from "@/verticals";
 import { ALL_DAY_CLOSE, ALL_DAY_OPEN, isAllDay, isValidTimeString, timeToMinutes } from "@/lib/time";
-
-type Mode = "onboarding" | "settings";
-
-function modeOf(fd: FormData): Mode {
-  return str(fd, "mode") === "settings" ? "settings" : "onboarding";
-}
-
-/**
- * Advance onboarding (never move backwards) and route to the next screen, or stay put in Settings.
- *
- * Takes the step's ID rather than its number: the number is only this vertical's position for that
- * step, so a profession that asks for hours third and a profession that asks for them fifth both
- * land on the right next screen without either action knowing where it sits.
- */
-async function finish(account: Pick<Account, "id" | "vertical" | "onboardingStep">, completedStepId: string, mode: Mode): Promise<ActionState> {
-  const steps = onboardingStepsFor(account);
-  const index = steps.findIndex((s) => s.id === completedStepId);
-  if (index < 0) throw new Error(`Step "${completedStepId}" is not part of the ${account.vertical} onboarding flow.`);
-  const accountId = account.id;
-  const nextStep = index + 2;
-  if (account.onboardingStep < nextStep) {
-    await prisma.account.update({ where: { id: accountId }, data: { onboardingStep: nextStep } });
-  }
-  // Keep the Retell agent in step with the settings (no-op until the agent exists). Runs after the response.
-  after(() => syncRetellAgentQuietly(accountId));
-  revalidatePath("/", "layout");
-  if (mode === "onboarding") {
-    redirect(nextStep >= onboardingDoneStep(account) ? "/dashboard" : `/onboarding/${nextStep}`);
-  }
-  return { ok: true, message: "Saved." };
-}
+// The advancement rule is shared with every other archetype's actions, and it stores step IDs, not
+// positions: see finish() there for why a reorder never needs a migration.
+import { finish, modeOf } from "@/lib/onboarding-flow";
 
 // ---------- Step 2: Business basics ----------
 

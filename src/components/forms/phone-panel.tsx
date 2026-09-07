@@ -17,7 +17,7 @@ import { ActionForm } from "@/components/action-form";
 
 type Status = { twilio: boolean; retell: boolean; publicUrl: boolean; subscribed: boolean; appUrl: string; lastSynced: string | null };
 
-export function PhonePanel({ account, mode, status, backHref, nextHref }: { account: AccountView; mode: FormMode; status: Status; backHref?: string; nextHref?: string }) {
+export function PhonePanel({ account, mode, status, backHref, paymentHref }: { account: AccountView; mode: FormMode; status: Status; backHref?: string; paymentHref?: string }) {
   const [provisionState, provisionAction, provisioning] = useActionState(provisionPhoneNumber, null);
   const [result, setResult] = useState<ActionState>(null);
   const [pending, startTransition] = useTransition();
@@ -67,14 +67,16 @@ export function PhonePanel({ account, mode, status, backHref, nextHref }: { acco
             <Field label="Preferred area code" htmlFor="areaCode" hint="We'll pick a local number here if one's available.">
               <Input id="areaCode" name="areaCode" inputMode="numeric" maxLength={3} defaultValue={areaCodeDefault} placeholder="212" className="max-w-32" />
             </Field>
+            {/* Payment precedes this step, so this only shows when it did not go through - a declined
+                card, a closed tab. It is the edge case, not the path. */}
             {!status.subscribed ? (
               <Alert kind="info">
-                <p className="font-semibold">Your number is issued once your subscription is active.</p>
+                <p className="font-semibold">{mode === "onboarding" ? "Your payment hasn't gone through yet." : "Your number is issued once your subscription is active."}</p>
                 <p className="mt-1">
-                  {mode === "onboarding" ? "Finish the payment step next, then come back to Settings → Phone to connect your number." : "Subscribe under Billing and this button unlocks right away."}
+                  {mode === "onboarding" ? "Your number is issued the moment your subscription is active. Go back to the payment step to finish paying, then return here." : "Subscribe under Billing and this button unlocks right away."}
                 </p>
-                <Link href={mode === "onboarding" ? (nextHref ?? "/onboarding/8") : "/settings?tab=billing"} className="mt-2 inline-block font-semibold text-brand-700">
-                  {mode === "onboarding" ? "Go to payment →" : "Open Billing →"}
+                <Link href={mode === "onboarding" ? (paymentHref ?? (backHref ?? "/settings?tab=billing")) : "/settings?tab=billing"} className="mt-2 inline-block font-semibold text-brand-700">
+                  {mode === "onboarding" ? "← Back to payment" : "Open Billing →"}
                 </Link>
               </Alert>
             ) : null}

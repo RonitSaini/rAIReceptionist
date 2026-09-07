@@ -272,7 +272,7 @@ export const restaurant: VerticalDefinition = {
     business: { one: "restaurant", many: "restaurants", One: "Restaurant", Many: "Restaurants" },
   },
 
-  onboardingSteps: [STEP.account, STEP.businessBasics, STEP.hours, RESTAURANT_STEP.menuPolicies, RESTAURANT_STEP.reservations, STEP.voice, STEP.phone, STEP.payment],
+  onboardingSteps: [STEP.account, STEP.businessBasics, STEP.hours, RESTAURANT_STEP.menuPolicies, RESTAURANT_STEP.reservations, STEP.voice, STEP.payment, STEP.phone],
 
   /**
    * Restaurants predate the `details` JSON column: a reservation's fields are real, indexed

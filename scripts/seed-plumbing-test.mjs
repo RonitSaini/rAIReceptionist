@@ -94,7 +94,7 @@ async function main() {
       escalationTypes: ["quote_request", "complaint"],
       takesTakeoutOrders: false,
       offersDelivery: false,
-      onboardingStep: 10,
+      onboardingStepId: "done",
       businessHours: { create: HOURS.map((h, i) => ({ ...h, sortOrder: i })) },
       managerAvailability: { create: [1, 2, 3, 4, 5].map((d) => ({ dayOfWeek: d, start: "07:00", end: "20:00" })) },
       serviceOfferings: { create: SERVICES.map((s) => ({ ...s, enabled: true })) },

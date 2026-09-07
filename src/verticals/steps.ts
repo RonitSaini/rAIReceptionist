@@ -20,6 +20,13 @@ export const STEP = {
   payment: { id: "payment", title: "Payment", short: "Pay" },
 } as const satisfies Record<string, OnboardingStep>;
 
+/**
+ * What `Account.onboardingStepId` holds once every step is done. Not a step, so it never renders;
+ * `onboardingPosition` reports it as one past the last real step, which is all the old numeric
+ * sentinel ever was.
+ */
+export const ONBOARDING_DONE = "done";
+
 /** Field-service steps: where you will drive, what you sell, and what counts as an emergency. */
 export const FIELD_SERVICE_STEP = {
   serviceArea: { id: "service-area", title: "Service area", short: "Area" },

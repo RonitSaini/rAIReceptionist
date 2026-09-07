@@ -10,6 +10,7 @@ import { humanize } from "@/lib/constants";
 import { subscriptionActive } from "@/lib/billing-ui";
 import { refreshFromStripe, reserveReferralDiscount, resolvePortalConfiguration, settleReferrals } from "@/lib/billing";
 import { createCheckoutSession, createCustomer, createPortalSession, getCustomer, isStripeNotFound, stripeErrorMessage } from "@/lib/stripe";
+import { onboardingStepHref } from "@/lib/onboarding-flow";
 
 type Mode = "onboarding" | "settings";
 
@@ -46,7 +47,8 @@ export async function startCheckout(_prev: ActionState, fd: FormData): Promise<A
   const monthlyPrice = process.env.STRIPE_PRICE_MONTHLY as string;
   const chargeSetupFee = !!setupFeePrice && !account.setupFeePaidAt;
 
-  const returnPath = mode === "onboarding" ? "/onboarding/8" : "/settings?tab=billing";
+  // Back to the payment step wherever this vertical keeps it - never a literal position.
+  const returnPath = mode === "onboarding" ? onboardingStepHref(account, "payment") : "/settings?tab=billing";
   const sep = returnPath.includes("?") ? "&" : "?";
   const base = appUrl();
 
