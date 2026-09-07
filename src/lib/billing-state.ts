@@ -1,6 +1,7 @@
 import type { Account } from "@prisma/client";
 import { billingRequired } from "./env";
 import { subscriptionActive } from "./billing-ui";
+import { ONBOARDING_DONE } from "@/verticals/steps";
 
 /**
  * Where an account stands with billing, as one word (docs/frontdesk-billing-spec.md).
@@ -10,7 +11,11 @@ import { subscriptionActive } from "./billing-ui";
  * without any of them importing Prisma or Stripe. The clocks themselves are set in one place,
  * `applySubscription` in billing.ts, and cleared the moment a subscription is active again.
  *
- *   exempt  - billing is not enforced on this deployment, or this is an internal/test account
+ *   exempt  - billing is not enforced on this deployment, this is an internal/test account, or the
+ *             account has not finished setup. That last one is the sale: the voice step lets a
+ *             prospect talk to the agent in the browser before the payment step, and an agent that
+ *             refuses to book is not a demo. Nothing else can reach it - no number is issued before
+ *             payment - so enforcement starts the moment setup is done.
  *   ok      - an active (or trialing) subscription
  *   grace   - a payment failed less than GRACE_DAYS ago: the agent works normally, the owner is nagged
  *   paused  - anything else: no subscription, a cancelled one, or grace ran out unpaid. The agent
@@ -18,7 +23,7 @@ import { subscriptionActive } from "./billing-ui";
  */
 export type BillingState = "exempt" | "ok" | "grace" | "paused";
 
-export type BillingAccount = Pick<Account, "subscriptionStatus" | "isInternal" | "paymentFailedAt" | "subscriptionEndedAt">;
+export type BillingAccount = Pick<Account, "subscriptionStatus" | "isInternal" | "paymentFailedAt" | "subscriptionEndedAt" | "onboardingStepId">;
 
 export const GRACE_DAYS = 10;
 export const RECLAIM_WARN_DAYS = 20;
@@ -31,6 +36,7 @@ export function graceEndsAt(a: Pick<Account, "paymentFailedAt">): Date | null {
 
 export function billingState(a: BillingAccount, now: Date = new Date()): BillingState {
   if (!billingRequired() || a.isInternal) return "exempt";
+  if (a.onboardingStepId !== ONBOARDING_DONE) return "exempt";
   if (subscriptionActive(a)) return "ok";
   const graceEnd = graceEndsAt(a);
   if (a.subscriptionStatus === "past_due" && graceEnd && now < graceEnd) return "grace";

@@ -15,7 +15,7 @@ const DAY = 86_400_000;
 const T0 = new Date("2026-09-06T12:00:00Z");
 const daysLater = (n) => new Date(T0.getTime() + n * DAY);
 
-const account = (over = {}) => ({ subscriptionStatus: "active", isInternal: false, paymentFailedAt: null, subscriptionEndedAt: null, ...over });
+const account = (over = {}) => ({ subscriptionStatus: "active", isInternal: false, paymentFailedAt: null, subscriptionEndedAt: null, onboardingStepId: "done", ...over });
 
 function withEnv(vars, fn) {
   const before = Object.fromEntries(Object.keys(vars).map((k) => [k, process.env[k]]));
@@ -37,6 +37,19 @@ test("nothing is enforced unless BILLING_REQUIRED is on", () => {
 
 test("an internal account is exempt even when it is enforced", () => {
   enforced(() => assert.equal(billingState(account({ subscriptionStatus: "none", isInternal: true }), T0), "exempt"));
+});
+
+test("an account still in setup is exempt - the browser demo on the voice step must book", () => {
+  // Found the day enforcement went live: step 6 lets a prospect talk to the agent before the
+  // payment step, and a prompt carrying the paused section would have refused to book on the
+  // one call that sells the product. No number is issued before payment, so nobody else can
+  // reach the agent; enforcement starts when setup is done.
+  enforced(() => {
+    for (const step of ["business-basics", "voice", "payment", "phone"]) {
+      assert.equal(billingState(account({ subscriptionStatus: "none", onboardingStepId: step }), T0), "exempt", step);
+    }
+    assert.equal(billingState(account({ subscriptionStatus: "none", onboardingStepId: "done" }), T0), "paused");
+  });
 });
 
 test("active and trialing are ok", () => {

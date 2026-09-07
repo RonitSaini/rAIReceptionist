@@ -79,7 +79,7 @@ export async function applySubscription(accountId: string, sub: StripeSubscripti
   const status = mapSubscriptionStatus(sub.status);
   const current = await prisma.account.findUnique({
     where: { id: accountId },
-    select: { subscriptionStatus: true, stripeSubscriptionId: true, isInternal: true, paymentFailedAt: true, subscriptionEndedAt: true },
+    select: { subscriptionStatus: true, stripeSubscriptionId: true, isInternal: true, paymentFailedAt: true, subscriptionEndedAt: true, onboardingStepId: true },
   });
   if (!current) return "none";
   const isOtherSubscription = !!current.stripeSubscriptionId && current.stripeSubscriptionId !== sub.id;
@@ -96,7 +96,7 @@ export async function applySubscription(accountId: string, sub: StripeSubscripti
       subscriptionCancelAtPeriodEnd: !!sub.cancel_at_period_end,
       ...billingClocks(status, current, now),
     },
-    select: { subscriptionStatus: true, isInternal: true, paymentFailedAt: true, subscriptionEndedAt: true },
+    select: { subscriptionStatus: true, isInternal: true, paymentFailedAt: true, subscriptionEndedAt: true, onboardingStepId: true },
   });
 
   // Crossing the paused boundary in either direction changes what the agent's prompt says it may

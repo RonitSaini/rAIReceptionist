@@ -8,7 +8,7 @@ What happens to an account that stops paying, and when. Owner's policy, set 2026
 
 | State    | When                                                                                   | The agent                                          | The owner sees                                  |
 | -------- | -------------------------------------------------------------------------------------- | -------------------------------------------------- | ----------------------------------------------- |
-| `exempt` | `BILLING_REQUIRED` is not `"true"`, or `Account.isInternal`                            | normal                                             | nothing                                         |
+| `exempt` | `BILLING_REQUIRED` is not `"true"`, or `Account.isInternal`, or setup is not finished (`onboardingStepId != "done"`) | normal | nothing |
 | `ok`     | subscription `active` or `trialing`                                                    | normal                                             | nothing                                         |
 | `grace`  | `past_due` and fewer than **10 days** since `paymentFailedAt`                          | normal                                             | red dunning banner with days left, a notification |
 | `paused` | everything else: `none`, `cancelled`, or grace ran out unpaid                          | **billing-paused mode** (§2)                       | red "taking messages only" banner, a notification, and one per fielded call |
@@ -56,6 +56,7 @@ A released number cannot be reclaimed. Re-subscribing issues a fresh one through
 5. **Reactivation keeps everything.** Every clock clears on `active`; nothing is released until the day-30 sweep actually runs.
 6. **The exemption is a column, not a list.** `Account.isInternal` — set it on the owner's and test accounts; never special-case an id in code.
 7. **Non-paused prompts stay byte-identical.** The paused section is appended by `buildGeneralPrompt`, and only then. `tests/snapshots` are the check.
+8. **Setup is exempt, because the demo is the sale.** The voice step's browser test call runs before the payment step; a prospect hearing an agent that refuses to book buys nothing. No number exists before payment, so nothing but the owner's own tests can reach the agent — enforcement starts the moment `onboardingStepId` becomes `done`. Lives in `billingState`, not at a call site (rule 1).
 
 ## 6. Where things live
 

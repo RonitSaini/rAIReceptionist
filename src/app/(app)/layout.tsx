@@ -30,10 +30,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const setupIncomplete = !hasFinishedOnboarding(account);
   const stepsDone = onboardingPosition(account, account.onboardingStepId) - 1;
   const stepsTotal = lastOnboardingStep(account);
-  // Billing banners only once setup is done. Enforced (docs/frontdesk-billing-spec.md): grace and
-  // paused are red and say exactly what the agent is doing about it. Not enforced on this deployment
-  // but Stripe wired up: the old amber nudge to subscribe.
-  const billing = setupIncomplete ? "exempt" : billingState(account);
+  // Billing banners (docs/frontdesk-billing-spec.md): grace and paused are red and say exactly what
+  // the agent is doing about it; billingState itself is exempt until setup is done. Not enforced on
+  // this deployment but Stripe wired up: the old amber nudge to subscribe.
+  const billing = billingState(account);
   const nudgeToSubscribe = billing === "exempt" && !setupIncomplete && !account.isInternal && stripeConfigured() && !subscriptionActive(account);
   // Resolved once and used twice: the rail renders it, and the page transition reads its ORDER to work
   // out which way the owner is walking (motion spec §10, beat two).
