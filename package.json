@@ -14,6 +14,7 @@
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate",
+    "retell:orphans": "node --import ./tests/ts-hooks.mjs scripts/retell-orphans.mjs",
     "test": "node --import ./tests/ts-hooks.mjs --test tests/*.test.mjs"
   },
   "prisma": {

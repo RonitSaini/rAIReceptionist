@@ -149,6 +149,36 @@ export function updateAgent(agentId: string, body: Partial<AgentRequest>) {
 export function deleteAgent(agentId: string) {
   return request<void>("DELETE", `/delete-agent/${agentId}`);
 }
+
+export type AgentListItem = { agent_id: string; agent_name?: string; channel?: string; user_modified_timestamp?: number; tags?: string[] };
+export type RetellLlmListItem = { llm_id: string; user_modified_timestamp?: number };
+
+/**
+ * Every page of a v2 list endpoint, joined. Retell's v2 lists return `items`, `has_more` and a
+ * `pagination_key` to pass back as a query parameter for the next page; `limit` maxes at 1000.
+ * The v1 `GET /list-agents` (one unpaginated array) is deprecated as of 2026-09-07 and was only
+ * ever called from operator scripts, never from the app - this is the one place either list lives.
+ */
+async function listAll<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<T[]> {
+  const items: T[] = [];
+  let paginationKey: string | undefined;
+  do {
+    const qs = new URLSearchParams({ limit: "1000", ...(paginationKey ? { pagination_key: paginationKey } : {}) });
+    const page = await request<{ items?: T[]; has_more?: boolean; pagination_key?: string }>(method, `${path}?${qs}`, body);
+    items.push(...(page.items ?? []));
+    paginationKey = page.has_more ? page.pagination_key : undefined;
+  } while (paginationKey);
+  return items;
+}
+
+/** All voice agents on the account (chat agents are filtered out; this app has none). */
+export function listAgents(): Promise<AgentListItem[]> {
+  return listAll<AgentListItem>("POST", "/v2/list-agents", { filter_criteria: { channel: { type: "string", op: "eq", value: "voice" } } });
+}
+
+export function listRetellLlms(): Promise<RetellLlmListItem[]> {
+  return listAll<RetellLlmListItem>("GET", "/v2/list-retell-llms");
+}
 export function deleteLlm(llmId: string) {
   return request<void>("DELETE", `/delete-retell-llm/${llmId}`);
 }
