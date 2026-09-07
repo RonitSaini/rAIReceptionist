@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/escalations",
-      "schedule": "0 13 * * *"
+      "schedule": "*/5 * * * *"
     }
   ]
 }
