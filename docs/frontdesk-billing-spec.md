@@ -40,7 +40,7 @@ The reclamation clock starts at `subscriptionEndedAt`, or — for a lapse Stripe
 
 ## 4. Number reclamation
 
-The sweep (`src/lib/reclamation.ts`, run by `/api/cron/escalations` every five minutes), for paused accounts that still hold a number:
+The daily sweep (`src/lib/reclamation.ts`, run by `/api/cron/escalations` at 13:00 UTC — see §7 for why daily), for paused accounts that still hold a number:
 
 - **Day 20** — one warning notification: the number goes in 10 days.
 - **Day 30** — the Twilio number is removed from the A2P sender pool and released, the Retell agent and its LLM are deleted, the account's number and agent columns are cleared, and the owner gets a notification **and an email** (`sendNumberReleasedEmail`) — the email because an owner a month past their last payment is probably not opening the app.
@@ -71,7 +71,13 @@ The component tells the owner where they stand from the moment a call is request
 7. **Non-paused prompts stay byte-identical.** The paused section is appended by `buildGeneralPrompt`, and only then. `tests/snapshots` are the check.
 8. **Setup is exempt, because the demo is the sale.** The voice step's browser test call runs before the payment step; a prospect hearing an agent that refuses to book buys nothing. No number exists before payment, so nothing but the owner's own tests can reach the agent — enforcement starts the moment `onboardingStepId` becomes `done`. Lives in `billingState`, not at a call site (rule 1).
 
-## 7. Where things live
+## 7. Scheduling is daily, by platform constraint
+
+Vercel Hobby allows one cron run per day, and the deployment stays on Hobby by decision (2026-09-07 — a five-minute cadence was built, rejected by Vercel at deploy time, and reverted). `/api/cron/escalations` therefore runs **once, at 13:00 UTC**, and everything in it is written to be correct at that cadence: reclamation is measured in days, and every job is idempotent so a missed run is made up by the next.
+
+**Any future feature that assumes sub-daily scheduling needs a different mechanism, not a shorter cron.** The two in use today: piggybacking on traffic (the escalation and stale-SMS sweeps also run `after()` every Retell webhook, which is what keeps their latency at minutes while the business is busy), and doing the work at the moment of the event (the paused-boundary re-sync happens inside `applySubscription`, not in a sweep). Do not put `*/N` in `vercel.json`: Vercel rejects the whole deployment at validation, silently — no deployment record is created, and every commit behind it is blocked.
+
+## 8. Where things live
 
 | Concern                              | File                                        |
 | ------------------------------------ | ------------------------------------------- |
@@ -80,6 +86,6 @@ The component tells the owner where they stand from the moment a call is request
 | Paused prompt section                | `src/lib/agent-config.ts`                   |
 | Function-layer refusal               | `src/app/api/retell/functions/[name]/route.ts` |
 | Per-call owner notification          | `src/app/api/retell/webhook/route.ts`       |
-| Daily sweep: pause + reclamation     | `src/lib/reclamation.ts`                    |
+| Daily sweep: pause + reclamation     | `src/lib/reclamation.ts` (§7: daily by constraint) |
 | Dunning / paused banners             | `src/app/(app)/layout.tsx`                  |
 | The release email                    | `src/lib/email.ts`                          |

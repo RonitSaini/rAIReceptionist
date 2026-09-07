@@ -25,6 +25,12 @@ function authorized(req: NextRequest): boolean {
  * day 20 and 30 of a lapse, warned and then reclaimed; and any job whose Google Calendar mirror
  * failed is retried. The first two also run after every Retell webhook, which is what keeps their
  * latency at minutes rather than a day on a plan whose cron runs once.
+ *
+ * Daily is a platform constraint, not a choice to revisit: Vercel Hobby allows one run a day and
+ * the deployment stays on Hobby (docs/frontdesk-billing-spec.md §7). Anything that needs to happen
+ * sooner than tomorrow has to ride traffic (the after() calls in the Retell webhook) or happen at
+ * the moment of its event - never a shorter schedule here, which Vercel rejects at deploy time and
+ * blocks every commit behind it.
  */
 export async function GET(req: NextRequest) {
   if (!authorized(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
