@@ -1,5 +1,5 @@
 import type { Vertical } from "@prisma/client";
-import { appUrl } from "./env";
+import { appUrl, isProductionDeployment } from "./env";
 import { vocabularyFor } from "@/verticals";
 
 /**
@@ -16,9 +16,40 @@ const RESEND_ENDPOINT = "https://api.resend.com/emails";
 
 export const resendConfigured = () => Boolean(process.env.RESEND_API_KEY);
 
+/**
+ * Where an outbound email actually goes, given where the code is running.
+ *
+ * Only production talks to real people. Everywhere else - a laptop, a preview deployment, a
+ * `next start` build on port 3000 - every message is redirected to one developer inbox
+ * (DEV_EMAIL_INBOX) with the real recipient written into the subject. Redirected rather than
+ * refused: a refused send is nothing, and nothing looks exactly like success from the outside,
+ * which is how three test signups mailed strangers on the night of 2026-09-06. A redirected send
+ * is the whole email, verification link included, in an inbox you can open. With no DEV_EMAIL_INBOX
+ * set, a non-production send is refused and logged: no configuration, nothing leaves.
+ *
+ * Pure - the environment is passed in - so the rule is testable without Resend.
+ */
+export function routeOutbound(
+  to: string,
+  subject: string,
+  env: { production: boolean; devInbox?: string | null } = { production: isProductionDeployment(), devInbox: process.env.DEV_EMAIL_INBOX },
+): { to: string; subject: string } | null {
+  if (env.production) return { to, subject };
+  const inbox = env.devInbox?.trim();
+  if (!inbox) return null;
+  return { to: inbox, subject: `[to: ${to}] ${subject}` };
+}
+
 async function sendEmail(to: string, subject: string, html: string, text: string, opts?: { scheduledAt?: Date }): Promise<void> {
   const key = process.env.RESEND_API_KEY;
   if (!key) return;
+  const route = routeOutbound(to, subject);
+  if (!route) {
+    console.warn(`[email] not production and DEV_EMAIL_INBOX is unset - refusing to send "${subject}" to ${to}`);
+    return;
+  }
+  if (route.to !== to) console.warn(`[email] not production - redirecting "${subject}" for ${to} to ${route.to}`);
+  ({ to, subject } = route);
   const from = process.env.RESEND_FROM || "FrontDesk AI <onboarding@resend.dev>";
   const replyTo = process.env.RESEND_REPLY_TO || undefined;
 

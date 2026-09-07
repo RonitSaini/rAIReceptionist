@@ -3,6 +3,15 @@ import { subscriptionActive } from "./billing-ui";
 
 /** Small helpers around environment configuration for the integrations. */
 
+/**
+ * The one deployment that may talk to real people. Vercel sets VERCEL_ENV to "production" there
+ * and "preview" elsewhere; a local `next dev` or `next start` has it unset. NODE_ENV is the wrong
+ * signal for this - `next start` on a laptop runs with NODE_ENV=production and is not production.
+ */
+export function isProductionDeployment(): boolean {
+  return process.env.VERCEL_ENV === "production";
+}
+
 export function appUrl(): string {
   const raw = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
   return raw.replace(/\/+$/, "");
