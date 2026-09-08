@@ -2,6 +2,9 @@
 
 import { redirect } from "next/navigation";
 import { after } from "next/server";
+import { cookies, headers } from "next/headers";
+import { appUrl } from "@/lib/env";
+import { postCredentials, safeCallbackPath } from "@/lib/login-post";
 import { prisma } from "@/lib/prisma";
 import { sendReferralEmail, sendWelcomeEmail } from "@/lib/email";
 import { hashPassword, verifyPassword } from "@/lib/password";
@@ -177,6 +180,41 @@ export async function resendVerificationEmail(): Promise<ActionState> {
 export async function confirmEmailVerification(formData: FormData): Promise<void> {
   const outcome = await confirmVerification(str(formData, "token"));
   redirect(`/verify-email?result=${outcome}`);
+}
+
+/** This request's own origin, so the login loopback reaches the deployment that is serving it (dev port included). */
+async function requestOrigin(): Promise<string> {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? (host?.startsWith("localhost") ? "http" : "https");
+  return host ? `${proto}://${host}` : appUrl();
+}
+
+/**
+ * The password login, as a POST that works before React has attached (src/lib/login-post.ts for
+ * why). NextAuth's credentials callback does the checking and issues the session cookie; this
+ * relays that cookie onto the response and sends the owner where they were going. A refusal comes
+ * back as the form's error line, never as a page with the credentials in its URL.
+ */
+export async function logIn(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const email = str(formData, "email").toLowerCase();
+  const password = formData.get("password");
+  const redirectTo = safeCallbackPath(str(formData, "callbackUrl"));
+  if (!isEmail(email) || typeof password !== "string" || !password) return { ok: false, error: "Wrong email or password." };
+
+  const result = await postCredentials(await requestOrigin(), { email, password, callbackUrl: redirectTo });
+  if (!result.ok) return { ok: false, error: result.status === 401 ? "Wrong email or password." : "Something went wrong signing in. Please try again." };
+
+  const { session } = result;
+  (await cookies()).set(session.name, session.value, {
+    path: session.path ?? "/",
+    httpOnly: session.httpOnly,
+    secure: session.secure,
+    sameSite: session.sameSite ?? "lax",
+    ...(session.expires ? { expires: session.expires } : {}),
+    ...(session.maxAge !== undefined ? { maxAge: session.maxAge } : {}),
+  });
+  redirect(redirectTo);
 }
 
 /**
