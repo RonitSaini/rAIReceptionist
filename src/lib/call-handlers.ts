@@ -14,6 +14,7 @@ import { PM_HANDLERS, pmDispatchEmergencyHandler } from "./pm-handlers";
 import { int, normalizeTime, phoneOrCaller, str, tagCall, type Args, type HandlerContext, type HandlerResult } from "./handler-utils";
 import { afterEscalation, afterMessageTaken, afterReservationBooked, afterTakeoutOrdered } from "./outcomes";
 import { syncReservationToGoogle } from "./google-calendar";
+import { canTextFrom, NO_TEXT_YET } from "./confirmation-text";
 
 /**
  * Implementations of the custom functions the Retell agent can call during a call.
@@ -129,7 +130,7 @@ async function createReservation(ctx: HandlerContext, args: Args, isWaitlist: bo
     confirmation: when,
     message: isWaitlist
       ? `${guestName} is on the waitlist for ${partySize} on ${when}. Tell them the restaurant will call ${formatUsPhone(guestPhone)} if a table opens up.`
-      : `Booked: ${guestName}, party of ${partySize}, ${when}. Tell them they'll get a text confirmation at ${formatUsPhone(guestPhone)}.`,
+      : `Booked: ${guestName}, party of ${partySize}, ${when}. ${canTextFrom(a) ? `Tell them they'll get a text confirmation at ${formatUsPhone(guestPhone)}.` : NO_TEXT_YET}`,
   };
 }
 
@@ -234,7 +235,7 @@ export async function takeTakeoutOrderHandler(ctx: HandlerContext, args: Args): 
   await afterTakeoutOrdered(a, order, ctx.call);
 
   const when = formatDateTime(pickupTime, a.timeZone);
-  return { success: true, order_id: order.id, message: `Order placed for ${guestName}, ${isDelivery ? "delivery" : "pickup"} at ${when}. Tell them they'll get a text confirmation at ${formatUsPhone(guestPhone)}.` };
+  return { success: true, order_id: order.id, message: `Order placed for ${guestName}, ${isDelivery ? "delivery" : "pickup"} at ${when}. ${canTextFrom(a) ? `Tell them they'll get a text confirmation at ${formatUsPhone(guestPhone)}.` : NO_TEXT_YET}` };
 }
 
 // ---------- take_message ----------

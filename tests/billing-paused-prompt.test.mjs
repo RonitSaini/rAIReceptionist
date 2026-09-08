@@ -147,3 +147,28 @@ test("internal accounts and unenforced deployments never see the section", () =>
   withEnv({ BILLING_REQUIRED: "true" }, () => assert.ok(!buildGeneralPrompt(src({ subscriptionStatus: "none", isInternal: true })).includes(SECTION_START)));
   withEnv({ BILLING_REQUIRED: undefined }, () => assert.ok(!buildGeneralPrompt(src({ subscriptionStatus: "none" })).includes(SECTION_START)));
 });
+
+/**
+ * The texting section works the same way (2026-09-07): an account without a number of its own gets
+ * the unchanged prompt plus one appended section, so the agent never promises a text it cannot
+ * send during the browser demo. Any account with a number is byte for byte what it was.
+ */
+const TEXTING_START = "TEXTING - THIS BUSINESS HAS NO PHONE NUMBER YET:";
+
+test("an account without a number gets the unchanged prompt plus the texting section", () => {
+  const base = buildGeneralPrompt(src({ twilioNumber: "+12125550199" }));
+  const demo = buildGeneralPrompt(src({ twilioNumber: null, twilioNumberSid: null }));
+  assert.ok(!base.includes(TEXTING_START), "an account with a number must not carry the section");
+  assert.ok(demo.startsWith(`${base}\n\n${TEXTING_START}`), "the demo prompt is the base prompt, then the section - nothing woven in");
+  const section = demo.split(TEXTING_START)[1];
+  assert.match(section, /Never promise a text/);
+  assert.match(section, /confirmations by text once the number is set up/);
+});
+
+test("paused and without a number: texting first, billing last, because billing overrides everything above it", () => {
+  withEnv({ BILLING_REQUIRED: "true" }, () => {
+    const both = buildGeneralPrompt(src({ twilioNumber: null, twilioNumberSid: null, subscriptionStatus: "none" }));
+    assert.ok(both.indexOf(TEXTING_START) < both.indexOf(SECTION_START));
+    assert.ok(both.endsWith(buildGeneralPrompt(src({ subscriptionStatus: "none" })).split(SECTION_START)[1]));
+  });
+});

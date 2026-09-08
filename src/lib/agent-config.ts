@@ -4,6 +4,7 @@ import { verticalFor } from "@/verticals";
 import { UNKNOWN_CALLER } from "./caller-context";
 import { AGENT_FUNCTIONS, CLASSIFICATION_CHOICES, MESSAGE_REASONS, classificationChoicesFor, type AgentFunctionName, type AgentSource } from "@/verticals/types";
 import { billingState, demoCapped, DEMO_CALL_MAX_MS, FULL_CALL_MAX_MS } from "./billing-state";
+import { canTextFrom } from "./confirmation-text";
 
 /**
  * Builds the Retell LLM + agent configuration for one account.
@@ -33,9 +34,22 @@ const BILLING_PAUSED_SECTION = [
   "Do not mention billing, payment, subscriptions or account status to the caller. If they ask why you cannot book, say only that you will pass their details straight on and someone will call them back.",
 ].join("\n");
 
+/**
+ * An account without a number of its own cannot text anyone: the browser demo before paying, and
+ * the gap between paying and the phone step. The function results already stop promising a text
+ * (src/lib/confirmation-text.ts); this stops the agent promising one on its own. Appended like the
+ * billing section, so every prompt for an account with a number is byte for byte what it was.
+ */
+const NO_NUMBER_SECTION = [
+  "TEXTING - THIS BUSINESS HAS NO PHONE NUMBER YET:",
+  "No confirmation text can go out on this call: the business's own number is not set up yet (a browser demo, or setup still in progress). Never promise a text, a confirmation message or a reminder.",
+  "When something is booked, ordered or logged, read the details back to the caller and say they will get confirmations by text once the number is set up.",
+].join("\n");
+
 export function buildGeneralPrompt(src: AgentSource): string {
-  const prompt = verticalFor(src.account).agentPromptTemplate(src);
-  return billingState(src.account) === "paused" ? `${prompt}\n\n${BILLING_PAUSED_SECTION}` : prompt;
+  const a = src.account;
+  const prompt = verticalFor(a).agentPromptTemplate(src);
+  return [prompt, canTextFrom(a) ? null : NO_NUMBER_SECTION, billingState(a) === "paused" ? BILLING_PAUSED_SECTION : null].filter(Boolean).join("\n\n");
 }
 
 export function buildTools(src: AgentSource): (CustomTool | EndCallTool)[] {

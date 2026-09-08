@@ -7,6 +7,7 @@ import { getAvailableJobSlots } from "./job-availability";
 import { afterJobBooked } from "./job-outcomes";
 import { verticalFor } from "@/verticals";
 import { normalizeTime, phoneOrCaller, str, tagCall, upsertCustomer, type Args, type HandlerContext, type HandlerResult } from "./handler-utils";
+import { canTextFrom, NO_TEXT_YET } from "./confirmation-text";
 
 /**
  * The shop_appointment archetype's one booking function.
@@ -88,7 +89,7 @@ export async function bookAppointmentHandler(ctx: HandlerContext, args: Args): P
   return {
     success: true,
     job_id: job.id,
-    message: `Booked for ${customerName} on ${formatDateTime(slot.startUtc, a.timeZone)}${subject ? ` (${subject})` : ""}. Tell them a confirmation text is on its way to ${formatUsPhone(customerPhone)}, and to arrive a few minutes early.`,
+    message: `Booked for ${customerName} on ${formatDateTime(slot.startUtc, a.timeZone)}${subject ? ` (${subject})` : ""}. ${canTextFrom(a) ? `Tell them a confirmation text is on its way to ${formatUsPhone(customerPhone)}, and to arrive a few minutes early.` : `Tell them to arrive a few minutes early. ${NO_TEXT_YET}`}`,
   };
 }
 
