@@ -135,6 +135,10 @@ model Account {
   /// Nullable only because the column had to be added additively — the migration backfilled every
   /// existing row and account creation always sets one (src/lib/referrals.ts).
   referralCode String? @unique
+  /// Resend's id for the referral follow-up scheduled twenty minutes after sign-up, so deleting the
+  /// account can cancel a send that has not gone out yet (2026-09-08: a deleted throwaway's follow-up
+  /// still arrived). Null when nothing was scheduled; harmless once the send has already happened.
+  referralEmailId String?
 
   // Voice + greeting
   voiceId  String  @default("11labs-Adrian")

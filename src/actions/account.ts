@@ -8,6 +8,7 @@ import { releaseNumber } from "@/lib/twilio";
 import { stripeConfigured, twilioConfigured } from "@/lib/env";
 import { deleteAgent, deleteLlm } from "@/lib/retell";
 import { disconnect as disconnectGoogle } from "@/lib/google-calendar";
+import { cancelScheduledEmail } from "@/lib/email";
 
 const LIVE_SUBSCRIPTION = new Set(["active", "trialing", "past_due", "unpaid", "incomplete"]);
 
@@ -51,7 +52,11 @@ export async function deleteAccount(_prev: ActionState, fd: FormData): Promise<A
   // 4. Google Calendar tokens (revoked at Google, row removed).
   await disconnectGoogle(account.id).catch(() => {});
 
-  // 5. Data. Users are unlinked (not cascaded) by the schema, so delete them explicitly; everything else cascades.
+  // 5. A referral follow-up Resend is still holding would arrive after the account is gone; cancel it.
+  //    Best-effort: one that already went out is refused by Resend, and that must not stop the deletion.
+  if (account.referralEmailId) await cancelScheduledEmail(account.referralEmailId);
+
+  // 6. Data. Users are unlinked (not cascaded) by the schema, so delete them explicitly; everything else cascades.
   await prisma.$transaction([prisma.user.deleteMany({ where: { accountId: account.id } }), prisma.account.delete({ where: { id: account.id } })]);
 
   return { ok: true, message: "Account deleted." };

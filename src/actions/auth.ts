@@ -182,12 +182,15 @@ export async function confirmEmailVerification(formData: FormData): Promise<void
 /**
  * Schedule the referral follow-up 20 minutes behind the welcome. The code was issued inside the
  * sign-up transaction, so reading it back here always finds one; scheduling happens on Resend's
- * side, so no process of ours needs to be alive in 20 minutes.
+ * side, so no process of ours needs to be alive in 20 minutes. Resend's id for the scheduled send
+ * is kept on the account, so deleting the account inside those 20 minutes cancels it (2026-09-08).
  */
 async function sendReferralFollowUp(accountId: string, email: string, businessName: string): Promise<void> {
   try {
     const account = await prisma.account.findUnique({ where: { id: accountId }, select: { referralCode: true } });
-    if (account?.referralCode) await sendReferralEmail(email, businessName, account.referralCode);
+    if (!account?.referralCode) return;
+    const referralEmailId = await sendReferralEmail(email, businessName, account.referralCode);
+    if (referralEmailId) await prisma.account.update({ where: { id: accountId }, data: { referralEmailId } });
   } catch (e) {
     console.error("[email] referral follow-up failed", e);
   }

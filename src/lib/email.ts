@@ -40,13 +40,14 @@ export function routeOutbound(
   return { to: inbox, subject: `[to: ${to}] ${subject}` };
 }
 
-async function sendEmail(to: string, subject: string, html: string, text: string, opts?: { scheduledAt?: Date }): Promise<void> {
+/** Sends (or schedules) through Resend. Resolves to Resend's id for the message, or null when nothing was sent. */
+async function sendEmail(to: string, subject: string, html: string, text: string, opts?: { scheduledAt?: Date }): Promise<string | null> {
   const key = process.env.RESEND_API_KEY;
-  if (!key) return;
+  if (!key) return null;
   const route = routeOutbound(to, subject);
   if (!route) {
     console.warn(`[email] not production and DEV_EMAIL_INBOX is unset - refusing to send "${subject}" to ${to}`);
-    return;
+    return null;
   }
   if (route.to !== to) console.warn(`[email] not production - redirecting "${subject}" for ${to} to ${route.to}`);
   ({ to, subject } = route);
@@ -70,6 +71,28 @@ async function sendEmail(to: string, subject: string, html: string, text: string
   if (!res.ok) {
     // A failed welcome email must never surface as a failed sign-up; log and move on.
     console.error(`[email] Resend ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    return null;
+  }
+  const body = (await res.json().catch(() => null)) as { id?: string } | null;
+  return body?.id ?? null;
+}
+
+/**
+ * Cancel a send Resend is still holding (a `scheduled_at` in the future). True when Resend took the
+ * cancellation; false when it refused — already sent, or an id it does not know — or the call failed.
+ * Never throws: the caller is account deletion, and a follow-up that has already gone out must not
+ * stop the rows from going.
+ */
+export async function cancelScheduledEmail(id: string): Promise<boolean> {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return false;
+  try {
+    const res = await fetch(`${RESEND_ENDPOINT}/${encodeURIComponent(id)}/cancel`, { method: "POST", headers: { Authorization: `Bearer ${key}` } });
+    if (!res.ok) console.warn(`[email] could not cancel scheduled email ${id}: Resend ${res.status}`);
+    return res.ok;
+  } catch (e) {
+    console.warn(`[email] could not cancel scheduled email ${id}`, e);
+    return false;
   }
 }
 
@@ -207,9 +230,11 @@ export async function sendWelcomeEmail(to: string, businessName: string, vertica
 /**
  * The referral follow-up, scheduled 20 minutes behind the welcome so the inbox reads as a
  * conversation rather than a pile. Scheduled through Resend itself (`scheduled_at`) — nothing on
- * our side has to wake up to send it, which matters on serverless.
+ * our side has to wake up to send it, which matters on serverless. Resolves to Resend's id for the
+ * scheduled message (null when nothing was scheduled): sign-up keeps it on the account so deleting
+ * the account can cancel a send that has not gone out yet.
  */
-export async function sendReferralEmail(to: string, businessName: string, code: string, delayMinutes = 20): Promise<void> {
+export async function sendReferralEmail(to: string, businessName: string, code: string, delayMinutes = 20): Promise<string | null> {
   const url = appUrl();
   const name = businessName.trim() || "your business";
   const shareUrl = `${url}/signup?ref=${code}`;
@@ -252,5 +277,5 @@ export async function sendReferralEmail(to: string, businessName: string, code: 
     <p style="font-size:14px;line-height:1.6;color:#4b5c6b;margin:0;">— The FrontDesk AI team</p>
   </div>`;
 
-  await sendEmail(to, subject, html, text, { scheduledAt: new Date(Date.now() + delayMinutes * 60_000) });
+  return sendEmail(to, subject, html, text, { scheduledAt: new Date(Date.now() + delayMinutes * 60_000) });
 }
