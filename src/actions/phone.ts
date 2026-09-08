@@ -33,7 +33,7 @@ export async function provisionPhoneNumber(_prev: ActionState, fd: FormData): Pr
   // The one hard gate email verification has (src/lib/email-verification.ts): a number that bills
   // every month is not issued to an inbox nobody has proven they read.
   const verification = await currentUserVerification();
-  if (verification && !verification.verified) return { ok: false, error: `Verify your email address first - we sent a link to ${verification.email}. Use Resend at the top of the page if it hasn't arrived, then come back here.` };
+  if (verification && !verification.verified) return { ok: false, error: `Verify your email address first - we sent a link to ${verification.email}. If it hasn't arrived, use Send the link again on this page, then try once more.` };
   if (!twilioConfigured() || !retellConfigured()) return { ok: false, error: "Add TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN and RETELL_API_KEY to the environment first." };
   if (!appUrlIsPublic()) return { ok: false, error: `NEXT_PUBLIC_APP_URL must be a public https URL so Twilio and Retell can reach the app (currently ${appUrl()}). Use your Vercel URL or an ngrok tunnel.` };
 

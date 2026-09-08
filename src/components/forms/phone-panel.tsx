@@ -5,6 +5,7 @@ import { useActionState, useState, useTransition } from "react";
 import { BackLink } from "@/components/form-footer";
 import { completePhoneStep } from "@/actions/onboarding";
 import { placeTestCall, provisionPhoneNumber, repairNumberWebhooks, syncAgentNow } from "@/actions/phone";
+import { resendVerificationEmail } from "@/actions/auth";
 import type { AccountView } from "@/lib/serialize";
 import { DrawIcon } from "@/components/draw-icon";
 import type { ActionState } from "@/lib/form";
@@ -19,6 +20,9 @@ type Status = { twilio: boolean; retell: boolean; publicUrl: boolean; subscribed
 
 export function PhonePanel({ account, mode, status, backHref, paymentHref }: { account: AccountView; mode: FormMode; status: Status; backHref?: string; paymentHref?: string }) {
   const [provisionState, provisionAction, provisioning] = useActionState(provisionPhoneNumber, null);
+  // The app shell's banner carries the Resend button, but onboarding renders no shell, so this
+  // panel offers its own (the copy used to send people to a banner that was not there).
+  const [resendState, resendAction, resending] = useActionState(resendVerificationEmail, null);
   const [result, setResult] = useState<ActionState>(null);
   const [pending, startTransition] = useTransition();
   // Which of the three test/repair buttons is waiting on the server: it reads its pending state by text
@@ -83,7 +87,13 @@ export function PhonePanel({ account, mode, status, backHref, paymentHref }: { a
             {status.subscribed && status.unverifiedEmail ? (
               <Alert kind="info">
                 <p className="font-semibold">Confirm your email first.</p>
-                <p className="mt-1">We sent a link to {status.unverifiedEmail}. Your number is issued as soon as it&apos;s confirmed - use Resend at the top of the page if it hasn&apos;t arrived.</p>
+                <p className="mt-1">We sent a link to {status.unverifiedEmail}. Your number is issued as soon as it&apos;s confirmed.</p>
+                <p className="mt-2">
+                  <button type="submit" formAction={resendAction} disabled={resending} className="font-semibold underline underline-offset-2 disabled:opacity-60">
+                    {resending ? "Sending…" : resendState?.ok ? "Sent again" : "Send the link again"}
+                  </button>
+                  {resendState && !resendState.ok && resendState.error ? <span className="ml-2">{resendState.error}</span> : null}
+                </p>
               </Alert>
             ) : null}
             {provisionState && !provisionState.ok && provisionState.error ? <Alert>{provisionState.error}</Alert> : null}
