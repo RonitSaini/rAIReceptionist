@@ -2,19 +2,26 @@
  * Regression: reading notifications must never mark them read.
  *
  * Polls and page GETs are side-effect-free — readAt changes only through the explicit actions
- * (mark read / mark all read / acknowledge / open). This hits a RUNNING server as the demo user:
- *   BASE_URL=http://localhost:3000 npm test        (defaults shown; set DEMO_EMAIL / DEMO_PASSWORD to override)
- * Requires at least one unread notification for the demo account (run `npm run db:seed` to top one up).
+ * (mark read / mark all read / acknowledge / open). This hits a RUNNING server as a throwaway user
+ * it creates itself (tests/dev-fixture.mjs), with unread notifications seeded on that account:
+ *   BASE_URL=http://localhost:3001 npm test
  */
-import test from "node:test";
+import test, { after, before } from "node:test";
 import { requireServer } from "./require-server.mjs";
 import assert from "node:assert/strict";
+import { createFixture } from "./dev-fixture.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 // One clear failure, not seven, when the server is not there (tests/require-server.mjs).
 requireServer(BASE);
-const EMAIL = process.env.DEMO_EMAIL ?? "demo@callcover.app";
-const PASSWORD = process.env.DEMO_PASSWORD ?? "password123";
+
+let fixture;
+before(async () => {
+  fixture = await createFixture({ unreadNotifications: 2 });
+});
+after(async () => {
+  await fixture?.remove();
+});
 
 /** Minimal cookie jar over fetch (Node's fetch doesn't persist cookies). */
 function client() {
@@ -36,11 +43,11 @@ function client() {
 
 async function login(get) {
   const csrf = await (await get("/api/auth/csrf")).json();
-  const body = new URLSearchParams({ csrfToken: csrf.csrfToken, email: EMAIL, password: PASSWORD, json: "true" });
+  const body = new URLSearchParams({ csrfToken: csrf.csrfToken, email: fixture.email, password: fixture.password, json: "true" });
   const res = await get("/api/auth/callback/credentials", { method: "POST", body, headers: { "content-type": "application/x-www-form-urlencoded" } });
   assert.ok([200, 302].includes(res.status), `login failed: ${res.status}`);
   const me = await get("/api/notifications/recent");
-  assert.equal(me.status, 200, "not authenticated after login — is the demo user seeded?");
+  assert.equal(me.status, 200, "not authenticated after login - did the fixture user get created?");
 }
 
 const snapshot = async (get) => {
@@ -53,7 +60,7 @@ test("polling and page GETs never change readAt", async () => {
   await login(get);
 
   const before = await snapshot(get);
-  assert.ok(before.count > 0, "test needs ≥1 unread notification (run `npm run db:seed`)");
+  assert.ok(before.count > 0, "the fixture seeds unread notifications; none came back");
 
   // Everything a signed-in, idle client does on its own: the poll (twice), the dashboard inbox,
   // the notifications page, plus a second poll after those pages rendered.
@@ -61,7 +68,7 @@ test("polling and page GETs never change readAt", async () => {
   await get("/api/notifications/recent");
   for (const page of ["/dashboard", "/notifications", "/notifications?unread=1"]) {
     const res = await get(page);
-    const hint = res.status === 307 ? ` (redirect to ${res.headers.get("location")} — the demo user likely lacks a current terms acceptance; re-run npm run db:seed)` : "";
+    const hint = res.status === 307 ? ` (redirect to ${res.headers.get("location")})` : "";
     assert.equal(res.status, 200, `${page} -> ${res.status}${hint}`);
     const html = await res.text();
     // Guard against a side-effecting GET coming back as a link target (it was once a route handler).
