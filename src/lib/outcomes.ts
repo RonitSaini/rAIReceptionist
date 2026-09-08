@@ -71,10 +71,16 @@ export async function afterTakeoutOrdered(account: Account, o: TakeoutOrder, cal
 
 // ---------- Messages + escalations ----------
 
-export async function afterMessageTaken(account: Account, call: Call | null, input: { callerName: string; callerPhone: string | null; message: string; reason: string }): Promise<Notification> {
+/**
+ * `urgent` is the agent's own escalate flag, honoured here even when the owner has manager
+ * escalation switched off: the manager call and the follow-up text stay behind that switch, but a
+ * vet's "bring the animal in now" message must not land as an ordinary one (found 2026-09-07).
+ */
+export async function afterMessageTaken(account: Account, call: Call | null, input: { callerName: string; callerPhone: string | null; message: string; reason: string; urgent?: boolean }): Promise<Notification> {
   return createNotification({
     accountId: account.id,
     type: "message",
+    priority: input.urgent ? "urgent" : "normal",
     title: `Message from ${input.callerName}${input.callerPhone ? ` · ${formatUsPhone(input.callerPhone)}` : ""}`,
     body: `${reasonLabel(input.reason, account)}: ${input.message}`,
     callId: call?.id ?? null,

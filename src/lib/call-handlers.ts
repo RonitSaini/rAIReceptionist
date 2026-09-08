@@ -246,7 +246,10 @@ export async function takeMessageHandler(ctx: HandlerContext, args: Args): Promi
   const message = str(args.message);
   const reasonRaw = str(args.reason);
   const reason = messageReasonsFor(verticalFor(a).archetype).includes(reasonRaw) ? reasonRaw : "other";
-  const escalate = a.escalatesToManager && (args.escalate === true || str(args.escalate).toLowerCase() === "true");
+  // The agent's own urgency flag. The manager call and follow-up text stay behind the owner's
+  // escalation switch; the notification's priority does not (see afterMessageTaken).
+  const flagged = args.escalate === true || str(args.escalate).toLowerCase() === "true";
+  const escalate = a.escalatesToManager && flagged;
   if (!message) return { success: false, message: "Ask what the message is about." };
 
   const classification: CallClassification = escalate ? "escalation" : "message";
@@ -258,7 +261,7 @@ export async function takeMessageHandler(ctx: HandlerContext, args: Args): Promi
   // stated number (falling back to the ring-from), so persisting it whenever it differs is the fix.
   if (ctx.call && callerPhone && ctx.call.callerPhone !== callerPhone) await prisma.call.update({ where: { id: ctx.call.id }, data: { callerPhone } }).catch(() => {});
   if (escalate) await afterEscalation(a, ctx.call, { callerName, callerPhone, message, reason });
-  else await afterMessageTaken(a, ctx.call, { callerName, callerPhone, message, reason });
+  else await afterMessageTaken(a, ctx.call, { callerName, callerPhone, message, reason, urgent: flagged });
 
   // take_message is the one tool every archetype gets, so the wording has to come from the
   // vocabulary rather than being hardcoded. `business.one` is "restaurant" for a restaurant, which
