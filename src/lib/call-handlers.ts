@@ -14,7 +14,7 @@ import { PM_HANDLERS, pmDispatchEmergencyHandler } from "./pm-handlers";
 import { int, normalizeTime, phoneOrCaller, str, tagCall, type Args, type HandlerContext, type HandlerResult } from "./handler-utils";
 import { afterEscalation, afterMessageTaken, afterReservationBooked, afterTakeoutOrdered } from "./outcomes";
 import { syncReservationToGoogle } from "./google-calendar";
-import { canTextFrom, NO_TEXT_YET } from "./confirmation-text";
+import { textPromiseBlocker } from "./confirmation-text";
 
 /**
  * Implementations of the custom functions the Retell agent can call during a call.
@@ -124,13 +124,14 @@ async function createReservation(ctx: HandlerContext, args: Args, isWaitlist: bo
   await syncReservationToGoogle(reservation.id); // no-op unless a calendar is connected
 
   const when = formatDateTime(startTime, a.timeZone);
+  const noText = textPromiseBlocker(a, guestPhone);
   return {
     success: true,
     reservation_id: reservation.id,
     confirmation: when,
     message: isWaitlist
       ? `${guestName} is on the waitlist for ${partySize} on ${when}. Tell them the restaurant will call ${formatUsPhone(guestPhone)} if a table opens up.`
-      : `Booked: ${guestName}, party of ${partySize}, ${when}. ${canTextFrom(a) ? `Tell them they'll get a text confirmation at ${formatUsPhone(guestPhone)}.` : NO_TEXT_YET}`,
+      : `Booked: ${guestName}, party of ${partySize}, ${when}. ${noText ?? `Tell them they'll get a text confirmation at ${formatUsPhone(guestPhone)}.`}`,
   };
 }
 
@@ -235,7 +236,8 @@ export async function takeTakeoutOrderHandler(ctx: HandlerContext, args: Args): 
   await afterTakeoutOrdered(a, order, ctx.call);
 
   const when = formatDateTime(pickupTime, a.timeZone);
-  return { success: true, order_id: order.id, message: `Order placed for ${guestName}, ${isDelivery ? "delivery" : "pickup"} at ${when}. ${canTextFrom(a) ? `Tell them they'll get a text confirmation at ${formatUsPhone(guestPhone)}.` : NO_TEXT_YET}` };
+  const noText = textPromiseBlocker(a, guestPhone);
+  return { success: true, order_id: order.id, message: `Order placed for ${guestName}, ${isDelivery ? "delivery" : "pickup"} at ${when}. ${noText ?? `Tell them they'll get a text confirmation at ${formatUsPhone(guestPhone)}.`}` };
 }
 
 // ---------- take_message ----------

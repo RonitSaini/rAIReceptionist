@@ -10,7 +10,7 @@ import { customEmergencySlug, isCustomEmergency } from "./custom-emergencies";
 import { afterEmergencyDispatched, afterJobBooked } from "./job-outcomes";
 import { verticalFor } from "@/verticals";
 import { bool, normalizeTime, phoneOrCaller, str, tagCall, upsertCustomer, type Args, type HandlerContext, type HandlerResult } from "./handler-utils";
-import { canTextFrom, NO_TEXT_YET } from "./confirmation-text";
+import { textPromiseBlocker } from "./confirmation-text";
 
 /**
  * The field_service archetype's custom functions: is the caller inside the area, when can someone
@@ -212,12 +212,13 @@ export async function bookServiceCallHandler(ctx: HandlerContext, args: Args): P
   await afterJobBooked(a, job, ctx.call, { rebook: Boolean(ownJob) });
 
   const when = formatDateTime(slot.startUtc, a.timeZone);
+  const noText = textPromiseBlocker(a, customerPhone);
   return {
     success: true,
     job_id: job.id,
     message: ownJob
-      ? `Updated — the earlier booking on this call is replaced. ${customerName} is now booked on ${when} at ${address}. ${canTextFrom(a) ? `Tell them it is corrected and a new confirmation text is on its way to ${formatUsPhone(customerPhone)}.` : `Tell them it is corrected. ${NO_TEXT_YET}`}`
-      : `Booked for ${customerName} on ${when} at ${address}. ${canTextFrom(a) ? `Tell them ${a.technicianName || `the ${words.staff.one}`} will be out then, and that a confirmation text is on its way to ${formatUsPhone(customerPhone)}.` : `Tell them ${a.technicianName || `the ${words.staff.one}`} will be out then. ${NO_TEXT_YET}`}`,
+      ? `Updated — the earlier booking on this call is replaced. ${customerName} is now booked on ${when} at ${address}. ${noText ? `Tell them it is corrected. ${noText}` : `Tell them it is corrected and a new confirmation text is on its way to ${formatUsPhone(customerPhone)}.`}`
+      : `Booked for ${customerName} on ${when} at ${address}. ${noText ? `Tell them ${a.technicianName || `the ${words.staff.one}`} will be out then. ${noText}` : `Tell them ${a.technicianName || `the ${words.staff.one}`} will be out then, and that a confirmation text is on its way to ${formatUsPhone(customerPhone)}.`}`,
   };
 }
 

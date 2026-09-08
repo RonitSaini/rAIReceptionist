@@ -7,7 +7,7 @@ import { getAvailableJobSlots } from "./job-availability";
 import { afterJobBooked } from "./job-outcomes";
 import { verticalFor } from "@/verticals";
 import { normalizeTime, phoneOrCaller, str, tagCall, upsertCustomer, type Args, type HandlerContext, type HandlerResult } from "./handler-utils";
-import { canTextFrom, NO_TEXT_YET } from "./confirmation-text";
+import { textPromiseBlocker } from "./confirmation-text";
 
 /**
  * The shop_appointment archetype's one booking function.
@@ -85,11 +85,12 @@ export async function bookAppointmentHandler(ctx: HandlerContext, args: Args): P
 
   await tagCall(ctx, { classification: "service_call", jobId: job.id, callerName: customerName });
   await afterJobBooked(a, job, ctx.call);
+  const noText = textPromiseBlocker(a, customerPhone);
 
   return {
     success: true,
     job_id: job.id,
-    message: `Booked for ${customerName} on ${formatDateTime(slot.startUtc, a.timeZone)}${subject ? ` (${subject})` : ""}. ${canTextFrom(a) ? `Tell them a confirmation text is on its way to ${formatUsPhone(customerPhone)}, and to arrive a few minutes early.` : `Tell them to arrive a few minutes early. ${NO_TEXT_YET}`}`,
+    message: `Booked for ${customerName} on ${formatDateTime(slot.startUtc, a.timeZone)}${subject ? ` (${subject})` : ""}. ${noText ? `Tell them to arrive a few minutes early. ${noText}` : `Tell them a confirmation text is on its way to ${formatUsPhone(customerPhone)}, and to arrive a few minutes early.`}`,
   };
 }
 
