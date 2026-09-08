@@ -36,6 +36,10 @@ test("a Set-Cookie line is read as the cookie store wants it, secure prefix and 
   assert.equal(sessionCookieFrom(lines).name, "next-auth.session-token");
   assert.equal(sessionCookieFrom(lines).maxAge, 2592000);
   assert.equal(sessionCookieFrom(lines.slice(0, 2)), null, "no session cookie means no login");
+  // Production issues the secure-prefixed name; the first production proof failed on exactly this.
+  const prodLines = ["__Host-next-auth.csrf-token=t%7Ch; Path=/; HttpOnly; Secure; SameSite=Lax", "__Secure-next-auth.session-token=sess; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000"];
+  assert.equal(sessionCookieFrom(prodLines).name, "__Secure-next-auth.session-token");
+  assert.equal(sessionCookieFrom(prodLines).secure, true);
 });
 
 /** A fake NextAuth: one CSRF answer, then a callback that checks the CSRF cookie came back. */

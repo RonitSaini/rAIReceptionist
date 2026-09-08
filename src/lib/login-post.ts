@@ -69,11 +69,15 @@ export function parseSetCookie(line: string): ParsedCookie | null {
   return out;
 }
 
-/** NextAuth's session cookie among a response's Set-Cookie lines (`next-auth.session-token`, `__Secure-` prefixed in production). */
+/**
+ * NextAuth's session cookie among a response's Set-Cookie lines: `next-auth.session-token` on http,
+ * `__Secure-next-auth.session-token` on https (production). Matched by suffix, because the first
+ * production proof found the prefixed name and the relay had been looking for the bare one.
+ */
 export function sessionCookieFrom(lines: readonly string[]): ParsedCookie | null {
   for (const line of lines) {
     const c = parseSetCookie(line);
-    if (c && /(^|\.)next-auth\.session-token$/.test(c.name) && c.value) return c;
+    if (c && c.name.endsWith("next-auth.session-token") && c.value) return c;
   }
   return null;
 }
