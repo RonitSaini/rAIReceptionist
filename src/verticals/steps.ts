@@ -36,16 +36,23 @@ export const FIELD_SERVICE_STEP = {
   dispatch: { id: "dispatch", title: "Dispatch & response", short: "Dispatch" },
 } as const satisfies Record<string, OnboardingStep>;
 
-/** Shop steps: how long a visit takes, and where you send people you cannot help yourself. */
+/**
+ * Shop steps: how long a visit takes, and where you send people you cannot help yourself.
+ *
+ * `form` names the shared form a step renders when it is not its own. The services form saves by
+ * calling finish() with "services"; a shop's step is "appointments", and without this link the
+ * save threw `Step "services" is not part of the auto_repair onboarding flow` on step 4 of every
+ * shop signup (found in the 2026-09-07 pre-launch sweep).
+ */
 export const SHOP_STEP = {
-  appointments: { id: "appointments", title: "Appointments", short: "Slots" },
+  appointments: { id: "appointments", title: "Appointments", short: "Slots", form: "services" },
   handoffs: { id: "handoffs", title: "Urgent cases & referrals", short: "Urgent" },
 } as const satisfies Record<string, OnboardingStep>;
 
-/** Property-management steps: the portfolio, and how maintenance is handled. */
+/** Property-management steps: the portfolio, and how maintenance is handled (the emergencies form). */
 export const PM_STEP = {
   portfolio: { id: "portfolio", title: "Properties & units", short: "Portfolio" },
-  maintenance: { id: "maintenance", title: "Maintenance & emergencies", short: "Urgent" },
+  maintenance: { id: "maintenance", title: "Maintenance & emergencies", short: "Urgent", form: "emergencies" },
 } as const satisfies Record<string, OnboardingStep>;
 
 /** Restaurant-only steps. They live here beside the shared set so every step id is greppable in one file. */

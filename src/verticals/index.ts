@@ -148,10 +148,16 @@ export function onboardingPosition(source: Vertical | { vertical: Vertical }, st
   return index < 0 ? 2 : index + 1;
 }
 
-/** The id to store once `completedStepId` is finished: the next in the list, or ONBOARDING_DONE. */
+/**
+ * The id to store once `completedStepId` is finished: the next in the list, or ONBOARDING_DONE.
+ *
+ * `completedStepId` may name the FORM rather than the step: the shared services form always
+ * finishes as "services", and on a shop that step is "appointments". A step's `form` says which
+ * shared form it renders, so the lookup accepts either.
+ */
 export function nextOnboardingStepId(source: Vertical | { vertical: Vertical }, completedStepId: string): string {
   const steps = onboardingStepsFor(source);
-  const index = steps.findIndex((s) => s.id === completedStepId);
+  const index = steps.findIndex((s) => s.id === completedStepId || s.form === completedStepId);
   if (index < 0) throw new Error(`Step "${completedStepId}" is not part of the ${typeof source === "string" ? source : source.vertical} onboarding flow.`);
   return steps[index + 1]?.id ?? ONBOARDING_DONE;
 }

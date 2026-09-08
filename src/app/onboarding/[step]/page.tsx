@@ -22,6 +22,7 @@ import { ServicesForm } from "@/components/forms/services-form";
 import { EmergenciesForm } from "@/components/forms/emergencies-form";
 import { DispatchForm } from "@/components/forms/dispatch-form";
 import { ShopHandoffForm } from "@/components/forms/shop-handoff-form";
+import { PortfolioStep } from "@/components/forms/portfolio-step";
 
 export const metadata = { title: "Setup" };
 
@@ -164,9 +165,18 @@ export default async function OnboardingStepPage({ params, searchParams }: { par
         </Frame>
       );
     case "emergencies":
+    // Property management's "maintenance" is the emergencies form under its own name (steps.ts);
+    // the form finishes as "emergencies" and the step's `form` link resolves it.
+    case "maintenance":
       return (
         <Frame progress={progress}>
           <EmergenciesForm account={view} emergencyTypes={verticalFor(account).emergencyTypes} defaultSlotMinutes={verticalFor(account).defaults.slotMinutes} mode="onboarding" backHref={backHref} />
+        </Frame>
+      );
+    case "portfolio":
+      return (
+        <Frame progress={progress}>
+          <PortfolioStep backHref={backHref} />
         </Frame>
       );
     case "voice":

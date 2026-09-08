@@ -232,3 +232,9 @@ export async function completePaymentStep(): Promise<void> {
   const { account } = await requireAccount();
   await finish(account, "payment", "onboarding");
 }
+
+/** Property management, step "portfolio": the importer saves as it goes, so this only moves on. */
+export async function completePortfolioStep(): Promise<void> {
+  const { account } = await requireAccount();
+  await finish(account, "portfolio", "onboarding");
+}

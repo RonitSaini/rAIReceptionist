@@ -46,6 +46,33 @@ test("finishing a step stores the next id, and finishing the last stores done", 
   assert.throws(() => nextOnboardingStepId("restaurant", "service-area"), /not part of the restaurant onboarding flow/);
 });
 
+test("a shared form finishes the step it was shown on, whatever that step is called", () => {
+  // Found in the 2026-09-07 sweep: the services form finishes as "services", the shop step is
+  // "appointments", and the save threw on step 4 of every auto-repair and veterinary signup.
+  // Property management's "maintenance" is the emergencies form under the same arrangement.
+  assert.equal(nextOnboardingStepId("auto_repair", "services"), "handoffs");
+  assert.equal(nextOnboardingStepId("veterinary", "services"), "handoffs");
+  assert.equal(nextOnboardingStepId("property_management", "emergencies"), "voice");
+  // And by their own names still.
+  assert.equal(nextOnboardingStepId("auto_repair", "appointments"), "handoffs");
+  assert.equal(nextOnboardingStepId("property_management", "maintenance"), "voice");
+  assert.equal(nextOnboardingStepId("property_management", "portfolio"), "maintenance");
+});
+
+test("every step id of every vertical has a page to render it", async () => {
+  // The other half of the same sweep finding: "portfolio" and "maintenance" had no case in the
+  // onboarding page, so a property-management signup got a 404 at step 4. The switch is read from
+  // source so a new step without a page fails here, not in a customer's browser.
+  const { readFileSync } = await import("node:fs");
+  const page = readFileSync(new URL("../src/app/onboarding/[step]/page.tsx", import.meta.url), "utf8");
+  for (const slug of AVAILABLE_VERTICALS) {
+    for (const s of onboardingStepsFor(slug)) {
+      if (s.id === "account") continue; // step 1 is rendered before the switch
+      assert.ok(page.includes(`case "${s.id}"`), `${slug}: no case for step "${s.id}" in the onboarding page`);
+    }
+  }
+});
+
 test("done is done, whatever the vertical", () => {
   assert.equal(hasFinishedOnboarding({ onboardingStepId: ONBOARDING_DONE }), true);
   assert.equal(hasFinishedOnboarding({ onboardingStepId: "phone" }), false);

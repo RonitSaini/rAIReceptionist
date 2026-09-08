@@ -83,6 +83,12 @@ export type OnboardingStep = {
   title: string;
   /** Short label for the progress rail. */
   short: string;
+  /**
+   * The shared form this step renders when it is not its own - "services" for a shop's
+   * "appointments", "emergencies" for property management's "maintenance". A shared form finishes
+   * onboarding under its own name; this is how that name resolves to the step it was shown on.
+   */
+  form?: string;
 };
 
 // ---------- Agent ----------
