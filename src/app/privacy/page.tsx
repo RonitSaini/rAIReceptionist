@@ -5,7 +5,7 @@ import { Logo } from "@/components/logo";
 import { AnimatedThemeToggle } from "@/components/ui/animated-theme-toggle";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — FrontDesk AI",
+  title: "Privacy Policy",
   description: "What FrontDesk AI collects, why, and what it will never do with it — including exactly how connected Google Calendars are used.",
 };
 

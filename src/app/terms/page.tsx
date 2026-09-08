@@ -6,7 +6,7 @@ import { AnimatedThemeToggle } from "@/components/ui/animated-theme-toggle";
 import { TERMS_EFFECTIVE } from "./terms-version";
 
 export const metadata: Metadata = {
-  title: "Terms of Service — FrontDesk AI",
+  title: "Terms of Service",
   description: "The plain-language terms for using FrontDesk AI: what the service does, what it costs, and who is responsible for what.",
 };
 

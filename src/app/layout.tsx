@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { appUrl } from "@/lib/env";
+import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/site";
 
 export const metadata: Metadata = {
   /**
@@ -11,9 +12,16 @@ export const metadata: Metadata = {
    * deployment describes itself as the preview rather than as production.
    */
   metadataBase: new URL(appUrl()),
-  title: { default: "FrontDesk AI", template: "%s · FrontDesk AI" },
-  description: "FrontDesk AI — an AI receptionist that answers your business line, books work, takes orders and messages, and keeps you in the loop.",
-  applicationName: "FrontDesk AI",
+  title: { default: SITE_NAME, template: `%s · ${SITE_NAME}` },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  /**
+   * What a shared link shows. Title and description are left unset here so each page's own title
+   * and description carry through (Next falls back to them); the image comes from
+   * app/opengraph-image.tsx and twitter-image.tsx, resolved against metadataBase.
+   */
+  openGraph: { type: "website", siteName: SITE_NAME, locale: "en_US", url: "/" },
+  twitter: { card: "summary_large_image" },
 };
 
 export const viewport: Viewport = {
