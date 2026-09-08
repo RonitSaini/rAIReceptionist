@@ -26,7 +26,7 @@ const OPTED_OUT_CODE = "21610";
  * second notification.
  */
 export async function POST(req: NextRequest) {
-  if (!twilioConfigured()) return new Response("", { status: 204 });
+  if (!twilioConfigured()) return new Response(null, { status: 204 });
   const params = await parseTwilioForm(req);
   const skipVerify = process.env.SKIP_WEBHOOK_SIGNATURE_VALIDATION === "true" && process.env.NODE_ENV !== "production";
   if (!skipVerify && !validateTwilioSignature(publicRequestUrl(req, appUrl()), params, req.headers.get("x-twilio-signature"))) {
@@ -35,16 +35,16 @@ export async function POST(req: NextRequest) {
 
   const sid = params.MessageSid ?? params.SmsSid;
   const status = params.MessageStatus ?? params.SmsStatus;
-  if (!sid || !status) return new Response("", { status: 204 });
+  if (!sid || !status) return new Response(null, { status: 204 });
 
   const row = await prisma.smsMessage.findUnique({ where: { messageSid: sid } });
   // A receipt for a message this app never recorded: nothing to update, and nothing worth guessing
   // an account from. Twilio stops retrying on a 2xx, which is right — there is no work here.
-  if (!row) return new Response("", { status: 204 });
+  if (!row) return new Response(null, { status: 204 });
 
   const failed = FAILED.has(status);
   // Already terminal and already reported. A retry must not notify twice.
-  if (row.status === "failed" || row.status === DELIVERED) return new Response("", { status: 204 });
+  if (row.status === "failed" || row.status === DELIVERED) return new Response(null, { status: 204 });
 
   const code = params.ErrorCode ?? "";
   // The raw provider text stays here on the diagnostic row; the code goes with it because that is
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     data: { status: failed ? "failed" : status, ...(error ? { error } : {}) },
   });
 
-  if (!failed) return new Response("", { status: 204 });
+  if (!failed) return new Response(null, { status: 204 });
 
   // A STOP typed to the carrier, or sent while this webhook was down, never reached the inbound
   // route — the first the app hears of it is this receipt. Recording it here is what stops the
@@ -67,5 +67,5 @@ export async function POST(req: NextRequest) {
   // read alike to the owner.
   await reportUndeliveredSms(row, error ?? "", code === OPTED_OUT_CODE ? "opted_out" : "provider");
 
-  return new Response("", { status: 204 });
+  return new Response(null, { status: 204 });
 }

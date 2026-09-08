@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
  * so they don't sit as "ongoing" forever, and records them as missed.
  */
 export async function POST(req: NextRequest) {
-  if (!twilioConfigured()) return new Response("", { status: 204 });
+  if (!twilioConfigured()) return new Response(null, { status: 204 });
   const params = await parseTwilioForm(req);
   const skipVerify = process.env.SKIP_WEBHOOK_SIGNATURE_VALIDATION === "true" && process.env.NODE_ENV !== "production";
   if (!skipVerify && !validateTwilioSignature(publicRequestUrl(req, appUrl()), params, req.headers.get("x-twilio-signature"))) {
@@ -19,10 +19,10 @@ export async function POST(req: NextRequest) {
 
   const sid = params.CallSid;
   const status = params.CallStatus;
-  if (!sid || !status) return new Response("", { status: 204 });
+  if (!sid || !status) return new Response(null, { status: 204 });
 
   const call = await prisma.call.findUnique({ where: { twilioCallSid: sid } });
-  if (!call || call.callStatus === "ended") return new Response("", { status: 204 });
+  if (!call || call.callStatus === "ended") return new Response(null, { status: 204 });
 
   if (["busy", "failed", "no-answer", "canceled"].includes(status)) {
     await prisma.call.update({
@@ -34,5 +34,5 @@ export async function POST(req: NextRequest) {
     // Retell's call_ended usually arrives too; this just guarantees the row is closed.
     await prisma.call.update({ where: { id: call.id }, data: { callStatus: "ended", endedAt: new Date(), ...(Number.isFinite(duration) ? { duration } : {}) } });
   }
-  return new Response("", { status: 204 });
+  return new Response(null, { status: 204 });
 }
