@@ -57,7 +57,7 @@ export async function afterJobBooked(account: Account, job: Job, call: Call | nu
   });
 
   // jobId so a failed confirmation shows up on the Dispatch queue beside the person waiting for it.
-  const sms = await sendGuestSms(account, job.customerPhone, body, { purpose: "reservation_confirmation", jobId: job.id });
+  const sms = await sendGuestSms(account, job.customerPhone, body, { purpose: "job_confirmation", jobId: job.id });
   await markConfirmationSent("job", job.id, sms);
   // The Dispatch queue already flags this while the job is live; the notification is what reaches
   // an owner who is not looking at that queue, and what survives the job leaving it.

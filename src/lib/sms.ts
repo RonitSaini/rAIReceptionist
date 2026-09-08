@@ -50,7 +50,7 @@ function sender(account: Pick<Account, "twilioNumber">): string | undefined {
 }
 
 /** What a guest message was for. Stored so cost reporting can break SMS spend down by cause. */
-export type SmsPurpose = "reservation_confirmation" | "takeout_confirmation" | "escalation_followup" | "cancellation_reply" | "inbound_reply" | "unacknowledged" | "running_late";
+export type SmsPurpose = "reservation_confirmation" | "takeout_confirmation" | "job_confirmation" | "escalation_followup" | "cancellation_reply" | "inbound_reply" | "unacknowledged" | "running_late";
 
 export async function sendGuestSms(
   account: Pick<Account, "id" | "twilioNumber" | "businessName">,
@@ -174,6 +174,9 @@ export async function notifyUndeliveredSms(
 export const PURPOSE_LABEL: Record<SmsPurpose, string> = {
   reservation_confirmation: "Their booking confirmation never reached them",
   takeout_confirmation: "Their order confirmation never reached them",
+  // Service calls, estimates, shop visits and work orders. Logged as reservation_confirmation
+  // until 2026-09-08, which read as a restaurant booking on every trade's SMS log.
+  job_confirmation: "Their visit confirmation never reached them",
   escalation_followup: "The follow-up promising a call back never reached them",
   cancellation_reply: "The confirmation of their cancellation never reached them",
   inbound_reply: "Our reply never reached them",
