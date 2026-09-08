@@ -62,7 +62,7 @@ export function SidebarNav({ items }: { items: SidebarNavItem[] }) {
             // Beat two, started on the click itself and never awaited: the navigation goes in this same
             // tick. A click on the row already showing is not a move and gets no exit.
             onClick={() => {
-              if (activeIndex >= 0 && i !== activeIndex) leavePage(i > activeIndex ? "down" : "up");
+              if (activeIndex >= 0 && i !== activeIndex) leavePage(i > activeIndex ? "down" : "up", it.href);
             }}
             className={`nav-row press-soft relative z-10 flex items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors ${active ? "text-brand-800" : "text-gray-600 hover:bg-gray-50 hover:text-ink"}`}
           >

@@ -1002,6 +1002,15 @@ by the layout — the nav is assembled per profession, so the template cannot ha
 between two rail rows (into a detail page, or from a path the rail does not own) arrives the plain way rather
 than guessing at a direction.
 
+Since 2026-09-08 the template keys its element by **pathname**. Next remounts a template per child *segment*, and
+the `(lists)` / `(detail)` route groups are one segment each, so without the key a move between two list pages
+kept the same element on screen — with the `data-leaving` stamp from the click still on it, which is how the
+dimmed-page bug happened. Three fail-safes sit behind that (`src/lib/motion.ts`): `leavePage` refuses a target
+equal to the current path; the template drops every stamp when a route commits and on `popstate` / `pageshow`;
+and any stamp older than the exit plus 400 ms clears itself. The dim is scoped to `.page-enter`, so the rail and
+the header can never take it. The harness (`nav.js`, "corridor" checks) holds all of this at 1440 and 390 px in
+both themes.
+
 ### 10.2 The mapping — per content TYPE, not per tab
 
 `data-arrival` goes on the element whose **children** settle in. Grandchildren are deliberately untouched, so an

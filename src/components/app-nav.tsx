@@ -56,7 +56,7 @@ function MobileTabs({ items }: { items: NavItem[] }) {
             data-active={active ? "true" : "false"}
             aria-current={active ? "page" : undefined}
             onClick={() => {
-              if (activeIndex >= 0 && i !== activeIndex) leavePage(i > activeIndex ? "down" : "up");
+              if (activeIndex >= 0 && i !== activeIndex) leavePage(i > activeIndex ? "down" : "up", it.href);
             }}
             className={`press-soft flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-semibold transition-colors ${active ? "text-brand-700" : "text-gray-500"}`}
           >

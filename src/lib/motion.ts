@@ -180,12 +180,50 @@ export function prefersReducedMotion(): boolean {
 }
 
 /**
+ * The backstop behind every leaving stamp (2026-09-08). The exit is the clamped 100 ms, so a stamp still
+ * on an element this long after it was set means its route never landed — the same page, a navigation
+ * that reused the element, a cancelled transition — and it clears itself. No code path can leave a page
+ * dimmed. One timer per element, so a guided leave and a page leave never cancel each other's.
+ */
+const LEAVE_BACKSTOP_MS = INTERACTION.exit.fast + 400;
+const leaveTimers = new WeakMap<Element, ReturnType<typeof setTimeout>>();
+
+function stampLeaving(el: Element | null | undefined, dir: string): void {
+  if (!el) return;
+  el.setAttribute("data-leaving", dir);
+  const pending = leaveTimers.get(el);
+  if (pending) clearTimeout(pending);
+  leaveTimers.set(
+    el,
+    setTimeout(() => {
+      leaveTimers.delete(el);
+      if (el.getAttribute("data-leaving") === dir) el.removeAttribute("data-leaving");
+    }, LEAVE_BACKSTOP_MS),
+  );
+}
+
+/**
+ * Client-only: drop every leaving stamp on screen. The app template calls it when a route commits, and on
+ * `popstate` and `pageshow` — history moves and a page restored from the back/forward cache bypass the
+ * click path entirely and could otherwise revive a stale stamp.
+ */
+export function clearLeaving(): void {
+  if (typeof document === "undefined") return;
+  document.querySelectorAll("[data-leaving]").forEach((el) => {
+    const pending = leaveTimers.get(el);
+    if (pending) clearTimeout(pending);
+    leaveTimers.delete(el);
+    el.removeAttribute("data-leaving");
+  });
+}
+
+/**
  * Client-only: the guided container around `from` (an onboarding step) steps aside in the direction of
  * travel while the route changes — 8 px along the corridor, dimmed to the pending state, at the exit step
  * (spec §8.3). Never awaited: the caller navigates in the same tick, and the route lands whenever it lands.
  */
 export function leaveGuided(from: Element, dir: "forward" | "back"): void {
-  from.closest(".guided")?.setAttribute("data-leaving", dir);
+  stampLeaving(from.closest(".guided"), dir);
 }
 
 /**
@@ -198,8 +236,12 @@ export function leaveGuided(from: Element, dir: "forward" | "back"): void {
  * exists to cover a wait, never to create one. The container is found by class rather than passed in
  * because the rail and the page live in different trees (the rail is in the layout, the page under the
  * template), and there is exactly one `.page-enter` on screen.
+ *
+ * `href` is the click's target: when it is the path already on screen nothing will change, so nothing
+ * may dim — the rail's own active-row guard is the first line, this is the second.
  */
-export function leavePage(dir: "down" | "up"): void {
+export function leavePage(dir: "down" | "up", href?: string): void {
   if (typeof document === "undefined") return;
-  document.querySelector(".page-enter")?.setAttribute("data-leaving", dir);
+  if (href && new URL(href, window.location.href).pathname === window.location.pathname) return;
+  stampLeaving(document.querySelector(".page-enter"), dir);
 }
