@@ -178,7 +178,7 @@ there. Don't mix the two.
 | Class | Source usages | Where |
 |---|---|---|
 | `.reveal` | 10 (+ per-row list staggers) | `<Reveal>` on dashboard sections, sidebar cards, notification rows, and now Recent calls / Callbacks owed / Today's reservations / Open takeout rows |
-| `.skeleton` | 7 + dashboard & sidebar skeletons | `(app)/loading.tsx` (generic), `(app)/dashboard/loading.tsx` (dashboard-shaped), `<SidebarPanelSkeleton>` (Suspense fallback in the app layout) |
+| `.skeleton` | 7 + dashboard & sidebar skeletons | `(app)/(lists)/loading.tsx` (generic), `(app)/(lists)/dashboard/loading.tsx` (dashboard-shaped), `<SidebarPanelSkeleton>` (Suspense fallback in the app layout) |
 | `.lift` | 8 | `StatTile`, notification grid cards, Recent calls rows, Callbacks owed rows |
 | `.status-dot` | 8 | live calls, open now, host answering, unread rows, peak hour, **closed right now**, **host not on a line yet** |
 | `.press` | 3 | every `Button` / `LinkButton` |
@@ -303,7 +303,7 @@ Searched on 21st.dev via the MCP (2026-08-30). Status: ✅ done · 🔍 to resea
 | card hover elevation + border glow | Rejected as a category: every candidate was a pointer-tracking gradient / spotlight / 3D tilt (aceternity *Glowing Effect* #1567, *Glow Card Grid* #25283, *Spotlight Card* #2220) — a third motion idiom. `Card` stays inert (rule 12); `.lift` retuned to 150 ms with the shadow on `::after`, extended to link rows | ✅ (in-house) |
 | animated success / confirm button | Checkmark morph **rejected** (rule 11 + the 18 px floor). Candidates were motion.dev *Copy Button* #24659 (pathLength check on `motion`), ddoemonn *Loading Button* #23536 (no-layout-shift label morph — the constraint kept). Ours: `useFormStatus` pending → label dims; the new status `Badge` pops (`?changed=` on the action redirect) | ✅ (in-house) |
 | animated segmented control / tabs | Sliding-pill controls (ddoemonn *Segmented Control* #23552, educalvolpz *Animated Tabs* #24930, cnippet #24931) all need `width`/`scaleX` across variable-width chips. **Built in-house 2026-09-02 as a three-piece pill** (`<SegmentedLinks>`, §7 rule 19): caps translate, the body scales, transform-only. Every filter/tab strip uses it | ✅ (in-house) |
-| skeleton loading cards | `(app)/dashboard/loading.tsx` mirrors the dashboard; `<SidebarPanel>` streams behind a Suspense skeleton so the shell paints before the panel's queries finish | ✅ (in-house) |
+| skeleton loading cards | `(app)/(lists)/dashboard/loading.tsx` mirrors the dashboard; `<SidebarPanel>` streams behind a Suspense skeleton so the shell paints before the panel's queries finish | ✅ (in-house) |
 | live/pulse status indicator | "isn't on a line yet" uses `.status-dot` (amber, actionable); "Closed right now" keeps a steady gray dot (rule 10) | ✅ (in-house) |
 | staggered list reveal | Recent calls, Callbacks owed, Today's reservations, Open takeout rows: `<Reveal as="li" index={i + 1}>` | ✅ (in-house) |
 
@@ -1195,15 +1195,20 @@ page segment**: ~300 ms in dev, and much shorter in production where the route i
 motion value and no timing token affects it.
 
 Eliminating it entirely means not mounting a loading fallback at commit, so the old page survives until the data
-lands. **Measured** (`diag/experiment-no-loading`, `(app)/loading.tsx` temporarily moved aside): route commit and
+lands. **Measured** (`diag/experiment-no-loading`, `(app)/(lists)/loading.tsx` — then `(app)/loading.tsx` — temporarily moved aside): route commit and
 the first content frame coincide (**gap 0 ms**), **0 blank frames**, and the leave renders for **10 frames /
 148 ms** — the leaving page covering the whole wait, which is exactly the rule. The file was restored immediately;
 nothing about it is committed.
 
 Not taken, because the cost is real and outside this pass:
 
-- `(app)/loading.tsx` is what flushes the streaming shell on a **hard load** (it is also why `notFound()` in the
-  streamed segment returns HTTP 200 — §7.6 note 2's cousin). Removing it makes first paint TTFB-bound.
+- `(app)/(lists)/loading.tsx` is what flushes the streaming shell on a **hard load** of a list page. Removing it
+  makes first paint TTFB-bound. (Until 2026-09-08 it sat at `(app)/loading.tsx`, above every page, which is also
+  why `notFound()` on a record page returned HTTP 200 — §7.6 note 2's cousin. The four record pages —
+  `calls/[id]`, `jobs/[id]`, `reservations/[id]`, `takeout/[id]` — now live in `(app)/(detail)/`, outside the
+  boundary: one indexed query before first paint, a real 404 for a missing record, and on navigation the leaving
+  page covers the wait, which is the measured-better shape above. The list pages keep the boundary for the
+  reason in the next bullet.)
 - A genuinely slow route would then show a frozen dimmed page with no progress signal at all.
 
 The principled fix is neither: move each page's **data** query behind its own `<Suspense>` so the page's real
