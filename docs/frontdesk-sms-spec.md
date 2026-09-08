@@ -62,6 +62,11 @@ only means this app does not *also* act on them.
 
 Three distinct failures, which used to be one indistinguishable silence:
 
+0. **Paused before sending** — no messaging service is configured yet and the recipient is a US
+   (or unplaceable) number. Not attempted: the row is recorded with `status: "skipped"` and the plain
+   reason "Text confirmations to US numbers are paused until carrier registration completes", no
+   notification is filed, and Home carries one dismissable line while the condition holds
+   (`src/lib/sms-pause.ts`, 2026-09-08). A Canadian recipient is not paused.
 1. **Refused before sending** — the number has opted out. `sendGuestSms` checks
    `Customer.smsOptedOutAt` and never calls Twilio. Recorded at zero segments, `status: "failed"`.
 2. **Refused by Twilio** — a synchronous rejection (21610, trial limits, unregistered 10DLC).
@@ -100,6 +105,10 @@ them they are mid-setup.
    doubling the cost of every text silently. Use `-`, `...` and straight quotes. Enforced by
    `tests/sms-gsm7.test.mjs` — which reads the whole file, including notification text that is never
    actually sent.
+8. **A paused text is not a failed text.** While `TWILIO_MESSAGING_SERVICE_SID` is unset, a US-bound
+   send is skipped and recorded (rule 4 still holds: it is a fact on the row) but never raises an
+   alert - one known condition is said once, on Home, not once per booking. Canadian-bound sends are
+   unchanged. Setting the variable ends the pause everywhere, with no other change.
 7. **Opt-out is never backfilled or guessed.** `NULL` means reachable. Recording an opt-out that did
    not happen silently stops a real business from texting a real customer.
 

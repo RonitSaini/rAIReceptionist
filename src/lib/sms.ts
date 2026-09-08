@@ -8,6 +8,7 @@ import { createNotification } from "./notifications";
 import { formatUsPhone } from "./form";
 import { friendlyProviderError } from "./provider-errors";
 import { isOptedOut } from "./sms-opt-out";
+import { SMS_PAUSE_REASON, smsPausedFor } from "./sms-pause";
 import { verticalFor } from "@/verticals";
 import type { CancellationKind } from "@/verticals/types";
 
@@ -34,9 +35,11 @@ function smsStatusCallbackUrl(): string | undefined {
  * The distinction that matters is whether anyone should be told. `opted_out` and `provider` are
  * things that happened to a message somebody was expecting; `no_number` and `not_configured` mean
  * there was never going to be a message at all, and an owner mid-setup does not need a notification
- * per booking explaining that they have not finished setting up.
+ * per booking explaining that they have not finished setting up. `paused` is the third kind: a
+ * US-bound text while there is no messaging service (src/lib/sms-pause.ts) - recorded, skipped,
+ * and said once on Home rather than once per booking.
  */
-export type SmsFailureReason = "no_number" | "not_configured" | "opted_out" | "provider";
+export type SmsFailureReason = "no_number" | "not_configured" | "opted_out" | "provider" | "paused";
 
 export type SmsResult = { ok: true; sid: string } | { ok: false; error: string; reason: SmsFailureReason; skipped?: boolean };
 
@@ -62,10 +65,6 @@ export async function sendGuestSms(
   if (!twilioConfigured()) return { ok: false, error: "Twilio not configured", reason: "not_configured", skipped: true };
   const from = sender(account);
   if (!from) return { ok: false, error: "no sending number yet", reason: "not_configured", skipped: true };
-  // The fallback the spec allows and nothing else: with no service the text goes out from the raw
-  // number, which US carriers filter as unregistered traffic. Loud on purpose - this line in a
-  // production log is the whole diagnosis.
-  if (!messagingServiceSid()) console.warn(`[sms] TWILIO_MESSAGING_SERVICE_SID is not set; sending from the raw number ${from}, which US carriers filter as unregistered A2P traffic`);
 
   // They asked us to stop. Twilio would refuse this anyway; refusing it here means the refusal is
   // ours, carries the real reason, and cannot be mistaken for a message that went out. The row is
@@ -89,6 +88,30 @@ export async function sendGuestSms(
     });
     return { ok: false, error, reason: "opted_out", skipped: true };
   }
+
+  // Texts to US numbers are paused until the A2P campaign is approved (spec rule 8, src/lib/sms-pause.ts):
+  // from a bare number US carriers filter them, and an urgent alert per booking was noise about one
+  // known condition. Recorded as skipped, never notified. A Canadian recipient is not paused.
+  if (smsPausedFor(to)) {
+    await recordSms({
+      accountId: account.id,
+      messageSid: `paused:${randomUUID()}`,
+      direction: "outbound",
+      toNumber: to,
+      fromNumber: from ?? null,
+      numSegments: 0,
+      status: "skipped",
+      error: SMS_PAUSE_REASON,
+      purpose: meta?.purpose ?? null,
+      callId: meta?.callId ?? null,
+      reservationId: meta?.reservationId ?? null,
+      jobId: meta?.jobId ?? null,
+    });
+    return { ok: false, error: SMS_PAUSE_REASON, reason: "paused", skipped: true };
+  }
+  // The fallback the spec allows and nothing else: with no service a Canadian-bound text goes out
+  // from the raw number. Loud on purpose - this line in a production log is the whole diagnosis.
+  if (!messagingServiceSid()) console.warn(`[sms] TWILIO_MESSAGING_SERVICE_SID is not set; sending to ${to} from the raw number ${from} (Canadian carriers deliver unregistered traffic; US-bound texts are paused)`);
 
   try {
     const sent = await sendSms({ to, body, from, statusCallback: smsStatusCallbackUrl() });
@@ -151,6 +174,8 @@ export async function notifyUndeliveredSms(
 ): Promise<void> {
   if (result.ok) return;
   if (result.reason === "no_number" || result.reason === "not_configured") return;
+  // Paused, not failed: Home says it once (SmsPauseBanner), and an alert per booking would be noise.
+  if (result.reason === "paused") return;
 
   const who = about.name?.trim() || (about.phone ? formatUsPhone(about.phone) : "your customer");
   // The raw provider text stays on the SmsMessage row; the owner gets one plain clause.

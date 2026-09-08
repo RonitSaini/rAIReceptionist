@@ -26,13 +26,13 @@ for (const f of [".env.local", ".env"]) {
 export const FIXTURE_PASSWORD = "fixture-password-2026";
 
 /** Creates the rows; returns them with a `remove()` that deletes the user, then the account (which cascades). */
-export async function createFixture({ vertical = "plumbing", businessName = "Fixture Plumbing", unreadNotifications = 0 } = {}) {
+export async function createFixture({ vertical = "plumbing", businessName = "Fixture Plumbing", unreadNotifications = 0, twilioNumber = null } = {}) {
   const { PrismaClient } = await import("@prisma/client");
   const { hashPassword } = await import("@/lib/password");
   const { recordTermsAcceptance } = await import("@/lib/terms-acceptance");
   const prisma = new PrismaClient({ datasources: { db: { url: env.DATABASE_URL } } });
   const email = `fixture-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@frontdesk.test`;
-  const account = await prisma.account.create({ data: { businessName, vertical, onboardingStepId: "done", ownerName: "Fixture Owner" } });
+  const account = await prisma.account.create({ data: { businessName, vertical, onboardingStepId: "done", ownerName: "Fixture Owner", twilioNumber } });
   const user = await prisma.user.create({ data: { email, name: "Fixture Owner", passwordHash: await hashPassword(FIXTURE_PASSWORD), emailVerified: new Date(), accountId: account.id } });
   await recordTermsAcceptance(user.id, null, prisma);
   for (let i = 0; i < unreadNotifications; i++) {

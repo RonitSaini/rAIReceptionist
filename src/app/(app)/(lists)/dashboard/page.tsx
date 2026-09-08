@@ -1,4 +1,7 @@
+import { cookies } from "next/headers";
 import { requireAccount } from "@/lib/current-account";
+import { SMS_PAUSE_DISMISS_COOKIE, showSmsPauseBanner } from "@/lib/sms-pause";
+import { SmsPauseBanner } from "@/components/sms-pause-banner";
 import { verticalFor } from "@/verticals";
 import { RestaurantHome } from "./restaurant-home";
 import { FieldServiceHome } from "./field-service-home";
@@ -17,5 +20,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const { changed } = await searchParams; // id whose status just changed → its badge pops
 
   const Home = verticalFor(account).archetype === "restaurant" ? RestaurantHome : FieldServiceHome;
-  return <Home account={account} previousSeenAt={previousSeenAt} changed={changed} />;
+  // While texts to US numbers are paused (no messaging service yet), one dismissable line above
+  // the home, gone by itself the day TWILIO_MESSAGING_SERVICE_SID is set (src/lib/sms-pause.ts).
+  const dismissedFor = (await cookies()).get(SMS_PAUSE_DISMISS_COOKIE)?.value;
+  return (
+    <>
+      {showSmsPauseBanner(account, dismissedFor) ? <SmsPauseBanner /> : null}
+      <Home account={account} previousSeenAt={previousSeenAt} changed={changed} />
+    </>
+  );
 }
