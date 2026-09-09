@@ -7,9 +7,50 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 const API = "https://api.retellai.com";
 
-/** SIP domain Retell answers registered calls on. Override if Retell changes it. */
+/**
+ * The host Retell answers registered calls on.
+ *
+ * Retell retired the LiveKit-fronted edge that used to sit behind this name (`*.sip.livekit.cloud`,
+ * dead after 2026-09-30). This is the survivor, and it is what every call is dialed at unless an
+ * override passes the check below.
+ */
+const RETELL_SIP_HOST = "sip.retellai.com";
+
+/** A bare hostname: labels of letters, digits and inner hyphens. No scheme, port, path or params. */
+const HOSTNAME = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/;
+
+/**
+ * Is this Retell's own SIP host?
+ *
+ * `endsWith("retellai.com")` would be the obvious test and the wrong one: it also accepts
+ * `notretellai.com`. The domain has to BE retellai.com or sit under it.
+ */
+function isRetellSipHost(host: string): boolean {
+  const h = host.toLowerCase();
+  if (!HOSTNAME.test(h)) return false;
+  return h === "retellai.com" || h.endsWith(".retellai.com");
+}
+
+/**
+ * SIP domain Retell answers registered calls on.
+ *
+ * `RETELL_SIP_DOMAIN` stays so a host change can ship without a deploy, but a wrong value there
+ * fails in the worst way available: the TwiML is still valid, Twilio still dials, the leg still
+ * "completes", and the caller just hears nothing — on every inbound call at once, with nothing in
+ * the app to show for it. So the override is honoured only if it is genuinely a Retell host, and
+ * anything else is refused out loud and the constant answers instead.
+ *
+ * Refusing is deliberately the *safe* direction: the fallback is a host that works. That also means
+ * a future value carrying a port or a `;transport=` parameter is rejected rather than dialed — the
+ * URI has never carried either, so one appearing here is a config error, and degrading to a working
+ * host while saying so is better than dialing a malformed one.
+ */
 export function retellSipDomain(): string {
-  return process.env.RETELL_SIP_DOMAIN || "sip.retellai.com";
+  const override = process.env.RETELL_SIP_DOMAIN?.trim();
+  if (!override) return RETELL_SIP_HOST;
+  if (isRetellSipHost(override)) return override;
+  console.error(`[retell] REFUSED RETELL_SIP_DOMAIN=${JSON.stringify(override)}: not a retellai.com host. Dialing ${RETELL_SIP_HOST} instead.`);
+  return RETELL_SIP_HOST;
 }
 
 function apiKey(): string {
@@ -198,8 +239,20 @@ export function getCall(callId: string) {
 export function createWebCall(body: { agent_id: string; metadata?: Record<string, unknown>; retell_llm_dynamic_variables?: Record<string, string> }) {
   return request<RetellCall & { access_token: string }>("POST", "/v2/create-web-call", body);
 }
+/**
+ * The URI Twilio dials to hand a registered call to Retell.
+ *
+ * Every SIP dial in the app is built here — the voice webhook's fresh registration and the one it
+ * reuses when Twilio retries — so this is also where the host is logged, one line per call. It is
+ * the only informational log in the app on purpose: the endpoint we dial is the single fact about a
+ * call that nothing else records, and the alternative to a log line is placing a test call and
+ * reading Twilio's leg to find out. `[retell] REFUSED` above is what a bad override looks like in
+ * the same stream.
+ */
 export function sipUriForCall(callId: string): string {
-  return `sip:${callId}@${retellSipDomain()}`;
+  const host = retellSipDomain();
+  console.log(`[retell] dialing ${callId} at ${host}`);
+  return `sip:${callId}@${host}`;
 }
 
 // ---------- Voices ----------
